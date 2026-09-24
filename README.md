@@ -72,7 +72,8 @@ gestionar productos.
 ecocordi/
 ├── server.py          → Backend: servidor + base de datos (API)
 ├── ecocordi.db        → Base de datos SQLite (se crea sola al arrancar)
-├── index.html         → Página principal de la tienda
+├── index.html         → Página principal: portada, superficies y 3 destacados
+├── catalogo.html      → Catálogo completo con filtro por superficie (?superficie=madera)
 ├── admin.html         → Panel de administración
 ├── terminos.html      → Términos y condiciones (en preparación)
 ├── creditos.html      → Créditos de las fotografías
@@ -96,7 +97,9 @@ ecocordi/
 
 - **Catálogo** cargado desde la base de datos.
 - **Filtro por superficie** (madera, metal, exterior, techo, interior): la
-  funcionalidad estrella, con accesos directos desde la portada.
+  funcionalidad estrella. Vive en `catalogo.html`; la superficie elegida queda en
+  la dirección (por ejemplo `catalogo.html?superficie=madera`), así se puede
+  compartir el enlace y el botón "atrás" vuelve al filtro anterior.
 - **Carrito de compras** que se mantiene aunque cierres la página y no deja
   pedir más unidades de las que hay en bodega.
 - **Stock** por producto: la tienda muestra "¡Quedan N!" cuando quedan 5 o

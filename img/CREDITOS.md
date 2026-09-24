@@ -23,6 +23,9 @@ a cada fotógrafo. Las fotos se recortaron y convirtieron a WebP para el sitio.
 | `prod-especiales.webp` (800×600, 92 KB) | Producto: Productos Especiales | Theme Photos | [unsplash.com/photos/Cl-OpYWFFm0](https://unsplash.com/photos/Cl-OpYWFFm0) |
 | `prod-techo.webp` (800×600, 192 KB) | Producto: Impermeabilizante Techo | Eugenia Pan'kiv | [unsplash.com/photos/qj-15qJiEzM](https://unsplash.com/photos/qj-15qJiEzM) |
 
+Las miniaturas `sup-*-mini.webp` (96×96, 1–4 KB) son recortes de las fotos `sup-*.webp` de arriba,
+usadas en los botones del filtro del catálogo.
+
 ## Otras imágenes
 
 | Archivo | Origen |

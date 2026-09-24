@@ -50,7 +50,7 @@
 
       <nav class="menu" id="menu" aria-label="Principal">
         <a href="#superficies" class="menu__link">Superficies</a>
-        <a href="#catalogo" class="menu__link">Catálogo</a>
+        <a href="catalogo.html" class="menu__link">Catálogo</a>
         <a href="#nosotros" class="menu__link">Nosotros</a>
         <a href="#sucursales" class="menu__link">Sucursales</a>
       </nav>
@@ -86,13 +86,13 @@
           </p>
 
           <p class="portada__pregunta" id="preguntaSuperficie">¿Qué vas a pintar?</p>
-          <div class="portada__atajos" role="group" aria-labelledby="preguntaSuperficie">
-            <button type="button" class="atajo" data-elegir-superficie="madera">Madera</button>
-            <button type="button" class="atajo" data-elegir-superficie="metal">Metal</button>
-            <button type="button" class="atajo" data-elegir-superficie="exterior">Exterior</button>
-            <button type="button" class="atajo" data-elegir-superficie="techo">Techo</button>
-            <button type="button" class="atajo" data-elegir-superficie="interior">Interior</button>
-          </div>
+          <nav class="portada__atajos" aria-labelledby="preguntaSuperficie">
+            <a class="atajo" href="catalogo.html?superficie=madera">Madera</a>
+            <a class="atajo" href="catalogo.html?superficie=metal">Metal</a>
+            <a class="atajo" href="catalogo.html?superficie=exterior">Exterior</a>
+            <a class="atajo" href="catalogo.html?superficie=techo">Techo</a>
+            <a class="atajo" href="catalogo.html?superficie=interior">Interior</a>
+          </nav>
 
           <!-- La idea de esta portada: ver la tienda con otra luz -->
           <div class="luz-control" role="group" aria-labelledby="luzTitulo">
@@ -130,67 +130,49 @@
           <p class="seccion__bajada">Cada superficie necesita su pintura. Toca una y te mostramos solo lo que le sirve.</p>
         </div>
 
-        <!-- app.js escucha los clics en #filtros -->
-        <div class="filtros" id="filtros" role="group" aria-label="Filtrar el catálogo por superficie">
-          <button type="button" class="filtro" data-superficie="madera" aria-pressed="false">
+        <!-- Cada foto lleva al catálogo ya filtrado (catalogo.html?superficie=...) -->
+        <nav class="filtros" aria-label="Ver pinturas por superficie">
+          <a class="filtro" href="catalogo.html?superficie=madera">
             <img class="filtro__foto" src="img/sup-madera.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Madera</span><span class="filtro__detalle">Terrazas, puertas y muebles</span></span>
-          </button>
-          <button type="button" class="filtro" data-superficie="metal" aria-pressed="false">
+          </a>
+          <a class="filtro" href="catalogo.html?superficie=metal">
             <img class="filtro__foto" src="img/sup-metal.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Metal</span><span class="filtro__detalle">Rejas, portones y estructuras</span></span>
-          </button>
-          <button type="button" class="filtro" data-superficie="exterior" aria-pressed="false">
+          </a>
+          <a class="filtro" href="catalogo.html?superficie=exterior">
             <img class="filtro__foto" src="img/sup-exterior.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Exterior</span><span class="filtro__detalle">Fachadas al sol y la lluvia</span></span>
-          </button>
-          <button type="button" class="filtro" data-superficie="techo" aria-pressed="false">
+          </a>
+          <a class="filtro" href="catalogo.html?superficie=techo">
             <img class="filtro__foto" src="img/sup-techo.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Techo</span><span class="filtro__detalle">Cubiertas y techumbres</span></span>
-          </button>
-          <button type="button" class="filtro" data-superficie="interior" aria-pressed="false">
+          </a>
+          <a class="filtro" href="catalogo.html?superficie=interior">
             <img class="filtro__foto" src="img/sup-interior.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Interior</span><span class="filtro__detalle">Muros y cielos de tu casa</span></span>
-          </button>
-          <button type="button" class="filtro filtro--todas filtro--activo" data-superficie="todas" aria-pressed="true">
+          </a>
+          <a class="filtro filtro--todas" href="catalogo.html">
             <span class="filtro__texto"><span class="filtro__nombre">Todas</span><span class="filtro__detalle">El catálogo completo</span></span>
-          </button>
-        </div>
+          </a>
+        </nav>
       </div>
     </section>
 
-    <!-- ================= CATÁLOGO ================= -->
-    <section class="catalogo" id="catalogo" aria-labelledby="catalogoTitulo">
+    <!-- ================= DESTACADOS ================= -->
+    <section class="destacados" id="destacados" aria-labelledby="destacadosTitulo">
       <div class="contenedor">
         <div class="seccion__cabecera seccion__cabecera--fila">
-          <h2 class="seccion__titulo" id="catalogoTitulo">Catálogo</h2>
-          <!-- app.js escribe aquí qué filtro está activo -->
-          <p class="catalogo__estado" id="filtroActivo" aria-live="polite"></p>
+          <div>
+            <h2 class="seccion__titulo" id="destacadosTitulo">Para <em>empezar</em></h2>
+            <p class="seccion__bajada">Algunas de nuestras pinturas. El resto te espera en el catálogo.</p>
+          </div>
+          <a class="enlace-flecha" href="catalogo.html">
+            Ver catálogo completo <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg>
+          </a>
         </div>
-
-        <div class="catalogo__interior">
-          <!-- app.js pinta aquí los productos -->
-          <div class="productos" id="productos"></div>
-
-          <!-- Espacio preparado: calculadora m² → litros (todavía sin lógica) -->
-          <aside class="calculadora" id="calculadora" aria-labelledby="calculadoraTitulo">
-            <h3 class="calculadora__titulo" id="calculadoraTitulo">¿Cuánta pintura <em>necesito?</em></h3>
-            <p class="calculadora__texto">Muy pronto: escribe los metros cuadrados a pintar y te diremos cuántos litros comprar.</p>
-            <div class="calculadora__campos">
-              <label class="campo">
-                <span class="campo__etiqueta">Metros cuadrados</span>
-                <input class="campo__control" type="number" id="calcMetros" min="1" placeholder="Ej: 40" disabled />
-              </label>
-              <label class="campo">
-                <span class="campo__etiqueta">Manos de pintura</span>
-                <select class="campo__control" id="calcManos" disabled>
-                  <option>2</option><option>1</option><option>3</option>
-                </select>
-              </label>
-            </div>
-            <p class="calculadora__resultado" id="calcResultado">Próximamente</p>
-          </aside>
-        </div>
+        <!-- app.js pinta aquí 3 productos con stock (data-limite="3") -->
+        <div class="productos productos--destacados" id="productos" data-limite="3"></div>
       </div>
     </section>
 
@@ -324,7 +306,7 @@
       <div class="pie__columna">
         <h2 class="pie__titulo">Tienda</h2>
         <ul class="pie__lista">
-          <li><a href="#catalogo">Catálogo</a></li>
+          <li><a href="catalogo.html">Catálogo</a></li>
           <li><a href="#sucursales">Sucursales</a></li>
           <li><a href="terminos.html">Términos y condiciones</a></li>
           <li><a href="privacidad.html">Política de privacidad</a></li>

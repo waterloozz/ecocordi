@@ -277,6 +277,7 @@ p { text-wrap: pretty; }
   font-size: var(--txt-sm); font-weight: 500; border-radius: var(--radio-sm);
 }
 .menu__link:hover { color: var(--texto); }
+.menu__link[aria-current="page"] { color: var(--texto); text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 1.5px; }
 
 .cabecera__acciones { display: flex; align-items: center; gap: var(--esp-2); margin-left: auto; }
 .cuenta-area { display: flex; align-items: center; gap: var(--esp-2); }
@@ -373,7 +374,7 @@ p { text-wrap: pretty; }
 /* 5 fotos grandes + "Todas" más angosta (no tiene foto) */
 .filtros { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 0.6fr); gap: var(--esp-3); }
 .filtro {
-  position: relative; display: block; text-align: left;
+  position: relative; display: block; text-align: left; text-decoration: none;
   aspect-ratio: 3 / 4; overflow: hidden;
   border-radius: var(--radio-lg); background: var(--muro-2); color: #FFFFFF;
   isolation: isolate;
@@ -397,14 +398,13 @@ p { text-wrap: pretty; }
 .filtro--todas::before { display: none; }
 
 /* ============ 8. CATÁLOGO Y CALCULADORA ============ */
-.catalogo { padding-block: var(--esp-seccion); background: var(--muro-2); transition: background-color var(--cambio-luz) ease; }
+.destacados { padding-block: var(--esp-seccion); background: var(--muro-2); transition: background-color var(--cambio-luz) ease; }
 .catalogo__estado { font-size: var(--txt-sm); color: var(--texto-2); font-variant-numeric: tabular-nums; }
 .catalogo__estado strong { color: var(--texto); }
 .catalogo__quitar { margin-left: var(--esp-2); min-height: 32px; color: var(--acento); font-weight: 600; text-decoration: underline; }
-.catalogo__interior { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--esp-7); align-items: start; }
 
 /* Productos: lista editorial a dos columnas (sin cajas ni sombras) */
-.productos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-8) var(--esp-6); }
+.productos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-8) var(--esp-6); }
 .producto { display: flex; flex-direction: column; gap: var(--esp-3); }
 .producto__foto { aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radio-lg); background: var(--muro); }
 .producto__foto img { width: 100%; height: 100%; object-fit: cover; }
@@ -434,7 +434,6 @@ p { text-wrap: pretty; }
 .sin-resultados { grid-column: 1 / -1; padding: var(--esp-7); text-align: center; color: var(--texto-2); font-family: var(--serif); font-size: var(--txt-xl); }
 
 .calculadora {
-  position: sticky; top: calc(var(--alto-cabecera) + var(--esp-5));
   display: flex; flex-direction: column; gap: var(--esp-3);
   padding: var(--esp-6); background: var(--papel);
   border: 1px solid var(--linea); border-radius: var(--radio-lg);
@@ -443,6 +442,51 @@ p { text-wrap: pretty; }
 .calculadora__texto { font-size: var(--txt-sm); color: var(--texto-2); line-height: 1.5; }
 .calculadora__campos { display: grid; gap: var(--esp-3); }
 .calculadora__resultado { padding: var(--esp-3); text-align: center; color: var(--texto-2); font-style: italic; border: 1px dashed var(--linea); border-radius: var(--radio-sm); }
+
+/* ---- Página de catálogo (catalogo.html) ---- */
+.catalogo-pagina { padding-top: var(--esp-7); }
+.catalogo-pagina__cabecera { margin-bottom: var(--esp-6); }
+/* La calculadora, al final del listado, como franja horizontal */
+.calculadora--banda {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: var(--esp-5) var(--esp-7); align-items: center; margin-top: var(--esp-8);
+}
+.calculadora--banda .calculadora__campos { grid-template-columns: 1fr 1fr 1fr; align-items: end; }
+.catalogo-pagina__titulo { font-size: var(--txt-3xl); letter-spacing: -0.02em; line-height: 0.95; }
+.catalogo-pagina__lista { padding-block: var(--esp-7) var(--esp-seccion); }
+
+/* Barra de filtros: queda pegada bajo la cabecera al bajar */
+.barra-filtros {
+  position: sticky; top: var(--alto-cabecera); z-index: 50;
+  background: color-mix(in srgb, var(--muro) 90%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-block: 1px solid var(--linea);
+}
+.barra-filtros__interior { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3) var(--esp-6); padding-block: var(--esp-3); }
+/* Los chips se deslizan de lado si no caben (sin mover la página) */
+.filtros--barra {
+  display: flex; gap: var(--esp-2); min-width: 0;
+  overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+  padding: 4px; margin: -4px; /* espacio para que se vea el anillo de foco */
+}
+.filtros--barra::-webkit-scrollbar { display: none; }
+.filtro--chip {
+  display: inline-flex; align-items: center; gap: var(--esp-2); flex-shrink: 0;
+  aspect-ratio: auto; min-height: 46px; padding: 4px var(--esp-4) 4px 4px;
+  background: var(--papel); color: var(--texto);
+  border: 1.5px solid var(--linea); border-radius: 999px; overflow: visible;
+  font-weight: 600; font-size: var(--txt-sm); scroll-snap-align: start;
+}
+/* .filtro.filtro--chip gana a las reglas de .filtro de las pantallas medianas */
+.filtro.filtro--chip { aspect-ratio: auto; }
+.filtro--chip[data-superficie="todas"] { padding-left: var(--esp-4); }
+.filtro--chip::before { display: none; }
+.filtro--chip .filtro__nombre { font-family: var(--sans); font-size: var(--txt-sm); line-height: 1.2; }
+.filtro__miniatura { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; filter: var(--foto-filtro); }
+.filtro--chip:hover { border-color: var(--texto); }
+.filtro--chip.filtro--activo { background: var(--acento); color: var(--sobre-acento); border-color: var(--acento); box-shadow: none; }
+.filtro--chip.filtro--activo::after { display: none; }
+.catalogo__estado { flex-shrink: 0; }
 
 /* ============ 9. BENEFICIOS, NOSOTROS Y SUCURSALES ============ */
 .beneficios { padding-block: var(--esp-8); border-block: 1px solid var(--linea); }
@@ -707,8 +751,8 @@ p { text-wrap: pretty; }
   .filtros { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .filtro { aspect-ratio: 16 / 11; }
   .filtro--todas { aspect-ratio: auto; }
-  .catalogo__interior { grid-template-columns: 1fr; }
-  .calculadora { position: static; }
+  .productos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .calculadora--banda { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {
@@ -728,6 +772,7 @@ p { text-wrap: pretty; }
   .ventana { justify-self: center; width: min(100%, 360px); order: -1; }
   .ventana__foto, .ventana__luz { aspect-ratio: 4 / 5; }
   .beneficios__lista { grid-template-columns: 1fr; gap: var(--esp-6); }
+  .barra-filtros__interior { flex-direction: column; align-items: stretch; gap: var(--esp-2); }
   .nosotros__grid { grid-template-columns: 1fr; }
   .pie__grid { grid-template-columns: 1fr 1fr; }
   .pie__marca { grid-column: 1 / -1; }
@@ -735,6 +780,7 @@ p { text-wrap: pretty; }
 
 @media (max-width: 700px) {
   .productos { grid-template-columns: 1fr; gap: var(--esp-7); }
+  .calculadora--banda .calculadora__campos { grid-template-columns: 1fr; }
   .sucursales__lista { grid-template-columns: 1fr; }
 }
 
@@ -759,6 +805,8 @@ p { text-wrap: pretty; }
   .cuenta__entrar .icono { width: 22px; height: 22px; }
 
   .ventana { width: min(78%, 300px); }
+  /* Pista de que los chips se deslizan: se desvanecen en el borde derecho */
+  .filtros--barra { -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
   .luz-control__opciones { display: flex; width: 100%; }
   .luz-control__boton { flex: 1; justify-content: center; padding-inline: var(--esp-2); }
   .filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }

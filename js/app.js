@@ -23,6 +23,7 @@ const SUPERFICIES = {
 
 /* -------- 2. REFERENCIAS A ELEMENTOS DEL HTML -------- */
 const contenedorProductos = document.getElementById("productos");
+// Los filtros solo existen en catalogo.html (en la home no están: son null)
 const contenedorFiltros   = document.getElementById("filtros");
 const filtroActivo        = document.getElementById("filtroActivo");
 const contadorCarrito     = document.getElementById("contadorCarrito");
@@ -133,35 +134,67 @@ contenedorProductos.addEventListener("click", function (evento) {
 });
 
 /* -------- 6. FILTRO POR SUPERFICIE (funcionalidad estrella) --------
-   Los botones grandes tienen contenido adentro (muestra, nombre, detalle),
-   así que usamos closest(".filtro") para encontrar el botón completo. */
-contenedorFiltros.addEventListener("click", function (evento) {
-  const boton = evento.target.closest(".filtro");
-  if (!boton) return;
-  elegirSuperficie(boton.dataset.superficie);
-});
+   Vive en catalogo.html. La superficie elegida se guarda en la dirección
+   de la página (catalogo.html?superficie=madera), así:
+     - la home puede enlazar directo a "pinturas para madera",
+     - el enlace se puede compartir (por ejemplo, por WhatsApp),
+     - el botón "atrás" del navegador vuelve al filtro anterior. */
 
-function elegirSuperficie(superficie) {
-  document.querySelectorAll(".filtro").forEach(function (btn) {
+/* Lee ?superficie=... de la dirección. Si no hay o no es válida: "todas" */
+function superficieDeLaURL() {
+  const superficie = new URLSearchParams(location.search).get("superficie");
+  return SUPERFICIES[superficie] ? superficie : "todas";
+}
+
+/* Marca como activo el botón de la superficie elegida */
+function marcarFiltro(superficie) {
+  document.querySelectorAll(".filtro[data-superficie]").forEach(function (btn) {
     const activo = btn.dataset.superficie === superficie;
     btn.classList.toggle("filtro--activo", activo);
     btn.setAttribute("aria-pressed", activo ? "true" : "false");
   });
-  superficieActiva = superficie;
-  mostrarCatalogo();
 }
 
-/* Atajos "¿Qué vas a pintar?" de la portada (y el "Ver todo" del catálogo):
-   cualquier botón con data-elegir-superficie filtra y lleva al catálogo. */
-document.addEventListener("click", function (evento) {
-  const atajo = evento.target.closest("[data-elegir-superficie]");
-  if (!atajo) return;
-  elegirSuperficie(atajo.dataset.elegirSuperficie);
-  document.getElementById("catalogo").scrollIntoView();
-});
+/* guardarEnHistorial = false cuando la elección viene del botón "atrás" */
+function elegirSuperficie(superficie, guardarEnHistorial) {
+  marcarFiltro(superficie);
+  superficieActiva = superficie;
+  mostrarCatalogo();
+  if (guardarEnHistorial !== false) {
+    const url = new URL(location.href);
+    if (superficie === "todas") url.searchParams.delete("superficie");
+    else url.searchParams.set("superficie", superficie);
+    history.pushState(null, "", url);
+  }
+}
+
+if (contenedorFiltros) {
+  // Al abrir el catálogo, partimos con la superficie que venga en la dirección
+  superficieActiva = superficieDeLaURL();
+  marcarFiltro(superficieActiva);
+
+  // Los botones tienen contenido adentro (miniatura y nombre),
+  // así que usamos closest(".filtro") para encontrar el botón completo.
+  contenedorFiltros.addEventListener("click", function (evento) {
+    const boton = evento.target.closest(".filtro");
+    if (!boton || boton.dataset.superficie === superficieActiva) return;
+    elegirSuperficie(boton.dataset.superficie);
+  });
+
+  // Botón "atrás" / "adelante" del navegador
+  window.addEventListener("popstate", function () {
+    elegirSuperficie(superficieDeLaURL(), false);
+  });
+
+  // El "Ver todo" que aparece junto al filtro activo
+  filtroActivo.addEventListener("click", function (evento) {
+    if (evento.target.closest("[data-elegir-superficie]")) elegirSuperficie("todas");
+  });
+}
 
 /* Muestra los productos según el filtro elegido. Se usa también cuando el
-   catálogo se recarga (por ejemplo, después de comprar cambia el stock). */
+   catálogo se recarga (por ejemplo, después de comprar cambia el stock).
+   En la home, #productos tiene data-limite="3": solo 3 destacados con stock. */
 function mostrarCatalogo() {
   let lista = productos;
   if (superficieActiva !== "todas") {
@@ -169,8 +202,13 @@ function mostrarCatalogo() {
       return p.superficies.includes(superficieActiva);
     });
   }
+  const limite = Number(contenedorProductos.dataset.limite) || 0;
+  if (limite) {
+    lista = lista.filter(function (p) { return p.stock > 0; }).slice(0, limite);
+  }
   mostrarProductos(lista);
 
+  if (!filtroActivo) return; // en la home no hay texto de filtro
   // Texto que dice qué se está mostrando
   const cantidad = lista.length === 1 ? "1 producto" : lista.length + " productos";
   if (superficieActiva === "todas") {
