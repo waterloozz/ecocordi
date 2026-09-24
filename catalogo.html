@@ -76,7 +76,8 @@
     <section class="catalogo-pagina" id="catalogo" aria-labelledby="catalogoTitulo">
       <div class="contenedor catalogo-pagina__cabecera">
           <h1 class="catalogo-pagina__titulo" id="catalogoTitulo">Catálogo</h1>
-          <p class="seccion__bajada">Elige la superficie y te mostramos solo las pinturas que le sirven.</p>
+          <p class="seccion__bajada">Elige la superficie y te mostramos solo las pinturas que le sirven.
+            Precios en pesos chilenos.</p>
       </div>
 
       <!-- Barra de filtros: queda fija arriba al bajar por el catálogo.
@@ -115,6 +116,8 @@
       </div>
 
       <div class="contenedor catalogo-pagina__lista">
+        <!-- Título invisible: ordena los títulos para lectores de pantalla (h1 > h2 > h3) -->
+        <h2 class="solo-lector">Productos</h2>
         <!-- app.js pinta aquí los productos -->
         <div class="productos productos--catalogo" id="productos"></div>
 
@@ -160,14 +163,26 @@
       </div>
 
       <div class="pie__columna">
-        <h2 class="pie__titulo">Tienda</h2>
+        <h2 class="pie__titulo">Información legal</h2>
         <ul class="pie__lista">
           <li><a href="catalogo.html">Catálogo</a></li>
           <li><a href="index.html#sucursales">Sucursales</a></li>
           <li><a href="terminos.html">Términos y condiciones</a></li>
           <li><a href="privacidad.html">Política de privacidad</a></li>
+          <li><a href="cookies.html">Política de cookies</a></li>
+          <li><a href="devoluciones.html">Cambios y devoluciones</a></li>
           <li><a href="creditos.html">Créditos de fotografías</a></li>
         </ul>
+      </div>
+
+      <div class="pie__columna">
+        <h2 class="pie__titulo">Datos de la empresa</h2>
+        <!-- PENDIENTE: completar con los datos oficiales (buscar "Por confirmar" en todos los .html) -->
+        <dl class="datos-empresa">
+          <div><dt>Razón social</dt><dd class="por-confirmar">Por confirmar</dd></div>
+          <div><dt>RUT</dt><dd class="por-confirmar">Por confirmar</dd></div>
+          <div><dt>Domicilio</dt><dd class="por-confirmar">Por confirmar</dd></div>
+        </dl>
       </div>
     </div>
     <p class="contenedor pie__legal">© 2026 Pinturas Ecocordi. Talca y Santiago, Chile.</p>
@@ -207,6 +222,19 @@
         <input class="campo__control" type="password" id="loginClave" placeholder="••••••••" autocomplete="current-password" required />
       </label>
 
+      <!-- Solo en modo "registro": para qué usamos los datos + consentimiento (desmarcado) -->
+      <div id="campoConsentimiento" class="oculto">
+        <p class="formulario__nota">
+          Usaremos tu nombre y correo solo para tu cuenta y tus pedidos.
+          No los vendemos ni los compartimos para publicidad.
+        </p>
+        <label class="casilla-legal">
+          <input type="checkbox" id="aceptaTerminos" />
+          <span>Acepto los <a href="terminos.html" target="_blank" rel="noopener">Términos y condiciones</a>
+            y la <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</span>
+        </label>
+      </div>
+
       <p class="formulario__error" id="modalError" role="alert"></p>
 
       <button type="submit" class="boton boton--principal boton--ancho" id="modalEnviar">Entrar</button>
@@ -225,6 +253,11 @@
     <h2 class="modal__titulo" id="misPedidosTitulo">Mis pedidos</h2>
     <p class="modal__subtitulo">Revisa el estado de tus compras</p>
     <div class="mis-pedidos" id="listaMisPedidos"></div>
+    <div class="mis-pedidos__cuenta">
+      <p>¿Quieres que borremos tus datos personales? Tus pedidos quedan registrados sin tu nombre ni tu correo.
+        <a href="privacidad.html" target="_blank" rel="noopener">Más información</a></p>
+      <button type="button" class="enlace-peligro" id="btnEliminarCuenta">Eliminar mi cuenta</button>
+    </div>
   </div>
 
   <!-- ================= CARRITO (PANEL LATERAL) ================= -->
@@ -246,8 +279,25 @@
         <span>Total</span>
         <span class="carrito__monto" id="carritoTotal">$0</span>
       </p>
+      <div class="carrito__legal">
+        <p class="carrito__aviso">
+          <strong>No se cobra nada en línea.</strong> Tu pedido queda registrado y
+          Pinturas Ecocordi te contactará al correo de tu cuenta para coordinar el pago
+          y la entrega o retiro.
+        </p>
+        <p class="carrito__aviso">
+          <strong>Derecho a retracto:</strong> 10 días desde que recibes el producto,
+          salvo pinturas preparadas a pedido o productos ya usados.
+          <a href="devoluciones.html" target="_blank" rel="noopener">Cambios y devoluciones</a>
+        </p>
+        <label class="casilla-legal">
+          <input type="checkbox" id="aceptaPedido" />
+          <span>Acepto los <a href="terminos.html" target="_blank" rel="noopener">Términos y condiciones</a>
+            y la <a href="devoluciones.html" target="_blank" rel="noopener">Política de cambios y devoluciones</a>.</span>
+        </label>
+      </div>
       <button class="boton boton--principal boton--ancho" id="btnPagar" type="button">
-        Finalizar compra
+        Enviar pedido
       </button>
     </div>
   </aside>

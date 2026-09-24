@@ -39,6 +39,14 @@ MAX_STOCK = 100000
 MAX_PRECIO = 100000000
 # Estados posibles de un pedido (en orden). "cancelado" devuelve el stock.
 ESTADOS = ("pendiente", "pagado", "enviado", "entregado", "cancelado")
+# Versión de los Términos y la Política de privacidad. Si se cambian esos
+# textos, subir esta fecha: así queda registro de QUÉ versión aceptó cada persona.
+VERSION_TERMINOS = "2026-09-24"
+MAX_NOMBRE = 80           # solo pedimos lo necesario, y con un largo razonable
+MAX_CORREO = 254
+# En producción con HTTPS: COOKIE_SEGURA=1 python3 server.py
+# (la cookie de sesión solo viajará cifrada)
+COOKIE_SEGURA = os.environ.get("COOKIE_SEGURA") == "1"
 _DEF_ESTADO = ("TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ("
                + ", ".join(f"'{e}'" for e in ESTADOS) + "))")
 
@@ -99,7 +107,8 @@ def init_db():
             nombre   TEXT NOT NULL,
             correo   TEXT NOT NULL UNIQUE,
             clave    TEXT NOT NULL,
-            es_admin INTEGER DEFAULT 0
+            es_admin INTEGER DEFAULT 0,
+            terminos_aceptados TEXT   -- fecha y versión de los términos aceptados
         )
     """)
 
@@ -111,6 +120,7 @@ def init_db():
             total      INTEGER NOT NULL,
             fecha      TEXT DEFAULT (datetime('now','localtime')),
             estado     {_DEF_ESTADO},
+            terminos_aceptados TEXT,  -- fecha y versión aceptadas al enviar el pedido
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         )
     """)
@@ -147,6 +157,11 @@ def init_db():
         print(f"  Migración: columna 'stock' agregada ({STOCK_INICIAL} unidades por producto)")
     if _agregar_columna(c, "pedidos", "estado", _DEF_ESTADO):
         print("  Migración: columna 'estado' agregada (pedidos existentes: 'pendiente')")
+    # Registro del consentimiento: cuándo y qué versión de los términos se aceptó
+    # (las filas antiguas quedan en NULL: se registraron antes de que existiera la casilla)
+    for tabla in ("usuarios", "pedidos"):
+        if _agregar_columna(c, tabla, "terminos_aceptados", "TEXT"):
+            print(f"  Migración: columna 'terminos_aceptados' agregada a {tabla}")
 
     # Limpieza: borramos las sesiones que ya vencieron
     borradas = c.execute(
@@ -179,14 +194,14 @@ def _seed_productos(con):
         return
 
     productos = [
-        ("Protección de Madera", "Acabado y protección para muebles, puertas y decks.", 18990, "img/prod-madera.webp", ["madera", "interior"]),
-        ("Anticorrosivo Metal Pro", "Protege rejas, portones y estructuras contra el óxido.", 21990, "img/prod-metal.webp", ["metal", "exterior"]),
-        ("Pinturas para Exterior", "Resistente al sol y la lluvia para fachadas duraderas.", 24990, "img/prod-exterior.webp", ["exterior"]),
-        ("Línea Constructoras", "Alto rendimiento para grandes proyectos y obras.", 29990, "img/prod-constructoras.webp", ["techo", "exterior"]),
-        ("Pinturas para Interior", "Cobertura perfecta y acabado elegante para muros interiores.", 15990, "img/prod-interior.webp", ["interior"]),
-        ("Chalk Paint Ecocordi", "Pintura a la tiza para renovar muebles con estilo vintage.", 12990, "img/prod-chalk.webp", ["madera", "interior"]),
-        ("Productos Especiales", "Soluciones específicas de alto desempeño para cada trabajo.", 19990, "img/prod-especiales.webp", ["metal", "interior"]),
-        ("Impermeabilizante Techo", "Sella y protege techos y cubiertas contra filtraciones.", 27990, "img/prod-techo.webp", ["techo"]),
+        ("Protección de Madera", "Para muebles, puertas y decks de madera.", 18990, "img/prod-madera.webp", ["madera", "interior"]),
+        ("Anticorrosivo Metal Pro", "Para rejas, portones y estructuras de metal.", 21990, "img/prod-metal.webp", ["metal", "exterior"]),
+        ("Pinturas para Exterior", "Para fachadas y muros exteriores.", 24990, "img/prod-exterior.webp", ["exterior"]),
+        ("Línea Constructoras", "Para proyectos y obras de mayor tamaño.", 29990, "img/prod-constructoras.webp", ["techo", "exterior"]),
+        ("Pinturas para Interior", "Para muros y cielos interiores.", 15990, "img/prod-interior.webp", ["interior"]),
+        ("Chalk Paint Ecocordi", "Pintura a la tiza para renovar muebles.", 12990, "img/prod-chalk.webp", ["madera", "interior"]),
+        ("Productos Especiales", "Para usos específicos: consúltanos cuál sirve para tu trabajo.", 19990, "img/prod-especiales.webp", ["metal", "interior"]),
+        ("Impermeabilizante Techo", "Para techos y cubiertas.", 27990, "img/prod-techo.webp", ["techo"]),
     ]
     for nombre, desc, precio, imagen, superf in productos:
         c.execute(
@@ -270,6 +285,19 @@ def _id_de_ruta(ruta, prefijo):
     return int(resto) if resto.isdigit() else None
 
 
+def _correo_valido(correo):
+    """Revisión simple de formato: algo@algo.algo, sin espacios."""
+    if " " in correo or correo.count("@") != 1:
+        return False
+    usuario, dominio = correo.split("@")
+    return bool(usuario) and "." in dominio and not dominio.startswith(".") and not dominio.endswith(".")
+
+
+def _registro_consentimiento():
+    """Texto que guardamos como prueba del consentimiento: fecha y versión."""
+    return time.strftime("%Y-%m-%d %H:%M:%S") + f" (términos versión {VERSION_TERMINOS})"
+
+
 def _texto(datos, campo):
     """Lee un campo de texto del JSON; si mandan otra cosa (número, lista...), da ""."""
     valor = datos.get(campo)
@@ -305,6 +333,20 @@ def segundos_bloqueado(clave):
         if len(recientes) < MAX_FALLOS:
             return 0
         return int(recientes[-MAX_FALLOS] + VENTANA_FALLOS - time.time()) + 1
+
+
+def limpiar_fallos_viejos():
+    """Borra de la memoria las IP cuyos fallos ya tienen más de 10 minutos.
+    Se ejecuta cada minuto: así ninguna IP se guarda más de ~11 minutos."""
+    with _fallos_lock:
+        for clave in list(_fallos):
+            _fallos_recientes(clave)
+
+
+def _limpieza_periodica():
+    while True:
+        time.sleep(60)
+        limpiar_fallos_viejos()
 
 
 def anotar_fallo(clave):
@@ -418,6 +460,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._con_limite(ruta.path, datos)
         if ruta.path == "/api/logout":
             return self._logout()
+        if ruta.path == "/api/cuenta/eliminar":
+            return self._eliminar_cuenta()
         if ruta.path == "/api/pedidos":
             return self._crear_pedido(datos)
         if ruta.path == "/api/admin/productos":
@@ -478,6 +522,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         clave = _texto(datos, "clave")
         if not nombre or not correo:
             return self._json({"error": "Completa nombre, correo y contraseña"}, 400)
+        if len(nombre) > MAX_NOMBRE or len(correo) > MAX_CORREO or not _correo_valido(correo):
+            return self._json({"error": "Revisa tu nombre y tu correo"}, 400)
+        # Consentimiento: la casilla debe venir marcada (True, no un texto cualquiera)
+        if datos.get("acepta_terminos") is not True:
+            return self._json(
+                {"error": "Para crear tu cuenta debes aceptar los Términos y la Política de privacidad"}, 400)
         if len(clave) < CLAVE_MINIMA:
             return self._json(
                 {"error": f"La contraseña debe tener al menos {CLAVE_MINIMA} caracteres"}, 400)
@@ -486,8 +536,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             con.close()
             return self._json({"error": "Ese correo ya está registrado"}, 409)
         cur = con.execute(
-            "INSERT INTO usuarios (nombre, correo, clave) VALUES (?,?,?)",
-            (nombre, correo, hash_clave(clave)),
+            "INSERT INTO usuarios (nombre, correo, clave, terminos_aceptados) VALUES (?,?,?,?)",
+            (nombre, correo, hash_clave(clave), _registro_consentimiento()),
         )
         usuario_id = cur.lastrowid
         con.commit()
@@ -511,6 +561,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         con.commit()
         con.close()
         cookie = f"sesion={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age={DIAS_SESION * 24 * 3600}"
+        if COOKIE_SEGURA:
+            cookie += "; Secure"
         return self._json(
             {"id": usuario_id, "nombre": nombre, "correo": correo, "es_admin": es_admin},
             set_cookie=cookie,
@@ -526,6 +578,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
         borrar = "sesion=; HttpOnly; Path=/; Max-Age=0"
         return self._json({"ok": True}, set_cookie=borrar)
 
+    def _eliminar_cuenta(self):
+        """Derecho de supresión: borra los datos personales de la cuenta.
+        Los pedidos NO se borran (la empresa debe conservar el registro de sus
+        ventas), pero quedan desvinculados de la persona: el nombre y el correo
+        se reemplazan y la contraseña deja de servir."""
+        u = self._usuario_actual()
+        if not u:
+            return self._json({"error": "No has iniciado sesión"}, 401)
+        if u["es_admin"]:
+            return self._json({"error": "La cuenta de administrador no se puede eliminar desde aquí"}, 403)
+        con = get_db()
+        with con:  # una sola transacción
+            con.execute("DELETE FROM sesiones WHERE usuario_id=?", (u["id"],))
+            con.execute(
+                "UPDATE usuarios SET nombre=?, correo=?, clave=?, terminos_aceptados=NULL WHERE id=?",
+                ("Cuenta eliminada", f"eliminada-{u['id']}@invalid", "eliminada$" + secrets.token_hex(32), u["id"]),
+            )
+        con.close()
+        return self._json({"ok": True}, set_cookie="sesion=; HttpOnly; Path=/; Max-Age=0")
+
     def _crear_pedido(self, datos):
         u = self._usuario_actual()
         if not u:
@@ -535,6 +607,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._json({"error": "Pedido con formato inválido"}, 400)
         if not items:
             return self._json({"error": "El carrito está vacío"}, 400)
+        if datos.get("acepta_terminos") is not True:
+            return self._json(
+                {"error": "Para enviar tu pedido debes aceptar los Términos y la Política de cambios y devoluciones"}, 400)
 
         # 1) Revisamos el FORMATO (sin tocar la base de datos). No confiamos
         #    en id ni cantidad: si algo está mal se rechaza todo (error 400).
@@ -582,7 +657,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 detalle.append((pid, prod["nombre"], prod["precio"], cant))
                 con.execute("UPDATE productos SET stock = stock - ? WHERE id=?", (cant, pid))
 
-            cur = con.execute("INSERT INTO pedidos (usuario_id, total) VALUES (?,?)", (u["id"], total))
+            cur = con.execute("INSERT INTO pedidos (usuario_id, total, terminos_aceptados) VALUES (?,?,?)",
+                              (u["id"], total, _registro_consentimiento()))
             pedido_id = cur.lastrowid
             for pid, nombre, precio, cant in detalle:
                 con.execute(
@@ -749,5 +825,7 @@ if __name__ == "__main__":
     print(f"  Panel admin:           http://localhost:{PUERTO}/admin.html")
     print("  (Para detener el servidor: Ctrl + C)")
     print("=" * 50)
+    # Hilo en segundo plano que olvida las IP de intentos fallidos viejos
+    threading.Thread(target=_limpieza_periodica, daemon=True).start()
     with Servidor(("", PUERTO), Handler) as httpd:
         httpd.serve_forever()

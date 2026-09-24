@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 # ============================================================
-#  ECOCORDI - Actualiza las imágenes de productos en ecocordi.db
+#  ECOCORDI - Actualiza los productos de ejemplo en una ecocordi.db antigua
 #
-#  El rediseño "Luz de ventana" reemplazó las fotos .jpg antiguas por
-#  fotos nuevas en WebP. Este script cambia la columna "imagen" de los
-#  productos que TODAVÍA apuntan a una foto antigua. No borra nada y no
-#  toca productos con otras imágenes (por ejemplo, las que puso el admin).
+#  1) Imágenes: el rediseño "Luz de ventana" reemplazó las fotos .jpg por
+#     fotos nuevas en WebP. Cambia la columna "imagen" de los productos que
+#     TODAVÍA apuntan a una foto antigua.
+#  2) Descripciones: se quitaron afirmaciones sin respaldo ("cobertura
+#     perfecta", "alto rendimiento"...). Cambia la descripción SOLO si sigue
+#     siendo el texto de ejemplo original.
+#  No borra nada y no toca lo que el admin haya cambiado.
 #
 #  Uso (desde la carpeta del proyecto, con el servidor detenido o no):
-#      python3 actualizar_imagenes.py
+#      python3 actualizar_catalogo.py
 #  Se puede ejecutar varias veces: la segunda vez no cambia nada.
 # ============================================================
 import os
@@ -42,6 +45,18 @@ ANTIGUAS = {
 if not os.path.exists(DB_PATH):
     raise SystemExit("No encontré ecocordi.db. Ejecuta este script desde la carpeta del proyecto.")
 
+# Descripciones de ejemplo antiguas -> nuevas
+DESCRIPCIONES = {
+    'Acabado y protección para muebles, puertas y decks.': 'Para muebles, puertas y decks de madera.',
+    'Protege rejas, portones y estructuras contra el óxido.': 'Para rejas, portones y estructuras de metal.',
+    'Resistente al sol y la lluvia para fachadas duraderas.': 'Para fachadas y muros exteriores.',
+    'Alto rendimiento para grandes proyectos y obras.': 'Para proyectos y obras de mayor tamaño.',
+    'Cobertura perfecta y acabado elegante para muros interiores.': 'Para muros y cielos interiores.',
+    'Pintura a la tiza para renovar muebles con estilo vintage.': 'Pintura a la tiza para renovar muebles.',
+    'Soluciones específicas de alto desempeño para cada trabajo.': 'Para usos específicos: consúltanos cuál sirve para tu trabajo.',
+    'Sella y protege techos y cubiertas contra filtraciones.': 'Para techos y cubiertas.',
+}
+
 con = sqlite3.connect(DB_PATH)
 cambios = 0
 with con:  # "with" = una sola transacción: o se guarda todo, o nada
@@ -52,5 +67,10 @@ with con:  # "with" = una sola transacción: o se guarda todo, o nada
         con.execute("UPDATE productos SET imagen = ? WHERE id = ?", (nueva, pid))
         print(f"  {nombre}: {imagen} -> {nueva}")
         cambios += 1
+    for pid, nombre, descripcion in con.execute("SELECT id, nombre, descripcion FROM productos").fetchall():
+        if descripcion in DESCRIPCIONES:
+            con.execute("UPDATE productos SET descripcion = ? WHERE id = ?", (DESCRIPCIONES[descripcion], pid))
+            print(f"  {nombre}: descripción actualizada")
+            cambios += 1
 con.close()
-print(f"Listo: {cambios} producto(s) actualizados." if cambios else "No había nada que actualizar.")
+print(f"Listo: {cambios} cambio(s)." if cambios else "No había nada que actualizar.")

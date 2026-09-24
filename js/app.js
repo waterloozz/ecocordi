@@ -101,6 +101,7 @@ function mostrarProductos(lista) {
         <div class="producto__foto">
           <img src="${escaparHTML(p.imagen)}" alt="" width="800" height="600"
                loading="lazy" decoding="async" />
+          <span class="imagen-referencial">Imagen referencial</span>
         </div>
         <div class="producto__cuerpo">
           <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
@@ -339,6 +340,16 @@ function sincronizarCarrito() {
   actualizarCarrito();
 }
 
+/* -------- 9b. BLOQUEAR EL FONDO --------
+   Cuando hay una ventana o el carrito abierto, marcamos el resto de la página
+   como "inert": el teclado (Tab) y los lectores de pantalla se quedan dentro
+   de la ventana, como en una ventana real. */
+function bloquearFondo(bloquear) {
+  document.querySelectorAll(".saltar, .cabecera, main, .pie, .whatsapp").forEach(function (el) {
+    el.inert = bloquear;
+  });
+}
+
 /* -------- 10. ABRIR / CERRAR PANELES --------
    Recordamos qué botón abrió cada panel para devolverle el foco al cerrar
    (importante para quien navega con teclado). */
@@ -348,12 +359,14 @@ function abrirCarrito() {
   focoAnterior = document.activeElement;
   panelCarrito.classList.add("abierto");
   fondoCarrito.classList.add("abierto");
+  bloquearFondo(true);
   document.getElementById("btnCerrarCarrito").focus();
 }
 function cerrarCarrito() {
   if (!panelCarrito.classList.contains("abierto")) return;
   panelCarrito.classList.remove("abierto");
   fondoCarrito.classList.remove("abierto");
+  bloquearFondo(false);
   if (focoAnterior) focoAnterior.focus();
 }
 document.getElementById("btnAbrirCarrito").addEventListener("click", abrirCarrito);
@@ -368,6 +381,14 @@ botonPagar.addEventListener("click", async function () {
     return;
   }
 
+  // Antes de enviar: aceptar los Términos y la Política de cambios y devoluciones
+  const aceptaPedido = document.getElementById("aceptaPedido");
+  if (!aceptaPedido.checked) {
+    avisar("Para enviar tu pedido, marca la casilla de aceptación de los Términos y la Política de cambios y devoluciones.", "error");
+    aceptaPedido.focus();
+    return;
+  }
+
   // Enviamos solo id y cantidad; el servidor calcula el total con precios reales
   const items = carrito.map(function (i) {
     return { id: i.id, cantidad: i.cantidad };
@@ -378,7 +399,7 @@ botonPagar.addEventListener("click", async function () {
     const respuesta = await fetch("/api/pedidos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: items }),
+      body: JSON.stringify({ items: items, acepta_terminos: true }),
     });
 
     if (respuesta.status === 401) {
@@ -399,9 +420,10 @@ botonPagar.addEventListener("click", async function () {
       avisar("No se pudo completar la compra: " + (datos.error || "error desconocido"), "error");
       return;
     }
-    avisar("¡Gracias por tu compra en Ecocordi!\n" +
+    avisar("¡Recibimos tu pedido!\n" +
            "Pedido N° " + datos.pedido_id + " · Total " + formatearPrecio(datos.total) + "\n" +
-           "Puedes seguirlo en \"Mis pedidos\".", "exito", 8000);
+           "Te contactaremos para coordinar el pago y la entrega. Puedes seguirlo en \"Mis pedidos\".", "exito", 9000);
+    aceptaPedido.checked = false;
 
     carrito = [];
     actualizarCarrito();
@@ -458,6 +480,7 @@ function abrirLogin() {
   modalError.textContent = "";
   modalLogin.classList.add("abierto");
   modalFondo.classList.add("abierto");
+  bloquearFondo(true);
   // Foco en el primer campo para escribir de inmediato
   document.getElementById(modoRegistro ? "loginNombre" : "loginCorreo").focus();
 }
@@ -465,6 +488,7 @@ function cerrarLogin() {
   if (!modalLogin.classList.contains("abierto")) return;
   modalLogin.classList.remove("abierto");
   modalFondo.classList.remove("abierto");
+  bloquearFondo(false);
   if (focoAnterior && document.body.contains(focoAnterior)) focoAnterior.focus();
 }
 document.getElementById("btnCerrarModal").addEventListener("click", cerrarLogin);
@@ -479,6 +503,8 @@ modalFondo.addEventListener("click", function () {
    vuelva a dibujar, el clic se sigue detectando. */
 function actualizarModoModal() {
   document.getElementById("campoNombre").style.display = modoRegistro ? "block" : "none";
+  document.getElementById("campoConsentimiento").style.display = modoRegistro ? "block" : "none";
+  document.getElementById("aceptaTerminos").required = modoRegistro;
   document.getElementById("modalTitulo").textContent = modoRegistro ? "Crear cuenta" : "Iniciar sesión";
   document.getElementById("modalSubtitulo").textContent = modoRegistro
     ? "Regístrate en Ecocordi" : "Accede a tu cuenta Ecocordi";
@@ -513,7 +539,10 @@ document.getElementById("formLogin").addEventListener("submit", async function (
   const clave  = document.getElementById("loginClave").value;
   const ruta   = modoRegistro ? "/api/register" : "/api/login";
   const cuerpo = { correo: correo, clave: clave };
-  if (modoRegistro) cuerpo.nombre = document.getElementById("loginNombre").value;
+  if (modoRegistro) {
+    cuerpo.nombre = document.getElementById("loginNombre").value;
+    cuerpo.acepta_terminos = document.getElementById("aceptaTerminos").checked;
+  }
 
   const respuesta = await fetch(ruta, {
     method: "POST",
@@ -557,6 +586,7 @@ async function abrirMisPedidos() {
   listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Cargando…</p>";
   modalPedidos.classList.add("abierto");
   modalFondo.classList.add("abierto");
+  bloquearFondo(true);
   document.getElementById("btnCerrarPedidos").focus();
 
   const respuesta = await fetch("/api/pedidos");
@@ -592,9 +622,31 @@ function cerrarMisPedidos() {
   if (!modalPedidos.classList.contains("abierto")) return;
   modalPedidos.classList.remove("abierto");
   modalFondo.classList.remove("abierto");
+  bloquearFondo(false);
   if (focoAnterior && document.body.contains(focoAnterior)) focoAnterior.focus();
 }
 document.getElementById("btnCerrarPedidos").addEventListener("click", cerrarMisPedidos);
+
+/* -------- 15c. ELIMINAR MI CUENTA (derecho de supresión) -------- */
+document.getElementById("btnEliminarCuenta").addEventListener("click", async function () {
+  const seguro = await confirmar({
+    titulo: "Eliminar mi cuenta",
+    mensaje: "Borraremos tu nombre, tu correo y tu contraseña. Tus pedidos quedan registrados sin tus datos. Esta acción no se puede deshacer.",
+    textoConfirmar: "Eliminar mi cuenta",
+    peligro: true,
+  });
+  if (!seguro) return;
+  const respuesta = await fetch("/api/cuenta/eliminar", { method: "POST" });
+  const datos = await respuesta.json();
+  if (!respuesta.ok) {
+    avisar("No se pudo eliminar la cuenta: " + (datos.error || "error desconocido"), "error");
+    return;
+  }
+  usuario = null;
+  cerrarMisPedidos();
+  renderCuenta();
+  avisar("Tu cuenta y tus datos personales fueron eliminados.", "exito");
+});
 
 /* -------- 16. CERRAR SESIÓN -------- */
 async function logout() {

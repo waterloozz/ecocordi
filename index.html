@@ -179,17 +179,19 @@
     <!-- ================= BENEFICIOS ================= -->
     <section class="beneficios" aria-label="Por qué Ecocordi">
       <ul class="contenedor beneficios__lista">
+        <!-- Solo afirmaciones que el sitio puede respaldar. Si la empresa confirma
+             datos como sus años de trayectoria, se pueden agregar aquí. -->
         <li class="beneficio">
-          <p class="beneficio__titulo">Más de <em>30 años</em></p>
-          <p class="beneficio__texto">Una marca de confianza para casas, obras y constructoras en todo Chile.</p>
+          <p class="beneficio__titulo">Elige por <em>superficie</em></p>
+          <p class="beneficio__texto">Te mostramos solo las pinturas para madera, metal, exterior, techo o interior.</p>
         </li>
         <li class="beneficio">
-          <p class="beneficio__titulo">Color que <em>dura</em></p>
-          <p class="beneficio__texto">Pinturas cubrientes y de alto rendimiento, pensadas para el clima de Chile.</p>
+          <p class="beneficio__titulo">Precio y stock <em>a la vista</em></p>
+          <p class="beneficio__texto">Sabes cuánto cuesta y cuántas unidades quedan antes de enviar tu pedido.</p>
         </li>
         <li class="beneficio">
-          <p class="beneficio__titulo">Despacho <em>cercano</em></p>
-          <p class="beneficio__texto">Desde nuestras sucursales de Talca y Santiago, a tu casa o a tu obra.</p>
+          <p class="beneficio__titulo">Dos <em>sucursales</em></p>
+          <p class="beneficio__texto">Talca y Santiago. Más abajo encuentras cómo llegar.</p>
         </li>
       </ul>
     </section>
@@ -200,33 +202,17 @@
         <figure class="nosotros__foto">
           <img src="img/nosotros-pintor.webp" width="1200" height="900" loading="lazy" decoding="async"
                alt="Un pintor aplica pintura con brocha sobre un muro blanco" />
+          <figcaption class="imagen-referencial">Imagen referencial</figcaption>
         </figure>
         <div class="nosotros__texto">
           <h2 class="seccion__titulo" id="nosotrosTitulo">Quiénes <em>somos</em></h2>
+          <!-- PENDIENTE: la historia, misión y visión deben venir de la empresa.
+               Se quitaron los textos anteriores porque no estaban respaldados. -->
           <p class="nosotros__intro">
-            Ecocordi nació hace más de 30 años con un sueño simple: entregar
-            pinturas de calidad superior que transformen espacios y perduren en
-            el tiempo. Hoy nos eligen contratistas, familias y empresas para sus
-            proyectos más importantes.
+            Pinturas Ecocordi es una empresa chilena de pinturas con sucursales en
+            Talca y Santiago. Nuestro lema resume lo que buscamos en cada color:
+            que sea <em>majestuoso por naturaleza</em>.
           </p>
-          <div class="nosotros__bloques">
-            <div class="nosotros__bloque" id="mision">
-              <h3 class="nosotros__subtitulo">Misión</h3>
-              <p>
-                Ofrecer pinturas de alta calidad y soluciones de color que
-                embellezcan y protejan los espacios de nuestros clientes,
-                entregando un servicio confiable, cercano y profesional.
-              </p>
-            </div>
-            <div class="nosotros__bloque" id="vision">
-              <h3 class="nosotros__subtitulo">Visión</h3>
-              <p>
-                Ser la marca de pinturas líder y más querida de Chile,
-                reconocida por su calidad premium, su innovación en color y su
-                compromiso con las personas y el medio ambiente.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -236,13 +222,13 @@
       <div class="contenedor">
         <div class="seccion__cabecera">
           <h2 class="seccion__titulo" id="sucursalesTitulo">Sucursales</h2>
-          <p class="seccion__bajada">Visítanos o retira tu pedido en la tienda más cercana.</p>
+          <p class="seccion__bajada">Visítanos en nuestras sucursales.</p>
         </div>
 
         <div class="sucursales__lista">
           <article class="sucursal">
             <h3 class="sucursal__nombre">Talca</h3>
-            <p class="sucursal__region">Casa matriz · Región del Maule</p>
+            <p class="sucursal__region">Región del Maule</p>
             <dl class="sucursal__datos">
               <div class="sucursal__dato">
                 <dt><svg class="icono" aria-hidden="true"><use href="#i-pin"/></svg>Dirección</dt>
@@ -304,14 +290,26 @@
       </div>
 
       <div class="pie__columna">
-        <h2 class="pie__titulo">Tienda</h2>
+        <h2 class="pie__titulo">Información legal</h2>
         <ul class="pie__lista">
           <li><a href="catalogo.html">Catálogo</a></li>
           <li><a href="#sucursales">Sucursales</a></li>
           <li><a href="terminos.html">Términos y condiciones</a></li>
           <li><a href="privacidad.html">Política de privacidad</a></li>
+          <li><a href="cookies.html">Política de cookies</a></li>
+          <li><a href="devoluciones.html">Cambios y devoluciones</a></li>
           <li><a href="creditos.html">Créditos de fotografías</a></li>
         </ul>
+      </div>
+
+      <div class="pie__columna">
+        <h2 class="pie__titulo">Datos de la empresa</h2>
+        <!-- PENDIENTE: completar con los datos oficiales (buscar "Por confirmar" en todos los .html) -->
+        <dl class="datos-empresa">
+          <div><dt>Razón social</dt><dd class="por-confirmar">Por confirmar</dd></div>
+          <div><dt>RUT</dt><dd class="por-confirmar">Por confirmar</dd></div>
+          <div><dt>Domicilio</dt><dd class="por-confirmar">Por confirmar</dd></div>
+        </dl>
       </div>
     </div>
     <p class="contenedor pie__legal">© 2026 Pinturas Ecocordi. Talca y Santiago, Chile.</p>
@@ -351,6 +349,19 @@
         <input class="campo__control" type="password" id="loginClave" placeholder="••••••••" autocomplete="current-password" required />
       </label>
 
+      <!-- Solo en modo "registro": para qué usamos los datos + consentimiento (desmarcado) -->
+      <div id="campoConsentimiento" class="oculto">
+        <p class="formulario__nota">
+          Usaremos tu nombre y correo solo para tu cuenta y tus pedidos.
+          No los vendemos ni los compartimos para publicidad.
+        </p>
+        <label class="casilla-legal">
+          <input type="checkbox" id="aceptaTerminos" />
+          <span>Acepto los <a href="terminos.html" target="_blank" rel="noopener">Términos y condiciones</a>
+            y la <a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</span>
+        </label>
+      </div>
+
       <p class="formulario__error" id="modalError" role="alert"></p>
 
       <button type="submit" class="boton boton--principal boton--ancho" id="modalEnviar">Entrar</button>
@@ -369,6 +380,11 @@
     <h2 class="modal__titulo" id="misPedidosTitulo">Mis pedidos</h2>
     <p class="modal__subtitulo">Revisa el estado de tus compras</p>
     <div class="mis-pedidos" id="listaMisPedidos"></div>
+    <div class="mis-pedidos__cuenta">
+      <p>¿Quieres que borremos tus datos personales? Tus pedidos quedan registrados sin tu nombre ni tu correo.
+        <a href="privacidad.html" target="_blank" rel="noopener">Más información</a></p>
+      <button type="button" class="enlace-peligro" id="btnEliminarCuenta">Eliminar mi cuenta</button>
+    </div>
   </div>
 
   <!-- ================= CARRITO (PANEL LATERAL) ================= -->
@@ -390,8 +406,25 @@
         <span>Total</span>
         <span class="carrito__monto" id="carritoTotal">$0</span>
       </p>
+      <div class="carrito__legal">
+        <p class="carrito__aviso">
+          <strong>No se cobra nada en línea.</strong> Tu pedido queda registrado y
+          Pinturas Ecocordi te contactará al correo de tu cuenta para coordinar el pago
+          y la entrega o retiro.
+        </p>
+        <p class="carrito__aviso">
+          <strong>Derecho a retracto:</strong> 10 días desde que recibes el producto,
+          salvo pinturas preparadas a pedido o productos ya usados.
+          <a href="devoluciones.html" target="_blank" rel="noopener">Cambios y devoluciones</a>
+        </p>
+        <label class="casilla-legal">
+          <input type="checkbox" id="aceptaPedido" />
+          <span>Acepto los <a href="terminos.html" target="_blank" rel="noopener">Términos y condiciones</a>
+            y la <a href="devoluciones.html" target="_blank" rel="noopener">Política de cambios y devoluciones</a>.</span>
+        </label>
+      </div>
       <button class="boton boton--principal boton--ancho" id="btnPagar" type="button">
-        Finalizar compra
+        Enviar pedido
       </button>
     </div>
   </aside>

@@ -75,9 +75,9 @@ ecocordi/
 ├── index.html         → Página principal: portada, superficies y 3 destacados
 ├── catalogo.html      → Catálogo completo con filtro por superficie (?superficie=madera)
 ├── admin.html         → Panel de administración
-├── terminos.html      → Términos y condiciones (en preparación)
+├── terminos.html, privacidad.html, cookies.html, devoluciones.html → Páginas legales
+├── legales/generar.py → Genera las páginas legales
 ├── creditos.html      → Créditos de las fotografías
-├── privacidad.html    → Política de privacidad (en preparación)
 ├── iniciar.sh         → Atajo para arrancar el servidor
 ├── css/
 │   └── estilos.css    → Todo el diseño (variables de color, espacios y tipografía en :root)
@@ -87,7 +87,7 @@ ecocordi/
 │   ├── app.js         → Lógica de la tienda (catálogo, carrito, login)
 │   └── admin.js       → Lógica del panel de administración
 ├── fonts/             → Tipografías servidas desde el propio sitio (licencia OFL)
-├── actualizar_imagenes.py → Actualiza las fotos de productos en una ecocordi.db antigua
+├── actualizar_catalogo.py → Actualiza fotos y descripciones de productos en una ecocordi.db antigua
 └── img/               → Fotos (WebP, de Unsplash; ver img/CREDITOS.md) y logo
 ```
 
@@ -147,6 +147,26 @@ ecocordi/
   o estilos escritos dentro del HTML. Por eso los eventos se conectan con
   `addEventListener` y los estilos viven en `css/estilos.css`.
 - Cabeceras `X-Content-Type-Options: nosniff` y `Referrer-Policy: same-origin`.
+
+---
+
+## ⚖️ Aspectos legales y de privacidad
+
+- Páginas: `terminos.html`, `privacidad.html`, `cookies.html` y `devoluciones.html`.
+  Se generan con **`python3 legales/generar.py`** (edita ese archivo, no los .html).
+  Los datos de la empresa se completan en `EMPRESA`, dentro de ese mismo archivo.
+- **Consentimiento:** crear una cuenta y enviar un pedido exigen marcar una casilla
+  (desmarcada por defecto). El servidor lo valida y guarda fecha y versión
+  (`VERSION_TERMINOS` en `server.py`: súbela si cambias los textos).
+- **Cookies:** solo la cookie de sesión (necesaria) y el carrito/luz en el
+  navegador. Sin analíticas ni terceros, por eso no hay aviso de cookies.
+- **Eliminar mi cuenta** (en "Mis pedidos"): borra nombre, correo y contraseña;
+  los pedidos quedan sin datos personales.
+- En producción con HTTPS, arranca con `COOKIE_SEGURA=1` para que la cookie
+  de sesión solo viaje cifrada.
+- **Pendiente antes de publicar:** datos de la empresa (razón social, RUT,
+  domicilio), IVA, despacho y medios de pago, copia del pedido por correo y
+  **revisión de un abogado**. Busca "Pendiente" y "Por confirmar" en los .html.
 
 ---
 

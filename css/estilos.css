@@ -515,7 +515,7 @@ p { text-wrap: pretty; }
 /* ============ 10. PIE Y WHATSAPP ============ */
 /* El pie siempre es de noche: ahí vive el logo oficial (que es blanco) */
 .pie { background: #161D26; color: #B4BECB; }
-.pie__grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: var(--esp-6); padding-block: var(--esp-8) var(--esp-6); }
+.pie__grid { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: var(--esp-6); padding-block: var(--esp-8) var(--esp-6); }
 .pie__marca img { height: 56px; width: auto; }
 .pie__lema { margin-top: var(--esp-4); font-family: var(--serif); font-size: var(--txt-xl); color: #EEF1F4; }
 .pie__titulo { font-family: var(--sans); font-size: var(--txt-sm); font-weight: 600; color: #EEF1F4; margin-bottom: var(--esp-3); }
@@ -737,10 +737,52 @@ p { text-wrap: pretty; }
 .admin__denegado h1 { font-size: var(--txt-2xl); }
 .admin__denegado p { margin-block: var(--esp-3) var(--esp-5); color: var(--texto-2); }
 
+/* ---- Consentimiento, avisos legales y datos de la empresa ---- */
+.casilla-legal { display: flex; align-items: flex-start; gap: var(--esp-3); font-size: var(--txt-sm); line-height: 1.45; cursor: pointer; }
+.casilla-legal input { flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px; accent-color: var(--acento); cursor: pointer; }
+.casilla-legal a { font-weight: 600; }
+.formulario__nota { font-size: var(--txt-xs); color: var(--texto-2); margin-bottom: var(--esp-3); line-height: 1.5; }
+.carrito__legal { display: grid; gap: var(--esp-3); margin-bottom: var(--esp-4); }
+.carrito__aviso { font-size: var(--txt-xs); line-height: 1.5; color: var(--texto-2); }
+.carrito__aviso strong { color: var(--texto); }
+.mis-pedidos__cuenta { margin-top: var(--esp-6); padding-top: var(--esp-4); border-top: 1px solid var(--linea); font-size: var(--txt-xs); color: var(--texto-2); display: grid; gap: var(--esp-2); justify-items: start; }
+.enlace-peligro { min-height: 44px; color: var(--error); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* Etiqueta "Imagen referencial" sobre fotos que no muestran el producto real */
+.producto__foto { position: relative; }
+.imagen-referencial {
+  position: absolute; left: var(--esp-2); bottom: var(--esp-2);
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(20, 17, 13, 0.72); color: #FFFFFF; font-size: 0.6875rem; font-weight: 600;
+}
+.nosotros__foto { position: relative; }
+.datos-empresa { display: grid; gap: var(--esp-2); font-size: var(--txt-sm); }
+.datos-empresa dt { font-size: var(--txt-xs); color: #8F9BAA; }
+.pie .por-confirmar { color: #B4BECB; }
+.pie .datos-empresa dt { color: #B4BECB; }
+
 /* ============ 13. PÁGINAS SIMPLES (LEGALES Y CRÉDITOS) ============ */
 .legal { max-width: 72ch; padding-block: var(--esp-7) var(--esp-8); }
 .legal h1 { font-size: var(--txt-2xl); }
-.legal p { margin-top: var(--esp-4); color: var(--texto-2); }
+.legal p, .legal li, .legal td, .legal th { color: var(--texto-2); }
+.legal p { margin-top: var(--esp-4); }
+.legal h2 { font-size: var(--txt-xl); margin-top: var(--esp-7); color: var(--texto); }
+.legal h3 { font-family: var(--sans); font-size: var(--txt-md); font-weight: 600; margin-top: var(--esp-5); color: var(--texto); }
+.legal ul { list-style: disc; padding-left: var(--esp-5); margin-top: var(--esp-3); display: grid; gap: var(--esp-2); }
+.legal strong { color: var(--texto); }
+.legal__fecha { font-size: var(--txt-sm); }
+.legal__resumen { margin-top: var(--esp-5); padding: var(--esp-5); background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio); }
+.legal__resumen p:first-child { margin-top: 0; }
+.legal__pendiente { margin-top: var(--esp-5); padding: var(--esp-4) var(--esp-5); border-left: 4px solid var(--aviso); background: var(--papel); border-radius: var(--radio-sm); }
+.legal__pendiente p { margin-top: 0; color: var(--texto); }
+.legal .datos-empresa { margin-top: var(--esp-4); padding: var(--esp-4) var(--esp-5); background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio); }
+.legal .datos-empresa div { display: grid; grid-template-columns: 9rem 1fr; gap: var(--esp-3); }
+.legal .datos-empresa dt { color: var(--texto-2); font-size: var(--txt-sm); }
+.legal table { width: 100%; border-collapse: collapse; margin-top: var(--esp-4); font-size: var(--txt-sm); }
+.legal th, .legal td { text-align: left; vertical-align: top; padding: var(--esp-3); border-bottom: 1px solid var(--linea); }
+.legal th { color: var(--texto); font-weight: 600; }
+.legal__tabla { overflow-x: auto; }
+.legal__otras { margin-top: var(--esp-8); padding-top: var(--esp-5); border-top: 1px solid var(--linea); }
+.legal__otras ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-5); }
 .creditos { margin-top: var(--esp-6); display: grid; gap: var(--esp-3); }
 .creditos li { display: grid; grid-template-columns: 96px 1fr; gap: var(--esp-4); align-items: center; padding-bottom: var(--esp-3); border-bottom: 1px solid var(--linea); font-size: var(--txt-sm); }
 .creditos img { width: 96px; height: 72px; object-fit: cover; border-radius: var(--radio-sm); }
@@ -776,6 +818,7 @@ p { text-wrap: pretty; }
   .nosotros__grid { grid-template-columns: 1fr; }
   .pie__grid { grid-template-columns: 1fr 1fr; }
   .pie__marca { grid-column: 1 / -1; }
+  .legal .datos-empresa div { grid-template-columns: 1fr; gap: 0; }
 }
 
 @media (max-width: 700px) {
