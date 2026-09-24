@@ -1,33 +1,38 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-luz="manana">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pinturas Ecocordi | Majestuosas por Naturaleza</title>
-  <meta name="description" content="Pinturas Ecocordi: pintura chilena para madera, metal, exterior, techo e interior. Sucursales en Talca y Santiago." />
-  <meta name="theme-color" content="#0B2545" />
+  <meta name="description" content="Pinturas Ecocordi: elige qué vas a pintar (madera, metal, exterior, techo o interior) y te decimos qué pintura usar. Sucursales en Talca y Santiago." />
 
   <link rel="icon" href="img/favicon.png" type="image/png" />
-  <!-- Precargamos las fuentes principales para que el texto no "salte" -->
-  <link rel="preload" href="fonts/figtree-400-800.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="fonts/young-serif-400.woff2" as="font" type="font/woff2" crossorigin />
+  <!-- Precargamos las fuentes y la foto de portada para que nada "salte" al cargar -->
+  <link rel="preload" href="fonts/instrument-serif-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/instrument-sans-400-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="img/luz-ventana.webp" as="image" type="image/webp" />
   <link rel="stylesheet" href="css/estilos.css" />
+  <!-- Elige la luz (mañana, tarde o noche) ANTES de dibujar la página -->
+  <script src="js/luz.js"></script>
 </head>
 <body>
 
   <!-- ============ ÍCONOS ============
        Un solo "sprite": cada ícono se dibuja con <svg><use href="#i-..."/></svg>.
-       Así el HTML y el JavaScript comparten los mismos dibujos. -->
+       El HTML y el JavaScript comparten los mismos dibujos. -->
   <svg class="sprite" aria-hidden="true" focusable="false">
     <symbol id="i-usuario" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6.5 8-6.5s8 2.5 8 6.5"/></symbol>
-    <symbol id="i-tarro" viewBox="0 0 24 24"><path d="M4 9h16l-1.5 10.4A2 2 0 0 1 16.5 21h-9a2 2 0 0 1-2-1.6L4 9Z"/><path d="M7 9a5 5 0 0 1 10 0"/><path d="M9 14h6"/></symbol>
+    <symbol id="i-tarro" viewBox="0 0 24 24"><path d="M4 9h16l-1.5 10.4A2 2 0 0 1 16.5 21h-9a2 2 0 0 1-2-1.6L4 9Z"/><path d="M7 9a5 5 0 0 1 10 0"/></symbol>
     <symbol id="i-basura" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></symbol>
     <symbol id="i-cerrar" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
-    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/></symbol>
     <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.4-7-12a7 7 0 0 1 14 0c0 5.6-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></symbol>
     <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
     <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 20l1.4-4.2A8 8 0 1 1 8.4 19L4 20Z"/><path d="M9 10.5h6M9 13.5h4"/></symbol>
+    <symbol id="i-sol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-atardecer" viewBox="0 0 24 24"><path d="M5 16a7 7 0 0 1 14 0"/><path d="M2.5 16h19M7 20h10M12 3.5v3M4.2 8.2l1.9 1.9M19.8 8.2l-1.9 1.9"/></symbol>
+    <symbol id="i-luna" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></symbol>
     <symbol id="i-instagram" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></symbol>
     <symbol id="i-facebook" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></symbol>
     <symbol id="i-correo" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></symbol>
@@ -38,8 +43,9 @@
   <!-- ================= CABECERA ================= -->
   <header class="cabecera" id="cabecera">
     <div class="contenedor cabecera__interior">
-      <a href="#inicio" class="cabecera__logo">
-        <img src="img/logo.png" alt="Pinturas Ecocordi, inicio" width="283" height="122" />
+      <a href="#inicio" class="marca" aria-label="Pinturas Ecocordi, inicio">
+        <span class="marca__nombre">Ecocordi</span>
+        <span class="marca__sub">Pinturas</span>
       </a>
 
       <nav class="menu" id="menu" aria-label="Principal">
@@ -50,7 +56,7 @@
       </nav>
 
       <div class="cabecera__acciones">
-        <!-- JavaScript rellena esta zona según haya sesión o no -->
+        <!-- app.js rellena esta zona según haya sesión o no -->
         <div class="cuenta-area" id="cuentaArea"></div>
 
         <button class="boton-carrito" id="btnAbrirCarrito" type="button">
@@ -69,169 +75,181 @@
 
   <main id="contenido">
 
-    <!-- ================= 1. PORTADA ================= -->
+    <!-- ================= PORTADA ================= -->
     <section class="portada" id="inicio" aria-labelledby="portadaTitulo">
       <div class="contenedor portada__interior">
         <div class="portada__texto">
-          <h1 class="portada__titulo" id="portadaTitulo">Majestuosas por Naturaleza.</h1>
+          <h1 class="portada__titulo" id="portadaTitulo">Majestuosas <em>por Naturaleza.</em></h1>
           <p class="portada__bajada">
-            Pintura chilena para tu casa y para tu obra. Más de 30 años
-            pintando hogares y proyectos, con sucursales en Talca y Santiago.
+            El mismo color cambia con la luz del día. Cuéntanos qué vas a pintar
+            y te decimos qué pintura usar.
           </p>
 
           <p class="portada__pregunta" id="preguntaSuperficie">¿Qué vas a pintar?</p>
           <div class="portada__atajos" role="group" aria-labelledby="preguntaSuperficie">
-            <button type="button" class="atajo" data-elegir-superficie="madera"><span class="atajo__color sup--madera"></span>Madera</button>
-            <button type="button" class="atajo" data-elegir-superficie="metal"><span class="atajo__color sup--metal"></span>Metal</button>
-            <button type="button" class="atajo" data-elegir-superficie="exterior"><span class="atajo__color sup--exterior"></span>Exterior</button>
-            <button type="button" class="atajo" data-elegir-superficie="techo"><span class="atajo__color sup--techo"></span>Techo</button>
-            <button type="button" class="atajo" data-elegir-superficie="interior"><span class="atajo__color sup--interior"></span>Interior</button>
+            <button type="button" class="atajo" data-elegir-superficie="madera">Madera</button>
+            <button type="button" class="atajo" data-elegir-superficie="metal">Metal</button>
+            <button type="button" class="atajo" data-elegir-superficie="exterior">Exterior</button>
+            <button type="button" class="atajo" data-elegir-superficie="techo">Techo</button>
+            <button type="button" class="atajo" data-elegir-superficie="interior">Interior</button>
+          </div>
+
+          <!-- La idea de esta portada: ver la tienda con otra luz -->
+          <div class="luz-control" role="group" aria-labelledby="luzTitulo">
+            <p class="luz-control__titulo" id="luzTitulo">Mira la página con luz de</p>
+            <div class="luz-control__opciones">
+              <button type="button" class="luz-control__boton" data-elegir-luz="manana" aria-pressed="false">
+                <svg class="icono" aria-hidden="true"><use href="#i-sol"/></svg>Mañana
+              </button>
+              <button type="button" class="luz-control__boton" data-elegir-luz="tarde" aria-pressed="false">
+                <svg class="icono" aria-hidden="true"><use href="#i-atardecer"/></svg>Tarde
+              </button>
+              <button type="button" class="luz-control__boton" data-elegir-luz="noche" aria-pressed="false">
+                <svg class="icono" aria-hidden="true"><use href="#i-luna"/></svg>Noche
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Abanico de muestras: el color es el producto -->
-        <div class="abanico" aria-hidden="true">
-          <div class="muestra muestra--1 sup--madera textura--madera">
-            <span class="muestra__codigo">EC-01</span><span class="muestra__nombre">Madera</span><span class="muestra__color">Ocre Maule</span>
-          </div>
-          <div class="muestra muestra--2 sup--metal textura--metal">
-            <span class="muestra__codigo">EC-02</span><span class="muestra__nombre">Metal</span><span class="muestra__color">Acero Huachipato</span>
-          </div>
-          <div class="muestra muestra--3 sup--exterior textura--exterior">
-            <span class="muestra__codigo">EC-03</span><span class="muestra__nombre">Exterior</span><span class="muestra__color">Azul Vichuquén</span>
-          </div>
-          <div class="muestra muestra--4 sup--techo textura--techo">
-            <span class="muestra__codigo">EC-04</span><span class="muestra__nombre">Techo</span><span class="muestra__color">Rojo Copihue</span>
-          </div>
-          <div class="muestra muestra--5 sup--interior textura--interior">
-            <span class="muestra__codigo">EC-05</span><span class="muestra__nombre">Interior</span><span class="muestra__color">Verde Radal</span>
-          </div>
-        </div>
+        <!-- La "ventana": foto real + una capa de luz que cambia con la hora -->
+        <figure class="ventana">
+          <img class="ventana__foto" src="img/luz-ventana.webp" width="1000" height="1333"
+               alt="Luz de sol entrando por una ventana y dibujando su sombra sobre un muro claro"
+               fetchpriority="high" decoding="async" />
+          <span class="ventana__luz" aria-hidden="true"></span>
+          <figcaption class="ventana__pie">Luz de <span id="luzActual">mañana</span></figcaption>
+        </figure>
       </div>
     </section>
 
-    <!-- ================= 2. SELECTOR POR SUPERFICIE ================= -->
+    <!-- ================= ¿QUÉ VAS A PINTAR? (filtro estrella) ================= -->
     <section class="superficies" id="superficies" aria-labelledby="superficiesTitulo">
       <div class="contenedor">
         <div class="seccion__cabecera">
-          <h2 class="seccion__titulo" id="superficiesTitulo">Elige tu superficie</h2>
+          <h2 class="seccion__titulo" id="superficiesTitulo">Elige la superficie</h2>
           <p class="seccion__bajada">Cada superficie necesita su pintura. Toca una y te mostramos solo lo que le sirve.</p>
         </div>
 
-        <!-- Funcionalidad estrella: app.js escucha los clics en #filtros -->
+        <!-- app.js escucha los clics en #filtros -->
         <div class="filtros" id="filtros" role="group" aria-label="Filtrar el catálogo por superficie">
-          <button type="button" class="filtro sup--madera" data-superficie="madera" aria-pressed="false">
-            <span class="filtro__muestra textura--madera"></span>
-            <span class="filtro__texto"><span class="filtro__nombre">Madera</span><span class="filtro__detalle">Muebles, puertas y decks</span></span>
+          <button type="button" class="filtro" data-superficie="madera" aria-pressed="false">
+            <img class="filtro__foto" src="img/sup-madera.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
+            <span class="filtro__texto"><span class="filtro__nombre">Madera</span><span class="filtro__detalle">Terrazas, puertas y muebles</span></span>
           </button>
-          <button type="button" class="filtro sup--metal" data-superficie="metal" aria-pressed="false">
-            <span class="filtro__muestra textura--metal"></span>
+          <button type="button" class="filtro" data-superficie="metal" aria-pressed="false">
+            <img class="filtro__foto" src="img/sup-metal.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Metal</span><span class="filtro__detalle">Rejas, portones y estructuras</span></span>
           </button>
-          <button type="button" class="filtro sup--exterior" data-superficie="exterior" aria-pressed="false">
-            <span class="filtro__muestra textura--exterior"></span>
+          <button type="button" class="filtro" data-superficie="exterior" aria-pressed="false">
+            <img class="filtro__foto" src="img/sup-exterior.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Exterior</span><span class="filtro__detalle">Fachadas al sol y la lluvia</span></span>
           </button>
-          <button type="button" class="filtro sup--techo" data-superficie="techo" aria-pressed="false">
-            <span class="filtro__muestra textura--techo"></span>
+          <button type="button" class="filtro" data-superficie="techo" aria-pressed="false">
+            <img class="filtro__foto" src="img/sup-techo.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Techo</span><span class="filtro__detalle">Cubiertas y techumbres</span></span>
           </button>
-          <button type="button" class="filtro sup--interior" data-superficie="interior" aria-pressed="false">
-            <span class="filtro__muestra textura--interior"></span>
+          <button type="button" class="filtro" data-superficie="interior" aria-pressed="false">
+            <img class="filtro__foto" src="img/sup-interior.webp" width="800" height="1000" alt="" loading="lazy" decoding="async" />
             <span class="filtro__texto"><span class="filtro__nombre">Interior</span><span class="filtro__detalle">Muros y cielos de tu casa</span></span>
           </button>
           <button type="button" class="filtro filtro--todas filtro--activo" data-superficie="todas" aria-pressed="true">
-            <span class="filtro__muestra textura--todas"></span>
             <span class="filtro__texto"><span class="filtro__nombre">Todas</span><span class="filtro__detalle">El catálogo completo</span></span>
           </button>
         </div>
       </div>
     </section>
 
-    <!-- ================= 3. CATÁLOGO ================= -->
+    <!-- ================= CATÁLOGO ================= -->
     <section class="catalogo" id="catalogo" aria-labelledby="catalogoTitulo">
-      <div class="contenedor catalogo__interior">
-        <div class="catalogo__principal">
-          <div class="seccion__cabecera seccion__cabecera--fila">
-            <h2 class="seccion__titulo" id="catalogoTitulo">Catálogo</h2>
-            <!-- app.js escribe aquí qué filtro está activo -->
-            <p class="catalogo__estado" id="filtroActivo" aria-live="polite"></p>
-          </div>
-          <!-- app.js pinta aquí las tarjetas de productos -->
-          <div class="productos" id="productos"></div>
+      <div class="contenedor">
+        <div class="seccion__cabecera seccion__cabecera--fila">
+          <h2 class="seccion__titulo" id="catalogoTitulo">Catálogo</h2>
+          <!-- app.js escribe aquí qué filtro está activo -->
+          <p class="catalogo__estado" id="filtroActivo" aria-live="polite"></p>
         </div>
 
-        <!-- Espacio preparado: calculadora m² → litros (todavía sin lógica) -->
-        <aside class="calculadora" id="calculadora" aria-labelledby="calculadoraTitulo">
-          <h3 class="calculadora__titulo" id="calculadoraTitulo">¿Cuánta pintura necesito?</h3>
-          <p class="calculadora__texto">Muy pronto: escribe los metros cuadrados a pintar y te diremos cuántos litros comprar.</p>
-          <div class="calculadora__campos">
-            <label class="campo">
-              <span class="campo__etiqueta">Metros cuadrados</span>
-              <input class="campo__control" type="number" id="calcMetros" min="1" placeholder="Ej: 40" disabled />
-            </label>
-            <label class="campo">
-              <span class="campo__etiqueta">Manos de pintura</span>
-              <select class="campo__control" id="calcManos" disabled>
-                <option>2</option><option>1</option><option>3</option>
-              </select>
-            </label>
-          </div>
-          <p class="calculadora__resultado" id="calcResultado">Próximamente</p>
-        </aside>
+        <div class="catalogo__interior">
+          <!-- app.js pinta aquí los productos -->
+          <div class="productos" id="productos"></div>
+
+          <!-- Espacio preparado: calculadora m² → litros (todavía sin lógica) -->
+          <aside class="calculadora" id="calculadora" aria-labelledby="calculadoraTitulo">
+            <h3 class="calculadora__titulo" id="calculadoraTitulo">¿Cuánta pintura <em>necesito?</em></h3>
+            <p class="calculadora__texto">Muy pronto: escribe los metros cuadrados a pintar y te diremos cuántos litros comprar.</p>
+            <div class="calculadora__campos">
+              <label class="campo">
+                <span class="campo__etiqueta">Metros cuadrados</span>
+                <input class="campo__control" type="number" id="calcMetros" min="1" placeholder="Ej: 40" disabled />
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Manos de pintura</span>
+                <select class="campo__control" id="calcManos" disabled>
+                  <option>2</option><option>1</option><option>3</option>
+                </select>
+              </label>
+            </div>
+            <p class="calculadora__resultado" id="calcResultado">Próximamente</p>
+          </aside>
+        </div>
       </div>
     </section>
 
-    <!-- ================= 4. BENEFICIOS ================= -->
+    <!-- ================= BENEFICIOS ================= -->
     <section class="beneficios" aria-label="Por qué Ecocordi">
       <ul class="contenedor beneficios__lista">
         <li class="beneficio">
-          <span class="beneficio__dato">+30</span>
-          <span class="beneficio__texto"><strong>años de experiencia.</strong> Una marca de confianza en todo Chile.</span>
+          <p class="beneficio__titulo">Más de <em>30 años</em></p>
+          <p class="beneficio__texto">Una marca de confianza para casas, obras y constructoras en todo Chile.</p>
         </li>
         <li class="beneficio">
-          <span class="beneficio__dato beneficio__dato--muestras"><span class="sup--madera"></span><span class="sup--exterior"></span><span class="sup--interior"></span></span>
-          <span class="beneficio__texto"><strong>Calidad premium.</strong> Colores duraderos, cubrientes y de alto rendimiento.</span>
+          <p class="beneficio__titulo">Color que <em>dura</em></p>
+          <p class="beneficio__texto">Pinturas cubrientes y de alto rendimiento, pensadas para el clima de Chile.</p>
         </li>
         <li class="beneficio">
-          <span class="beneficio__dato">2</span>
-          <span class="beneficio__texto"><strong>sucursales para despachar.</strong> Talca y Santiago, para llegar rápido a tu casa u obra.</span>
+          <p class="beneficio__titulo">Despacho <em>cercano</em></p>
+          <p class="beneficio__texto">Desde nuestras sucursales de Talca y Santiago, a tu casa o a tu obra.</p>
         </li>
       </ul>
     </section>
 
-    <!-- ================= 5. QUIÉNES SOMOS ================= -->
+    <!-- ================= QUIÉNES SOMOS ================= -->
     <section class="nosotros" id="nosotros" aria-labelledby="nosotrosTitulo">
       <div class="contenedor nosotros__grid">
-        <div class="nosotros__intro">
-          <h2 class="seccion__titulo" id="nosotrosTitulo">Quiénes somos</h2>
-          <p>
+        <figure class="nosotros__foto">
+          <img src="img/nosotros-pintor.webp" width="1200" height="900" loading="lazy" decoding="async"
+               alt="Un pintor aplica pintura con brocha sobre un muro blanco" />
+        </figure>
+        <div class="nosotros__texto">
+          <h2 class="seccion__titulo" id="nosotrosTitulo">Quiénes <em>somos</em></h2>
+          <p class="nosotros__intro">
             Ecocordi nació hace más de 30 años con un sueño simple: entregar
             pinturas de calidad superior que transformen espacios y perduren en
             el tiempo. Hoy nos eligen contratistas, familias y empresas para sus
             proyectos más importantes.
           </p>
-        </div>
-        <div class="nosotros__bloque" id="mision">
-          <h3 class="nosotros__subtitulo"><span class="nosotros__marca sup--interior"></span>Misión</h3>
-          <p>
-            Ofrecer pinturas de alta calidad y soluciones de color que
-            embellezcan y protejan los espacios de nuestros clientes,
-            entregando un servicio confiable, cercano y profesional.
-          </p>
-        </div>
-        <div class="nosotros__bloque" id="vision">
-          <h3 class="nosotros__subtitulo"><span class="nosotros__marca sup--exterior"></span>Visión</h3>
-          <p>
-            Ser la marca de pinturas líder y más querida de Chile,
-            reconocida por su calidad premium, su innovación en color y su
-            compromiso con las personas y el medio ambiente.
-          </p>
+          <div class="nosotros__bloques">
+            <div class="nosotros__bloque" id="mision">
+              <h3 class="nosotros__subtitulo">Misión</h3>
+              <p>
+                Ofrecer pinturas de alta calidad y soluciones de color que
+                embellezcan y protejan los espacios de nuestros clientes,
+                entregando un servicio confiable, cercano y profesional.
+              </p>
+            </div>
+            <div class="nosotros__bloque" id="vision">
+              <h3 class="nosotros__subtitulo">Visión</h3>
+              <p>
+                Ser la marca de pinturas líder y más querida de Chile,
+                reconocida por su calidad premium, su innovación en color y su
+                compromiso con las personas y el medio ambiente.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- ================= 6. SUCURSALES ================= -->
+    <!-- ================= SUCURSALES ================= -->
     <section class="sucursales" id="sucursales" aria-labelledby="sucursalesTitulo">
       <div class="contenedor">
         <div class="seccion__cabecera">
@@ -240,7 +258,7 @@
         </div>
 
         <div class="sucursales__lista">
-          <article class="sucursal sup--madera">
+          <article class="sucursal">
             <h3 class="sucursal__nombre">Talca</h3>
             <p class="sucursal__region">Casa matriz · Región del Maule</p>
             <dl class="sucursal__datos">
@@ -253,15 +271,15 @@
                 <dd class="por-confirmar">Por confirmar</dd>
               </div>
             </dl>
-            <a class="boton boton--secundario"
+            <a class="enlace-flecha"
                href="https://www.google.com/maps/search/?api=1&amp;query=Pinturas+Ecocordi+Talca"
                target="_blank" rel="noopener">
               Cómo llegar <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg>
-              <span class="solo-lector">(abre Google Maps en otra pestaña)</span>
+              <span class="solo-lector">a Talca (abre Google Maps en otra pestaña)</span>
             </a>
           </article>
 
-          <article class="sucursal sup--exterior">
+          <article class="sucursal">
             <h3 class="sucursal__nombre">Santiago</h3>
             <p class="sucursal__region">Región Metropolitana</p>
             <dl class="sucursal__datos">
@@ -274,11 +292,11 @@
                 <dd class="por-confirmar">Por confirmar</dd>
               </div>
             </dl>
-            <a class="boton boton--secundario"
+            <a class="enlace-flecha"
                href="https://www.google.com/maps/search/?api=1&amp;query=Pinturas+Ecocordi+Santiago"
                target="_blank" rel="noopener">
               Cómo llegar <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg>
-              <span class="solo-lector">(abre Google Maps en otra pestaña)</span>
+              <span class="solo-lector">a Santiago (abre Google Maps en otra pestaña)</span>
             </a>
           </article>
         </div>
@@ -286,15 +304,12 @@
     </section>
   </main>
 
-  <!-- ================= 7. PIE DE PÁGINA ================= -->
+  <!-- ================= PIE DE PÁGINA ================= -->
   <footer class="pie" id="contacto">
-    <div class="pie__franja" aria-hidden="true">
-      <span class="sup--madera"></span><span class="sup--metal"></span><span class="sup--exterior"></span><span class="sup--techo"></span><span class="sup--interior"></span>
-    </div>
     <div class="contenedor pie__grid">
       <div class="pie__marca">
         <img src="img/logo.png" alt="Pinturas Ecocordi" width="283" height="122" loading="lazy" />
-        <p>Majestuosas por Naturaleza.</p>
+        <p class="pie__lema">Majestuosas <em>por Naturaleza.</em></p>
       </div>
 
       <div class="pie__columna">
@@ -313,6 +328,7 @@
           <li><a href="#sucursales">Sucursales</a></li>
           <li><a href="terminos.html">Términos y condiciones</a></li>
           <li><a href="privacidad.html">Política de privacidad</a></li>
+          <li><a href="creditos.html">Créditos de fotografías</a></li>
         </ul>
       </div>
     </div>
@@ -328,9 +344,6 @@
   <div class="modal-fondo" id="modalFondo"></div>
 
   <div class="modal" id="modalLogin" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
-    <div class="modal__franja" aria-hidden="true">
-      <span class="sup--madera"></span><span class="sup--metal"></span><span class="sup--exterior"></span><span class="sup--techo"></span><span class="sup--interior"></span>
-    </div>
     <button class="modal__cerrar" id="btnCerrarModal" type="button" aria-label="Cerrar">
       <svg class="icono" aria-hidden="true"><use href="#i-cerrar"/></svg>
     </button>
@@ -368,9 +381,6 @@
 
   <!-- ================= VENTANA "MIS PEDIDOS" ================= -->
   <div class="modal modal--ancho" id="modalPedidos" role="dialog" aria-modal="true" aria-labelledby="misPedidosTitulo">
-    <div class="modal__franja" aria-hidden="true">
-      <span class="sup--madera"></span><span class="sup--metal"></span><span class="sup--exterior"></span><span class="sup--techo"></span><span class="sup--interior"></span>
-    </div>
     <button class="modal__cerrar" id="btnCerrarPedidos" type="button" aria-label="Cerrar">
       <svg class="icono" aria-hidden="true"><use href="#i-cerrar"/></svg>
     </button>

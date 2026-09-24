@@ -72,8 +72,8 @@ async function cargarProductos() {
 }
 
 /* -------- 5. MOSTRAR PRODUCTOS EN PANTALLA --------
-   Cada tarjeta es como una muestra de pintura: la franja de color de abajo
-   es la superficie principal del producto (la primera de su lista). */
+   Lista editorial: foto grande, nombre, superficies y una línea con
+   precio, stock y botón. */
 function mostrarProductos(lista) {
   if (lista.length === 0) {
     contenedorProductos.innerHTML =
@@ -98,7 +98,7 @@ function mostrarProductos(lista) {
     return `
       <article class="producto ${claseSuperficie(p.superficies[0])}" data-id="${p.id}">
         <div class="producto__foto">
-          <img src="${escaparHTML(p.imagen)}" alt="" width="400" height="300"
+          <img src="${escaparHTML(p.imagen)}" alt="" width="800" height="600"
                loading="lazy" decoding="async" />
         </div>
         <div class="producto__cuerpo">
@@ -107,11 +107,13 @@ function mostrarProductos(lista) {
           <ul class="producto__superficies" aria-label="Superficies">${superficies}</ul>
           <div class="producto__pie">
             <span class="producto__precio">${formatearPrecio(p.precio)}</span>
-            ${avisoStock}
+            <div class="producto__compra">
+              ${avisoStock}
+              <button type="button" class="boton boton--principal producto__boton" ${agotado ? "disabled" : ""}>
+                ${agotado ? "Agotado" : "Agregar al carrito"}
+              </button>
+            </div>
           </div>
-          <button type="button" class="boton boton--principal producto__boton" ${agotado ? "disabled" : ""}>
-            ${agotado ? "Agotado" : "Agregar al carrito"}
-          </button>
         </div>
       </article>
     `;

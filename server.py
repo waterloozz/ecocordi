@@ -179,14 +179,14 @@ def _seed_productos(con):
         return
 
     productos = [
-        ("Protección de Madera", "Acabado y protección para muebles, puertas y decks.", 18990, "img/madera.jpg", ["madera", "interior"]),
-        ("Anticorrosivo Metal Pro", "Protege rejas, portones y estructuras contra el óxido.", 21990, "img/especiales.jpg", ["metal", "exterior"]),
-        ("Pinturas para Exterior", "Resistente al sol y la lluvia para fachadas duraderas.", 24990, "img/exterior.jpg", ["exterior"]),
-        ("Línea Constructoras", "Alto rendimiento para grandes proyectos y obras.", 29990, "img/constructoras.jpg", ["techo", "exterior"]),
-        ("Pinturas para Interior", "Cobertura perfecta y acabado elegante para muros interiores.", 15990, "img/interior.jpg", ["interior"]),
-        ("Chalk Paint Ecocordi", "Pintura a la tiza para renovar muebles con estilo vintage.", 12990, "img/chalk.jpg", ["madera", "interior"]),
-        ("Productos Especiales", "Soluciones específicas de alto desempeño para cada trabajo.", 19990, "img/especiales.jpg", ["metal", "interior"]),
-        ("Impermeabilizante Techo", "Sella y protege techos y cubiertas contra filtraciones.", 27990, "img/constructoras.jpg", ["techo"]),
+        ("Protección de Madera", "Acabado y protección para muebles, puertas y decks.", 18990, "img/prod-madera.webp", ["madera", "interior"]),
+        ("Anticorrosivo Metal Pro", "Protege rejas, portones y estructuras contra el óxido.", 21990, "img/prod-metal.webp", ["metal", "exterior"]),
+        ("Pinturas para Exterior", "Resistente al sol y la lluvia para fachadas duraderas.", 24990, "img/prod-exterior.webp", ["exterior"]),
+        ("Línea Constructoras", "Alto rendimiento para grandes proyectos y obras.", 29990, "img/prod-constructoras.webp", ["techo", "exterior"]),
+        ("Pinturas para Interior", "Cobertura perfecta y acabado elegante para muros interiores.", 15990, "img/prod-interior.webp", ["interior"]),
+        ("Chalk Paint Ecocordi", "Pintura a la tiza para renovar muebles con estilo vintage.", 12990, "img/prod-chalk.webp", ["madera", "interior"]),
+        ("Productos Especiales", "Soluciones específicas de alto desempeño para cada trabajo.", 19990, "img/prod-especiales.webp", ["metal", "interior"]),
+        ("Impermeabilizante Techo", "Sella y protege techos y cubiertas contra filtraciones.", 27990, "img/prod-techo.webp", ["techo"]),
     ]
     for nombre, desc, precio, imagen, superf in productos:
         c.execute(
@@ -700,7 +700,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 nombre,
                 datos.get("descripcion", ""),
                 precio,
-                datos.get("imagen", "img/interior.jpg"),
+                datos.get("imagen", "img/prod-interior.webp"),
                 json.dumps(datos.get("superficies", [])),
                 stock,
             ),

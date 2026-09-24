@@ -191,7 +191,7 @@ document.getElementById("formProducto").addEventListener("submit", async functio
     descripcion: document.getElementById("pDesc").value,
     precio: document.getElementById("pPrecio").value,
     stock: document.getElementById("pStock").value || 0,
-    imagen: document.getElementById("pImagen").value || "img/interior.jpg",
+    imagen: document.getElementById("pImagen").value || "img/prod-interior.webp",
     superficies: superficies,
   };
 

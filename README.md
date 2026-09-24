@@ -75,16 +75,19 @@ ecocordi/
 ├── index.html         → Página principal de la tienda
 ├── admin.html         → Panel de administración
 ├── terminos.html      → Términos y condiciones (en preparación)
+├── creditos.html      → Créditos de las fotografías
 ├── privacidad.html    → Política de privacidad (en preparación)
 ├── iniciar.sh         → Atajo para arrancar el servidor
 ├── css/
 │   └── estilos.css    → Todo el diseño (variables de color, espacios y tipografía en :root)
 ├── js/
+│   ├── luz.js         → Elige la luz (mañana/tarde/noche) antes de dibujar la página
 │   ├── ui.js          → Avisos (toasts) y diálogo de confirmación, compartidos
 │   ├── app.js         → Lógica de la tienda (catálogo, carrito, login)
 │   └── admin.js       → Lógica del panel de administración
 ├── fonts/             → Tipografías servidas desde el propio sitio (licencia OFL)
-└── img/               → Logo e imágenes de productos
+├── actualizar_imagenes.py → Actualiza las fotos de productos en una ecocordi.db antigua
+└── img/               → Fotos (WebP, de Unsplash; ver img/CREDITOS.md) y logo
 ```
 
 ---
@@ -108,9 +111,10 @@ ecocordi/
 - **Mis pedidos**: cada cliente ve sus compras y el estado de cada una.
 - **Panel de administración** protegido: ver pedidos y cambiar su estado,
   agregar/eliminar productos y editar su precio y stock.
-- **Diseño "Carta de color"**: el sitio se arma como un muestrario de pintura.
-  Cada superficie tiene su color y su textura (vetas de madera, metal cepillado,
-  tablas de fachada, tejas, muro liso), dibujadas solo con CSS.
+- **Diseño "Luz de ventana"**: el mismo color cambia con la luz del día, y la
+  página lo muestra. Según la hora de quien la visita se ve con luz de **mañana**,
+  **tarde** o **noche** (fondo oscuro), y también se puede elegir a mano. Todas
+  las fotos y colores cambian juntos (`js/luz.js` + variables en `css/estilos.css`).
 - **Avisos y confirmaciones propios** (sin `alert()` ni `confirm()`).
 - **Responsive desde 360 px**, foco de teclado visible, contraste AA y respeto
   por la opción "reducir movimiento" del sistema.
