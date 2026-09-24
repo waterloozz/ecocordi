@@ -26,6 +26,8 @@ from urllib.parse import urlparse, parse_qs
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE, "ecocordi.db")
 PUERTO = 8000
+ADMIN_CORREO = os.environ.get("ADMIN_CORREO", "admin@ecocordi.cl")
+MAX_CANTIDAD = 999  # unidades máximas de un mismo producto por pedido
 
 
 # ------------------------------------------------------------
@@ -131,15 +133,47 @@ def _seed_productos(con):
 
 
 def _seed_admin(con):
-    """Crea un usuario administrador de ejemplo si no existe."""
+    """Crea (o actualiza) la cuenta de administrador.
+
+    La contraseña NUNCA se escribe en el código (el repositorio es público).
+    Se lee de la "variable de entorno" ADMIN_CLAVE, que se define al arrancar:
+        ADMIN_CLAVE='mi-clave-secreta' python3 server.py
+    - Si ADMIN_CLAVE existe: el admin queda con esa clave (sirve para cambiarla).
+    - Si no existe y aún no hay admin: se inventa una clave al azar y se
+      muestra UNA vez en la terminal.
+    """
     c = con.cursor()
-    existe = c.execute("SELECT 1 FROM usuarios WHERE correo=?", ("admin@ecocordi.cl",)).fetchone()
-    if not existe:
+    fila = c.execute("SELECT id, clave FROM usuarios WHERE correo=?", (ADMIN_CORREO,)).fetchone()
+    clave_env = os.environ.get("ADMIN_CLAVE")
+
+    if clave_env:
+        if fila:
+            c.execute("UPDATE usuarios SET clave=?, es_admin=1 WHERE id=?",
+                      (hash_clave(clave_env), fila["id"]))
+        else:
+            c.execute(
+                "INSERT INTO usuarios (nombre, correo, clave, es_admin) VALUES (?,?,?,1)",
+                ("Administrador", ADMIN_CORREO, hash_clave(clave_env)),
+            )
+        con.commit()
+        print(f"  Admin {ADMIN_CORREO}: clave tomada de ADMIN_CLAVE")
+    elif not fila:
+        clave = secrets.token_urlsafe(9)
         c.execute(
             "INSERT INTO usuarios (nombre, correo, clave, es_admin) VALUES (?,?,?,1)",
-            ("Administrador", "admin@ecocordi.cl", hash_clave("admin123")),
+            ("Administrador", ADMIN_CORREO, hash_clave(clave)),
         )
         con.commit()
+        print("=" * 50)
+        print("  Se creó la cuenta de administrador:")
+        print(f"    Correo: {ADMIN_CORREO}")
+        print(f"    Clave:  {clave}")
+        print("  ¡Anótala! No se volverá a mostrar.")
+        print("=" * 50)
+    elif verificar_clave("admin123", fila["clave"]):
+        # Bases de datos antiguas quedaron con la clave de ejemplo (pública)
+        print("  ⚠️  El admin todavía usa la clave de ejemplo 'admin123'.")
+        print("     Cámbiala con:  ADMIN_CLAVE='nueva-clave' python3 server.py")
 
 
 # ------------------------------------------------------------
@@ -180,13 +214,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(cuerpo)
 
     def _leer_json(self):
-        largo = int(self.headers.get("Content-Length", 0))
-        if largo == 0:
+        try:
+            largo = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            return {}
+        if largo <= 0:
             return {}
         try:
-            return json.loads(self.rfile.read(largo).decode("utf-8"))
-        except json.JSONDecodeError:
+            datos = json.loads(self.rfile.read(largo).decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return {}
+        # Solo aceptamos un objeto {...}; si mandan una lista u otra cosa, lo ignoramos
+        return datos if isinstance(datos, dict) else {}
 
     def _usuario_actual(self):
         """Devuelve el usuario (dict) según la cookie de sesión, o None."""
@@ -331,20 +370,38 @@ class Handler(http.server.BaseHTTPRequestHandler):
         u = self._usuario_actual()
         if not u:
             return self._json({"error": "Debes iniciar sesión para comprar"}, 401)
-        items = datos.get("items", [])
+        items = datos.get("items")
+        if not isinstance(items, list):
+            return self._json({"error": "Pedido con formato inválido"}, 400)
         if not items:
             return self._json({"error": "El carrito está vacío"}, 400)
 
         con = get_db()
         # El total lo calcula el SERVIDOR con los precios reales (nunca confiar
         # en el precio que manda el navegador: es una regla de seguridad).
+        # Tampoco confiamos en id ni cantidad: los revisamos ANTES de guardar
+        # nada. Si algo está mal, se rechaza el pedido completo (error 400).
         total = 0
         detalle = []
         for it in items:
-            prod = con.execute("SELECT * FROM productos WHERE id=?", (it.get("id"),)).fetchone()
+            if not isinstance(it, dict):
+                con.close()
+                return self._json({"error": "Pedido con formato inválido"}, 400)
+            pid = it.get("id")
+            cant = it.get("cantidad")
+            # type(...) is int deja fuera textos ("abc"), decimales (1.5) y True/False
+            if type(pid) is not int:
+                con.close()
+                return self._json({"error": "Pedido con formato inválido"}, 400)
+            if type(cant) is not int or not 1 <= cant <= MAX_CANTIDAD:
+                con.close()
+                return self._json(
+                    {"error": f"Cantidad inválida (debe ser un número entre 1 y {MAX_CANTIDAD})"}, 400)
+            prod = con.execute("SELECT * FROM productos WHERE id=?", (pid,)).fetchone()
             if not prod:
-                continue
-            cant = max(1, int(it.get("cantidad", 1)))
+                con.close()
+                return self._json(
+                    {"error": "Uno de los productos ya no existe. Revisa tu carrito."}, 400)
             total += prod["precio"] * cant
             detalle.append((prod["id"], prod["nombre"], prod["precio"], cant))
 

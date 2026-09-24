@@ -41,10 +41,22 @@ Necesitas tener **Python 3** instalado (ya viene en la mayoría de los Linux/Mac
 
 ---
 
-## 🔑 Cuenta de administrador (para probar el panel)
+## 🔑 Cuenta de administrador
 
-- **Correo:** `admin@ecocordi.cl`
-- **Contraseña:** `admin123`
+La contraseña del administrador **no está en el código** (el repositorio es
+público). Hay dos formas de obtenerla:
+
+- **Automática:** la primera vez que ejecutas `python3 server.py` (sin base de
+  datos previa), el servidor inventa una clave al azar y la muestra **una sola
+  vez** en la terminal. ¡Anótala!
+- **Elegirla tú:** define la variable de entorno `ADMIN_CLAVE` al arrancar.
+  Esto también sirve para **cambiarla** o recuperarla si la olvidaste:
+
+  ```bash
+  ADMIN_CLAVE='tu-clave-secreta' python3 server.py
+  ```
+
+El correo del admin es `admin@ecocordi.cl` (se puede cambiar con `ADMIN_CORREO`).
 
 Al iniciar sesión con esta cuenta aparece el enlace **"Admin"** en la cabecera,
 que lleva al **panel de administración** (`/admin.html`) para ver pedidos y

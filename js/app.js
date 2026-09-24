@@ -46,6 +46,7 @@ async function cargarProductos() {
     const respuesta = await fetch("/api/productos");
     productos = await respuesta.json();
     mostrarProductos(productos);
+    sincronizarCarrito();
   } catch (error) {
     contenedorProductos.innerHTML =
       "<p class='sin-resultados'>No se pudieron cargar los productos. ¿Está encendido el servidor?</p>";
@@ -178,6 +179,21 @@ function cargarCarrito() {
   if (guardado) carrito = JSON.parse(guardado);
 }
 
+/* El carrito guardado puede estar desactualizado: quizás el admin borró un
+   producto o cambió su precio. Cuando llega el catálogo real, quitamos lo que
+   ya no existe y copiamos nombre, precio e imagen actuales. */
+function sincronizarCarrito() {
+  carrito = carrito
+    .filter(function (item) {
+      return productos.some(function (p) { return p.id === item.id; });
+    })
+    .map(function (item) {
+      const actual = productos.find(function (p) { return p.id === item.id; });
+      return { ...actual, cantidad: item.cantidad };
+    });
+  actualizarCarrito();
+}
+
 /* -------- 10. ABRIR / CERRAR EL PANEL DEL CARRITO -------- */
 function abrirCarrito() {
   panelCarrito.classList.add("abierto");
@@ -217,6 +233,10 @@ document.getElementById("btnPagar").addEventListener("click", async function () 
   }
 
   const datos = await respuesta.json();
+  if (!respuesta.ok) {
+    alert("No se pudo completar la compra: " + (datos.error || "error desconocido"));
+    return;
+  }
   alert("¡Gracias por tu compra en Ecocordi! 🎨\n" +
         "Pedido N° " + datos.pedido_id + "\n" +
         "Total: " + formatearPrecio(datos.total));
