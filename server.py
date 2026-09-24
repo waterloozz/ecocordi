@@ -1042,6 +1042,11 @@ if __name__ == "__main__":
     print("  ECOCORDI - Servidor iniciado")
     print(f"  Abre en tu navegador:  http://localhost:{PUERTO}")
     print(f"  Panel admin:           http://localhost:{PUERTO}/admin.html")
+    if google_configurado():
+        print("  Login con Google:      ACTIVADO")
+    else:
+        print("  Login con Google:      desactivado (faltan GOOGLE_CLIENT_ID")
+        print("                         y GOOGLE_CLIENT_SECRET; ver README)")
     print("  (Para detener el servidor: Ctrl + C)")
     print("=" * 50)
     # Hilo en segundo plano que olvida las IP de intentos fallidos viejos
