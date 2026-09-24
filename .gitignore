@@ -1,0 +1,12 @@
+# Base de datos local (se crea sola al ejecutar server.py y contiene usuarios y pedidos)
+ecocordi.db
+
+# Copias de respaldo de las imágenes
+img_original/
+
+# Configuración local de Claude Code
+.claude/
+
+# Archivos temporales de Python
+__pycache__/
+*.pyc

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecocordi | Panel de Administración</title>
+  <link rel="icon" href="img/favicon.png" type="image/png" />
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+
+<body class="admin-body">
+
+  <!-- Cabecera simple del panel -->
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a href="index.html" class="logo">
+        <img src="img/logo.png" alt="Ecocordi" class="logo__img" />
+      </a>
+      <div class="cabecera__derecha">
+        <span class="cuenta__saludo" id="adminNombre"></span>
+        <a href="index.html" class="cuenta__link">← Volver a la tienda</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="contenedor admin">
+
+    <!-- Mensaje si NO eres administrador -->
+    <div id="accesoDenegado" class="admin__denegado" style="display:none">
+      <h2>Acceso restringido 🔒</h2>
+      <p>Esta página es solo para administradores.</p>
+      <a href="index.html" class="boton boton--principal">Volver al inicio</a>
+    </div>
+
+    <!-- Contenido del panel (oculto hasta confirmar que eres admin) -->
+    <div id="panel" style="display:none">
+      <h1 class="admin__titulo">Panel de Administración</h1>
+
+      <!-- Pestañas -->
+      <div class="admin__tabs">
+        <button class="admin__tab admin__tab--activo" data-tab="pedidos">📦 Pedidos</button>
+        <button class="admin__tab" data-tab="productos">🎨 Productos</button>
+      </div>
+
+      <!-- SECCIÓN PEDIDOS -->
+      <section id="tabPedidos" class="admin__seccion">
+        <h2 class="admin__subtitulo">Pedidos recibidos</h2>
+        <div id="listaPedidos" class="admin__pedidos"></div>
+      </section>
+
+      <!-- SECCIÓN PRODUCTOS -->
+      <section id="tabProductos" class="admin__seccion" style="display:none">
+        <h2 class="admin__subtitulo">Agregar nuevo producto</h2>
+        <form id="formProducto" class="admin__form">
+          <input type="text" id="pNombre" placeholder="Nombre del producto" required />
+          <input type="text" id="pDesc" placeholder="Descripción" />
+          <input type="number" id="pPrecio" placeholder="Precio (ej: 19990)" required />
+          <input type="text" id="pImagen" placeholder="Ruta de la imagen (ej: img/interior.jpg)" />
+          <div class="admin__superficies">
+            <span>Superficies:</span>
+            <label><input type="checkbox" value="interior" /> Interior</label>
+            <label><input type="checkbox" value="exterior" /> Exterior</label>
+            <label><input type="checkbox" value="madera" /> Madera</label>
+            <label><input type="checkbox" value="metal" /> Metal</label>
+            <label><input type="checkbox" value="techo" /> Techo</label>
+          </div>
+          <button type="submit" class="boton boton--principal">Guardar producto</button>
+        </form>
+
+        <h2 class="admin__subtitulo">Productos actuales</h2>
+        <div id="listaProductos" class="admin__productos"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>

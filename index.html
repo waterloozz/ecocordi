@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ecocordi | Majestuosas por Naturaleza</title>
+
+  <!-- El ícono que aparece en la pestaña del navegador -->
+  <link rel="icon" href="img/favicon.png" type="image/png" />
+
+  <!-- Conectamos nuestro archivo de estilos (CSS) -->
+  <link rel="stylesheet" href="css/estilos.css" />
+</head>
+
+<body>
+
+  <!-- ================= CABECERA / MENÚ ================= -->
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+
+      <a href="#inicio" class="logo">
+        <img src="img/logo.png" alt="Ecocordi" class="logo__img" />
+      </a>
+
+      <nav class="menu">
+        <a href="#inicio" class="menu__link">Inicio</a>
+
+        <!-- Ítem con mega-menú: Catálogo -->
+        <div class="menu__item">
+          <a href="#catalogo" class="menu__link">Catálogo</a>
+          <div class="submenu">
+            <div class="submenu__interior submenu__interior--grid">
+              <span class="submenu__titulo">Pinta por superficie</span>
+              <a href="#catalogo" class="submenu__link" data-superficie="interior">🛋️ Interior</a>
+              <a href="#catalogo" class="submenu__link" data-superficie="exterior">🏠 Exterior</a>
+              <a href="#catalogo" class="submenu__link" data-superficie="madera">🪵 Madera</a>
+              <a href="#catalogo" class="submenu__link" data-superficie="metal">🔩 Metal</a>
+              <a href="#catalogo" class="submenu__link" data-superficie="techo">🧱 Techo</a>
+              <a href="#catalogo" class="submenu__link" data-superficie="todas">🎨 Ver todo</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ítem con mega-menú: Quiénes Somos -->
+        <div class="menu__item">
+          <a href="#nosotros" class="menu__link">Quiénes Somos</a>
+          <div class="submenu">
+            <div class="submenu__interior">
+              <span class="submenu__titulo">Conócenos</span>
+              <a href="#historia" class="submenu__link">📖 Nuestra Historia</a>
+              <a href="#mision" class="submenu__link">🎯 Misión</a>
+              <a href="#vision" class="submenu__link">🔭 Visión</a>
+            </div>
+          </div>
+        </div>
+
+        <a href="#contacto" class="menu__link">Contacto</a>
+      </nav>
+
+      <!-- Grupo derecho: carrito + redes sociales -->
+      <div class="cabecera__derecha">
+        <!-- Área de cuenta: JavaScript la rellena según si hay sesión iniciada -->
+        <div class="cuenta-area" id="cuentaArea"></div>
+
+        <!-- Botón que abre el carrito. El número se actualiza con JavaScript -->
+        <button class="boton boton--carrito" id="btnAbrirCarrito">
+          🛒 Carrito (<span id="contadorCarrito">0</span>)
+        </button>
+
+        <div class="redes redes--cabecera">
+          <a href="https://instagram.com/pinturasecocordi" target="_blank"
+             class="red red--instagram" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            </svg>
+          </a>
+          <a href="https://www.facebook.com/profile.php?id=61575707128981" target="_blank"
+             class="red red--facebook" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+          </a>
+          <a href="mailto:pinturas@ecocordi.cl"
+             class="red red--correo" aria-label="Correo">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= HERO / INICIO ================= -->
+  <!-- ESCENA 1: portada -->
+  <section class="escena" id="inicio">
+    <div class="escena__fondo" style="background-image: url('img/constructoras.jpg')"></div>
+    <div class="escena__capa">
+      <div class="escena__contenido revelar">
+        <img src="img/logo3.png" alt="Pinturas Ecocordi" class="escena__logo" />
+        <p class="escena__texto">Más de 30 años pintando los hogares y proyectos de Chile.</p>
+        <a href="#catalogo" class="boton boton--principal">Ver Catálogo</a>
+      </div>
+    </div>
+    <span class="escena__scroll">Desliza hacia abajo ↓</span>
+  </section>
+
+  <!-- ESCENA 2: interior -->
+  <section class="escena">
+    <div class="escena__fondo" style="background-image: url('img/interior.jpg')"></div>
+    <div class="escena__capa">
+      <div class="escena__contenido revelar">
+        <h2 class="escena__titulo">Pinturas para Interior</h2>
+        <p class="escena__texto">Colores elegantes y cobertura perfecta para tus muros.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ESCENA 3: exterior -->
+  <section class="escena">
+    <div class="escena__fondo" style="background-image: url('img/exterior.jpg')"></div>
+    <div class="escena__capa">
+      <div class="escena__contenido revelar">
+        <h2 class="escena__titulo">Pinturas para Exterior</h2>
+        <p class="escena__texto">Resistencia al sol y la lluvia para fachadas duraderas.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ESCENA 4: madera -->
+  <section class="escena">
+    <div class="escena__fondo" style="background-image: url('img/madera.jpg')"></div>
+    <div class="escena__capa">
+      <div class="escena__contenido revelar">
+        <h2 class="escena__titulo">Protección de Madera</h2>
+        <p class="escena__texto">Barnices y esmaltes que realzan y cuidan la madera.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BENEFICIOS ================= -->
+  <section class="beneficios">
+    <div class="contenedor beneficios__grid">
+      <div class="beneficio revelar">
+        <span class="beneficio__icono">🏆</span>
+        <h3>+30 años de experiencia</h3>
+        <p>Una marca consolidada y de confianza en todo Chile.</p>
+      </div>
+      <div class="beneficio revelar">
+        <span class="beneficio__icono">🎨</span>
+        <h3>Calidad premium</h3>
+        <p>Colores duraderos, cubrientes y de alto rendimiento.</p>
+      </div>
+      <div class="beneficio revelar">
+        <span class="beneficio__icono">🚚</span>
+        <h3>Despacho rápido</h3>
+        <p>Sucursales en Talca y Santiago para llegar a ti.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CATÁLOGO + FILTRO ================= -->
+  <section class="catalogo" id="catalogo">
+    <div class="contenedor">
+      <h2 class="titulo-seccion revelar">Nuestro Catálogo</h2>
+
+      <!-- FUNCIONALIDAD ESTRELLA: filtro por superficie -->
+      <p class="catalogo__ayuda">¿Qué superficie quieres pintar?</p>
+      <div class="filtros" id="filtros">
+        <button class="filtro filtro--activo" data-superficie="todas">Todas</button>
+        <button class="filtro" data-superficie="madera">🪵 Madera</button>
+        <button class="filtro" data-superficie="metal">🔩 Metal</button>
+        <button class="filtro" data-superficie="exterior">🏠 Exterior</button>
+        <button class="filtro" data-superficie="techo">🧱 Techo</button>
+        <button class="filtro" data-superficie="interior">🛋️ Interior</button>
+      </div>
+
+      <!-- Aquí JavaScript pintará automáticamente las tarjetas de productos -->
+      <div class="productos" id="productos"></div>
+    </div>
+  </section>
+
+  <!-- ================= QUIÉNES SOMOS ================= -->
+  <section class="nosotros" id="nosotros">
+    <div class="contenedor">
+      <h2 class="titulo-seccion revelar" id="historia">Quiénes Somos</h2>
+      <p class="nosotros__intro">
+        Ecocordi nació hace más de 30 años con un sueño simple: entregar
+        pinturas de calidad superior que transformen espacios y perduren en
+        el tiempo. Hoy somos una marca reconocida por contratistas, familias
+        y empresas que confían en nuestros productos para dar vida a sus
+        proyectos más importantes.
+      </p>
+
+      <div class="mv__grid">
+        <div class="mv__tarjeta revelar" id="mision">
+          <h3>🎯 Nuestra Misión</h3>
+          <p>
+            Ofrecer pinturas de alta calidad y soluciones de color que
+            embellezcan y protejan los espacios de nuestros clientes,
+            entregando un servicio confiable, cercano y profesional.
+          </p>
+        </div>
+        <div class="mv__tarjeta revelar" id="vision">
+          <h3>🔭 Nuestra Visión</h3>
+          <p>
+            Ser la marca de pinturas líder y más querida de Chile,
+            reconocida por su calidad premium, su innovación en color y su
+            compromiso con las personas y el medio ambiente.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CONTACTO ================= -->
+  <section class="contacto" id="contacto">
+    <div class="contenedor">
+      <h2 class="titulo-seccion titulo-seccion--claro">Contacto</h2>
+
+      <div class="sucursales">
+        <div class="sucursal revelar">
+          <h3>📍 Sucursal Talca</h3>
+          <p>Casa Matriz</p>
+          <p>Talca, Región del Maule</p>
+          <p>📞 +56 9 0000 0000</p>
+        </div>
+        <div class="sucursal revelar">
+          <h3>📍 Sucursal Santiago</h3>
+          <p>Región Metropolitana</p>
+          <p>Santiago, Chile</p>
+          <p>📞 +56 9 0000 0000</p>
+        </div>
+      </div>
+
+      <p class="contacto__redes-texto">Síguenos en nuestras redes</p>
+      <div class="redes">
+        <a href="https://instagram.com/pinturasecocordi" target="_blank"
+           class="red red--instagram" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+          </svg>
+        </a>
+        <a href="https://www.facebook.com/profile.php?id=61575707128981" target="_blank"
+           class="red red--facebook" aria-label="Facebook">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+        </a>
+        <a href="mailto:pinturas@ecocordi.cl"
+           class="red red--correo" aria-label="Correo">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PIE DE PÁGINA ================= -->
+  <footer class="pie">
+    <div class="contenedor">
+      <p>© 2026 Ecocordi — Majestuosas por Naturaleza</p>
+      <p>Sucursales en Talca y Santiago · @pinturasecocordi</p>
+    </div>
+  </footer>
+
+  <!-- ================= VENTANA DE INICIO DE SESIÓN ================= -->
+  <!-- Fondo oscuro; al hacer clic afuera se cierra -->
+  <div class="modal-fondo" id="modalFondo"></div>
+
+  <div class="modal" id="modalLogin">
+    <button class="modal__cerrar" id="btnCerrarModal">✕</button>
+    <h3 class="modal__titulo" id="modalTitulo">Iniciar sesión</h3>
+    <p class="modal__subtitulo" id="modalSubtitulo">Accede a tu cuenta Ecocordi</p>
+
+    <form class="modal__form" id="formLogin">
+      <!-- Este campo solo aparece en modo "registro" -->
+      <div id="campoNombre" style="display:none">
+        <label for="loginNombre">Nombre</label>
+        <input type="text" id="loginNombre" placeholder="Tu nombre" />
+      </div>
+
+      <label for="loginCorreo">Correo</label>
+      <input type="email" id="loginCorreo" placeholder="tucorreo@ejemplo.cl" required />
+
+      <label for="loginClave">Contraseña</label>
+      <input type="password" id="loginClave" placeholder="••••••••" required />
+
+      <p class="modal__error" id="modalError"></p>
+
+      <button type="submit" class="boton boton--principal modal__enviar" id="modalEnviar">Entrar</button>
+    </form>
+
+    <p class="modal__pie" id="modalToggle">
+      ¿No tienes cuenta? <a href="#" id="linkToggle">Crear cuenta</a>
+    </p>
+  </div>
+
+  <!-- ================= CARRITO (PANEL LATERAL) ================= -->
+  <!-- Este panel está oculto y aparece al hacer clic en el carrito -->
+  <div class="carrito-fondo" id="carritoFondo"></div>
+
+  <aside class="carrito" id="carrito">
+    <div class="carrito__cabecera">
+      <h3>Tu Carrito</h3>
+      <button class="carrito__cerrar" id="btnCerrarCarrito">✕</button>
+    </div>
+
+    <!-- JavaScript pintará aquí los productos agregados -->
+    <div class="carrito__items" id="carritoItems"></div>
+
+    <div class="carrito__pie">
+      <p class="carrito__total">
+        Total: <span id="carritoTotal">$0</span>
+      </p>
+      <button class="boton boton--principal carrito__pagar" id="btnPagar">
+        Finalizar compra
+      </button>
+    </div>
+  </aside>
+
+  <!-- Conectamos nuestro JavaScript (la parte que da vida al sitio) -->
+  <script src="js/app.js"></script>
+</body>
+</html>
