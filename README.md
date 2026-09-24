@@ -150,6 +150,31 @@ ecocordi/
 
 ---
 
+## 🔐 Iniciar sesión con Google
+
+El botón "Continuar con Google" aparece solo si el servidor tiene credenciales.
+Se usa el flujo OAuth 2.0 del lado del servidor (con `state`, `nonce` y PKCE),
+así que no se carga ningún script de Google y la CSP sigue intacta.
+
+1. Entra a [Google Cloud Console](https://console.cloud.google.com/) y crea un proyecto.
+2. **APIs y servicios → Pantalla de consentimiento de OAuth**: tipo *Externo*,
+   nombre de la app, correo de soporte y los permisos `openid`, `email` y `profile`.
+   Mientras esté "en prueba", agrega tu correo como *usuario de prueba*.
+3. **Credenciales → Crear credenciales → ID de cliente de OAuth** → *Aplicación web*.
+   En "URI de redireccionamiento autorizados" pon exactamente:
+   `http://localhost:8000/api/auth/google/callback`
+4. Arranca el servidor con las dos claves (nunca las subas a GitHub):
+
+   ```bash
+   GOOGLE_CLIENT_ID='xxx.apps.googleusercontent.com' GOOGLE_CLIENT_SECRET='xxx' python3 server.py
+   ```
+
+En producción, agrega la URI con tu dominio en Google Cloud y define
+`GOOGLE_REDIRECT_URI` con esa misma dirección. La cuenta de administrador
+no puede entrar con Google (solo con contraseña).
+
+---
+
 ## ⚖️ Aspectos legales y de privacidad
 
 - Páginas: `terminos.html`, `privacidad.html`, `cookies.html` y `devoluciones.html`.

@@ -21,8 +21,12 @@ import os
 import mimetypes
 import threading
 import time
+import base64
+import re
+import urllib.request
+import urllib.error
 from http.cookies import SimpleCookie
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urlencode
 
 # Carpeta donde vive este archivo, y ruta de la base de datos
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -41,12 +45,26 @@ MAX_PRECIO = 100000000
 ESTADOS = ("pendiente", "pagado", "enviado", "entregado", "cancelado")
 # Versión de los Términos y la Política de privacidad. Si se cambian esos
 # textos, subir esta fecha: así queda registro de QUÉ versión aceptó cada persona.
-VERSION_TERMINOS = "2026-09-24"
+VERSION_TERMINOS = "2026-09-24.2"  # .2: se agregó el inicio de sesión con Google
 MAX_NOMBRE = 80           # solo pedimos lo necesario, y con un largo razonable
 MAX_CORREO = 254
 # En producción con HTTPS: COOKIE_SEGURA=1 python3 server.py
 # (la cookie de sesión solo viajará cifrada)
 COOKIE_SEGURA = os.environ.get("COOKIE_SEGURA") == "1"
+
+# Inicio de sesión con Google (OAuth 2.0 / OpenID Connect).
+# Las credenciales se crean en Google Cloud y NUNCA se escriben en el código:
+#   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... python3 server.py
+# Si no están definidas, el botón de Google simplemente no aparece.
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+# Debe coincidir EXACTO con la "URI de redireccionamiento autorizada" en Google Cloud
+GOOGLE_REDIRECT_URI = os.environ.get(
+    "GOOGLE_REDIRECT_URI", f"http://localhost:{PUERTO}/api/auth/google/callback")
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_EMISORES = ("https://accounts.google.com", "accounts.google.com")
+GOOGLE_MINUTOS = 10  # tiempo máximo para completar el inicio de sesión en Google
 _DEF_ESTADO = ("TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ("
                + ", ".join(f"'{e}'" for e in ESTADOS) + "))")
 
@@ -108,7 +126,8 @@ def init_db():
             correo   TEXT NOT NULL UNIQUE,
             clave    TEXT NOT NULL,
             es_admin INTEGER DEFAULT 0,
-            terminos_aceptados TEXT   -- fecha y versión de los términos aceptados
+            terminos_aceptados TEXT,  -- fecha y versión de los términos aceptados
+            google_sub TEXT           -- identificador de Google (solo si entra con Google)
         )
     """)
 
@@ -162,6 +181,10 @@ def init_db():
     for tabla in ("usuarios", "pedidos"):
         if _agregar_columna(c, tabla, "terminos_aceptados", "TEXT"):
             print(f"  Migración: columna 'terminos_aceptados' agregada a {tabla}")
+    # Cuentas vinculadas a Google: guardamos solo su identificador ("sub")
+    if _agregar_columna(c, "usuarios", "google_sub", "TEXT"):
+        print("  Migración: columna 'google_sub' agregada a usuarios")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google ON usuarios(google_sub)")
 
     # Limpieza: borramos las sesiones que ya vencieron
     borradas = c.execute(
@@ -268,6 +291,8 @@ def hash_clave(clave, salt=None):
 
 
 def verificar_clave(clave, guardado):
+    if guardado.startswith(("google$", "eliminada$")):
+        return False  # cuenta sin contraseña (entra con Google) o eliminada
     try:
         salt, h = guardado.split("$")
     except ValueError:
@@ -343,10 +368,78 @@ def limpiar_fallos_viejos():
             _fallos_recientes(clave)
 
 
+# ------------------------------------------------------------
+#  INICIO DE SESIÓN CON GOOGLE: datos temporales de cada intento
+#  Cada vez que alguien aprieta "Continuar con Google" guardamos, por
+#  10 minutos y solo en memoria, un "state" (evita CSRF), un "nonce"
+#  (evita reusar tokens) y el verificador PKCE (el código de Google no
+#  le sirve a quien lo intercepte).
+# ------------------------------------------------------------
+_google_intentos = {}   # {state: {"nonce", "verificador", "acepta", "volver", "expira"}}
+_google_lock = threading.Lock()
+
+
+def _b64url(datos):
+    return base64.urlsafe_b64encode(datos).rstrip(b"=").decode()
+
+
+def _b64url_decodificar(texto):
+    return base64.urlsafe_b64decode(texto + "=" * (-len(texto) % 4))
+
+
+def google_configurado():
+    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+
+def _volver_seguro(volver):
+    """Solo permitimos volver a páginas propias: así nadie puede usar el sitio
+    para redirigir a otra web (open redirect)."""
+    if volver and re.fullmatch(r"(index|catalogo)\.html(\?superficie=[a-z]+)?", volver):
+        return "/" + volver
+    return "/"
+
+
+def _agregar_param(url, clave, valor):
+    return url + ("&" if "?" in url else "?") + urlencode({clave: valor})
+
+
+def limpiar_google_viejos():
+    ahora = time.time()
+    with _google_lock:
+        for state in [k for k, v in _google_intentos.items() if v["expira"] < ahora]:
+            del _google_intentos[state]
+
+
+def validar_id_token(id_token, nonce):
+    """Revisa el "id_token" de Google y devuelve sus datos, o None si algo falla.
+    El token llega directo desde el servidor de Google por HTTPS (con certificado
+    verificado), así que, según OpenID Connect (sección 3.1.3.7), basta con
+    revisar su contenido: emisor, destinatario, vencimiento y nonce."""
+    try:
+        partes = id_token.split(".")
+        if len(partes) != 3:
+            return None
+        datos = json.loads(_b64url_decodificar(partes[1]))
+    except (ValueError, TypeError):
+        return None
+    if datos.get("iss") not in GOOGLE_EMISORES:
+        return None
+    if datos.get("aud") != GOOGLE_CLIENT_ID:
+        return None
+    if not isinstance(datos.get("exp"), (int, float)) or datos["exp"] < time.time():
+        return None
+    if not nonce or not hmac.compare_digest(str(datos.get("nonce", "")), nonce):
+        return None
+    if datos.get("email_verified") is not True or not datos.get("sub") or not datos.get("email"):
+        return None
+    return datos
+
+
 def _limpieza_periodica():
     while True:
         time.sleep(60)
         limpiar_fallos_viejos()
+        limpiar_google_viejos()
 
 
 def anotar_fallo(clave):
@@ -420,6 +513,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._servir_estatico(ruta.path)
 
     def _api_get(self, ruta):
+        if ruta.path == "/api/auth/google/disponible":
+            return self._json({"disponible": google_configurado()})
+        if ruta.path == "/api/auth/google/iniciar":
+            return self._google_iniciar(parse_qs(ruta.query))
+        if ruta.path == "/api/auth/google/callback":
+            return self._google_callback(parse_qs(ruta.query))
         if ruta.path == "/api/productos":
             superficie = parse_qs(ruta.query).get("superficie", [None])[0]
             con = get_db()
@@ -554,7 +653,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._json({"error": "Correo o contraseña incorrectos"}, 401)
         return self._iniciar_sesion(u["id"], u["nombre"], u["correo"], u["es_admin"])
 
-    def _iniciar_sesion(self, usuario_id, nombre, correo, es_admin):
+    def _cookie_de_sesion(self, usuario_id):
+        """Crea una sesión en la base de datos y devuelve su cookie."""
         token = secrets.token_hex(32)
         con = get_db()
         con.execute("INSERT INTO sesiones (token, usuario_id) VALUES (?,?)", (token, usuario_id))
@@ -563,6 +663,125 @@ class Handler(http.server.BaseHTTPRequestHandler):
         cookie = f"sesion={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age={DIAS_SESION * 24 * 3600}"
         if COOKIE_SEGURA:
             cookie += "; Secure"
+        return cookie
+
+    def _redirigir(self, url, cookies=()):
+        """Respuesta 302: el navegador va a "url" (y guarda las cookies)."""
+        self.send_response(302)
+        self.send_header("Location", url)
+        for cookie in cookies:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+
+    # ---- Inicio de sesión con Google ----
+    def _google_iniciar(self, params):
+        """Paso 1: guarda el intento y manda al navegador a Google."""
+        volver = _volver_seguro(params.get("volver", [""])[0])
+        if not google_configurado():
+            return self._redirigir(_agregar_param(volver, "google", "no_configurado"))
+        state = secrets.token_urlsafe(32)
+        nonce = secrets.token_urlsafe(32)
+        verificador = secrets.token_urlsafe(64)  # PKCE
+        with _google_lock:
+            _google_intentos[state] = {
+                "nonce": nonce, "verificador": verificador, "volver": volver,
+                "acepta": params.get("acepta", ["0"])[0] == "1",
+                "expira": time.time() + GOOGLE_MINUTOS * 60,
+            }
+        destino = GOOGLE_AUTH_URL + "?" + urlencode({
+            "client_id": GOOGLE_CLIENT_ID,
+            "redirect_uri": GOOGLE_REDIRECT_URI,
+            "response_type": "code",
+            "scope": "openid email profile",   # solo nombre y correo verificado
+            "state": state,
+            "nonce": nonce,
+            "code_challenge": _b64url(hashlib.sha256(verificador.encode()).digest()),
+            "code_challenge_method": "S256",
+            "prompt": "select_account",
+        })
+        # La cookie amarra el intento a ESTE navegador (defensa contra CSRF)
+        cookie = (f"google_estado={state}; HttpOnly; Path=/api/auth/google; SameSite=Lax; "
+                  f"Max-Age={GOOGLE_MINUTOS * 60}" + ("; Secure" if COOKIE_SEGURA else ""))
+        return self._redirigir(destino, [cookie])
+
+    def _google_callback(self, params):
+        """Paso 2: Google vuelve aquí con un código de un solo uso."""
+        borrar = "google_estado=; HttpOnly; Path=/api/auth/google; Max-Age=0"
+        state = params.get("state", [""])[0]
+        cookie = SimpleCookie(self.headers.get("Cookie", ""))
+        en_cookie = cookie["google_estado"].value if "google_estado" in cookie else ""
+        with _google_lock:
+            intento = _google_intentos.pop(state, None) if state else None
+        # El state debe existir, no haber vencido y ser el de ESTE navegador
+        if (not intento or intento["expira"] < time.time()
+                or not en_cookie or not hmac.compare_digest(en_cookie, state)):
+            return self._redirigir(_agregar_param("/", "google", "error"), [borrar])
+        volver = intento["volver"]
+        if params.get("error"):  # la persona canceló en Google
+            return self._redirigir(_agregar_param(volver, "google", "cancelado"), [borrar])
+        codigo = params.get("code", [""])[0]
+        if not codigo:
+            return self._redirigir(_agregar_param(volver, "google", "error"), [borrar])
+
+        # Canjeamos el código por el id_token, directo con Google (HTTPS)
+        cuerpo = urlencode({
+            "code": codigo, "client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uri": GOOGLE_REDIRECT_URI, "grant_type": "authorization_code",
+            "code_verifier": intento["verificador"],
+        }).encode()
+        try:
+            pedido = urllib.request.Request(GOOGLE_TOKEN_URL, data=cuerpo, method="POST",
+                                            headers={"Content-Type": "application/x-www-form-urlencoded"})
+            with urllib.request.urlopen(pedido, timeout=10) as resp:
+                respuesta = json.loads(resp.read())
+        except (urllib.error.URLError, ValueError, TimeoutError):
+            return self._redirigir(_agregar_param(volver, "google", "error"), [borrar])
+        datos = validar_id_token(respuesta.get("id_token", ""), intento["nonce"])
+        if not datos:
+            return self._redirigir(_agregar_param(volver, "google", "error"), [borrar])
+
+        resultado, usuario_id = self._google_cuenta(datos, intento["acepta"])
+        if not usuario_id:
+            return self._redirigir(_agregar_param(volver, "google", resultado), [borrar])
+        return self._redirigir(_agregar_param(volver, "google", resultado),
+                               [borrar, self._cookie_de_sesion(usuario_id)])
+
+    def _google_cuenta(self, datos, acepta):
+        """Busca o crea la cuenta de quien entró con Google.
+        Devuelve (resultado, id_de_usuario) — id None si no puede entrar."""
+        sub = str(datos["sub"])
+        correo = str(datos["email"]).strip().lower()
+        nombre = str(datos.get("name") or correo.split("@")[0]).strip()[:MAX_NOMBRE]
+        con = get_db()
+        try:
+            u = con.execute("SELECT id, es_admin FROM usuarios WHERE google_sub=?", (sub,)).fetchone()
+            if not u:
+                # ¿Ya tenía cuenta con ese correo? Google lo verificó: la vinculamos
+                u = con.execute("SELECT id, es_admin FROM usuarios WHERE correo=?", (correo,)).fetchone()
+                if u and not u["es_admin"]:
+                    con.execute("UPDATE usuarios SET google_sub=? WHERE id=?", (sub, u["id"]))
+                    con.commit()
+            if u and u["es_admin"]:
+                return "admin", None  # el admin entra solo con su contraseña
+            if u:
+                return "ok", u["id"]
+            # Cuenta nueva: solo si aceptó los Términos y la Política de privacidad
+            if not acepta:
+                return "necesita_aceptar", None
+            cur = con.execute(
+                "INSERT INTO usuarios (nombre, correo, clave, terminos_aceptados, google_sub) VALUES (?,?,?,?,?)",
+                # Sin contraseña: se guarda una imposible de adivinar (solo entra con Google)
+                (nombre, correo, "google$" + secrets.token_hex(32), _registro_consentimiento(), sub),
+            )
+            con.commit()
+            return "nuevo", cur.lastrowid
+        finally:
+            con.close()
+
+    def _iniciar_sesion(self, usuario_id, nombre, correo, es_admin):
+        cookie = self._cookie_de_sesion(usuario_id)
         return self._json(
             {"id": usuario_id, "nombre": nombre, "correo": correo, "es_admin": es_admin},
             set_cookie=cookie,
@@ -592,7 +811,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         with con:  # una sola transacción
             con.execute("DELETE FROM sesiones WHERE usuario_id=?", (u["id"],))
             con.execute(
-                "UPDATE usuarios SET nombre=?, correo=?, clave=?, terminos_aceptados=NULL WHERE id=?",
+                "UPDATE usuarios SET nombre=?, correo=?, clave=?, terminos_aceptados=NULL, google_sub=NULL WHERE id=?",
                 ("Cuenta eliminada", f"eliminada-{u['id']}@invalid", "eliminada$" + secrets.token_hex(32), u["id"]),
             )
         con.close()

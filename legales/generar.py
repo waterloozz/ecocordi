@@ -124,7 +124,7 @@ TERMINOS = f'''
 
     <h2>3. Tu cuenta</h2>
     <ul>
-      <li>Necesitas una cuenta con tu nombre, un correo válido y una contraseña de al menos 8 caracteres.</li>
+      <li>Puedes crear tu cuenta con tu nombre, un correo válido y una contraseña de al menos 8 caracteres, o con tu cuenta de Google (“Continuar con Google”). Una cuenta creada con Google entra solo con Google.</li>
       <li>Eres responsable de mantener tu contraseña en reserva. Si crees que alguien la conoce, escríbenos.</li>
       <li>Puedes eliminar tu cuenta cuando quieras desde “Mis pedidos” (ver la <a href="privacidad.html">Política de privacidad</a>).</li>
       <li>Si eres menor de edad, pide a tu madre, padre o representante legal que haga la compra.</li>
@@ -174,8 +174,8 @@ TERMINOS = f'''
 
 PRIVACIDAD = f'''
     <div class="legal__resumen">
-      <p><strong>En resumen:</strong> pedimos solo tu nombre, tu correo y una contraseña, y guardamos tus
-      pedidos. Los usamos para tu cuenta y tus pedidos. No los vendemos, no los usamos para publicidad
+      <p><strong>En resumen:</strong> pedimos solo tu nombre, tu correo y una contraseña (o los recibimos de
+      Google si eliges “Continuar con Google”), y guardamos tus pedidos. Los usamos para tu cuenta y tus pedidos. No los vendemos, no los usamos para publicidad
       y no usamos herramientas de analítica ni de seguimiento. Puedes eliminar tu cuenta cuando quieras.</p>
     </div>
 
@@ -186,6 +186,7 @@ PRIVACIDAD = f'''
     <h2>2. Qué datos tratamos</h2>
     <ul>
       <li><strong>Cuenta:</strong> nombre, correo electrónico y contraseña. La contraseña se guarda transformada (“hash” PBKDF2 con sal): nadie, ni siquiera nosotros, puede leerla.</li>
+      <li><strong>Si entras con Google:</strong> Google nos envía tu nombre, tu correo (verificado por Google), un identificador de tu cuenta de Google y la dirección de tu foto de perfil. Guardamos solo el nombre, el correo y el identificador; la foto no. Nunca recibimos tu contraseña de Google.</li>
       <li><strong>Pedidos:</strong> productos, cantidades, precios, total, fecha y estado.</li>
       <li><strong>Consentimiento:</strong> la fecha y la versión de los términos que aceptaste.</li>
       <li><strong>Sesión:</strong> una cookie técnica que te mantiene conectado (ver la <a href="cookies.html">Política de cookies</a>).</li>
@@ -207,7 +208,11 @@ PRIVACIDAD = f'''
     gestionar los pedidos que tú envías. Puedes retirar tu consentimiento eliminando tu cuenta.</p>
 
     <h2>5. Con quién los compartimos</h2>
-    <p>Con nadie para fines propios de otras empresas. Solo podrían acceder a ellos los proveedores
+    <p><strong>Google:</strong> si eliges “Continuar con Google”, Google sabrá que iniciaste sesión en
+    Pinturas Ecocordi y trata esos datos según su propia
+    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">política de privacidad</a>.
+    Es opcional: siempre puedes usar correo y contraseña.</p>
+    <p>Fuera de eso, con nadie para fines propios de otras empresas. Solo podrían acceder a ellos los proveedores
     que sean necesarios para operar el sitio (por ejemplo, el servicio donde se aloje) y las
     autoridades cuando la ley lo exija.</p>
 {pendiente("cuando se elija dónde publicar el sitio, indicar aquí el proveedor de alojamiento y, si guarda los datos fuera de Chile, informar esa transferencia internacional.")}
@@ -226,7 +231,7 @@ PRIVACIDAD = f'''
     respecto de tus datos. Desde el 1 de diciembre de 2026, con la entrada en vigencia de la Ley 21.719,
     se suman los derechos de <strong>portabilidad</strong> y <strong>bloqueo</strong>.</p>
     <ul>
-      <li>Para eliminar tus datos: entra a tu cuenta, abre “Mis pedidos” y usa “Eliminar mi cuenta”.</li>
+      <li>Para eliminar tus datos: entra a tu cuenta, abre “Mis pedidos” y usa “Eliminar mi cuenta”. Eso también desvincula tu cuenta de Google; para quitarle el acceso desde Google, entra a <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener">tus conexiones de Google</a>.</li>
       <li>Para cualquier otra solicitud: escribe a <a href="mailto:{CORREO}">{CORREO}</a> desde el correo de tu cuenta. Responderemos dentro de los plazos que fija la ley.</li>
       <li>Si no quedas conforme, puedes recurrir a los tribunales y, desde el 1 de diciembre de 2026, a la Agencia de Protección de Datos Personales.</li>
     </ul>
@@ -255,6 +260,7 @@ COOKIES = f'''
         <thead><tr><th scope="col">Nombre</th><th scope="col">Tipo</th><th scope="col">Para qué</th><th scope="col">Duración</th></tr></thead>
         <tbody>
           <tr><td><code>sesion</code></td><td>Cookie propia, necesaria</td><td>Mantener tu sesión iniciada. No es accesible para JavaScript (HttpOnly).</td><td>7 días, o hasta que cierres sesión</td></tr>
+          <tr><td><code>google_estado</code></td><td>Cookie propia, necesaria</td><td>Solo si usas “Continuar con Google”: protege ese inicio de sesión para que otro sitio no pueda completarlo a tu nombre.</td><td>Máximo 10 minutos; se borra al terminar</td></tr>
           <tr><td><code>carrito_ecocordi</code></td><td>Almacenamiento local del navegador</td><td>Recordar los productos de tu carrito aunque cierres la página. Queda solo en tu equipo.</td><td>Hasta que vacíes el carrito o borres los datos del navegador</td></tr>
           <tr><td><code>luz_ecocordi</code></td><td>Almacenamiento local del navegador</td><td>Recordar si elegiste ver la página con luz de mañana, tarde o noche.</td><td>Hasta que borres los datos del navegador</td></tr>
         </tbody>
@@ -263,7 +269,8 @@ COOKIES = f'''
 
     <h2>2. Lo que no usamos</h2>
     <p>No usamos Google Analytics, píxeles de redes sociales, publicidad, mapas incrustados ni
-    contenido de otros sitios. Los enlaces a Instagram, Facebook, Google Maps y Unsplash solo te
+    contenido de otros sitios. Si eliges “Continuar con Google”, pasarás por la página de Google,
+    que usa sus propias cookies. Los enlaces a Instagram, Facebook, Google Maps y Unsplash solo te
     llevan a esos sitios; una vez allí, rigen sus propias políticas.</p>
 
     <h2>3. ¿Necesitamos tu consentimiento?</h2>

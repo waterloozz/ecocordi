@@ -566,6 +566,66 @@ document.getElementById("formLogin").addEventListener("submit", async function (
     : "Sesión iniciada. Hola, " + primerNombre + ".", "exito");
 });
 
+/* -------- 15a. INICIAR SESIÓN CON GOOGLE --------
+   El botón lleva al servidor (/api/auth/google/iniciar), que manda a Google.
+   Al terminar, Google vuelve al servidor y este nos devuelve a esta misma
+   página con ?google=ok | nuevo | necesita_aceptar | cancelado | admin | error.
+   No se carga ningún script de Google en la página (la CSP lo bloquearía). */
+const bloqueGoogle = document.getElementById("bloqueGoogle");
+
+// El botón solo aparece si el servidor tiene configuradas las credenciales
+async function mostrarBotonGoogle() {
+  try {
+    const respuesta = await fetch("/api/auth/google/disponible");
+    const datos = await respuesta.json();
+    if (datos.disponible) bloqueGoogle.style.display = "block";
+  } catch (error) { /* sin Google: queda solo el correo y contraseña */ }
+}
+
+document.getElementById("btnGoogle").addEventListener("click", function () {
+  const casilla = document.getElementById("aceptaTerminos");
+  // Crear una cuenta (también con Google) exige aceptar los términos
+  if (modoRegistro && !casilla.checked) {
+    modalError.textContent = "Para crear tu cuenta, marca primero la casilla de aceptación.";
+    casilla.focus();
+    return;
+  }
+  const volver = location.pathname.replace(/^\//, "") + location.search;
+  location.href = "/api/auth/google/iniciar?" + new URLSearchParams({
+    acepta: modoRegistro && casilla.checked ? "1" : "0",
+    volver: volver,
+  });
+});
+
+// Mensajes al volver de Google
+function revisarVueltaDeGoogle() {
+  const url = new URL(location.href);
+  const resultado = url.searchParams.get("google");
+  if (!resultado) return;
+  url.searchParams.delete("google"); // limpiamos la dirección
+  history.replaceState(null, "", url);
+
+  const mensajes = {
+    ok: ["Sesión iniciada con Google.", "exito"],
+    nuevo: ["Cuenta creada con Google. ¡Te damos la bienvenida!", "exito"],
+    cancelado: ["Cancelaste el inicio de sesión con Google.", "info"],
+    admin: ["La cuenta de administrador entra solo con correo y contraseña.", "error"],
+    no_configurado: ["El inicio de sesión con Google no está disponible por ahora.", "error"],
+    error: ["No se pudo iniciar sesión con Google. Inténtalo de nuevo.", "error"],
+  };
+  if (resultado === "necesita_aceptar") {
+    // Cuenta nueva sin aceptar términos: abrimos "Crear cuenta" para que acepte
+    modoRegistro = true;
+    actualizarModoModal();
+    abrirLogin();
+    modalError.textContent = "Para crear tu cuenta con Google, marca la casilla de aceptación y vuelve a presionar «Continuar con Google».";
+    document.getElementById("aceptaTerminos").focus();
+    return;
+  }
+  const mensaje = mensajes[resultado] || mensajes.error;
+  avisar(mensaje[0], mensaje[1]);
+}
+
 /* -------- 15b. MIS PEDIDOS --------
    Pide al servidor SOLO los pedidos del usuario con sesión iniciada
    (GET /api/pedidos) y los muestra con su estado. */
@@ -702,4 +762,6 @@ document.getElementById("btnWhatsapp").addEventListener("click", function () {
 cargarCarrito();     // recupera el carrito guardado
 cargarProductos();   // trae los productos de la base de datos
 cargarUsuario();     // revisa si ya hay sesión iniciada
+mostrarBotonGoogle(); // muestra "Continuar con Google" si está disponible
+revisarVueltaDeGoogle(); // mensajes al volver de Google
 actualizarCarrito(); // dibuja el carrito
