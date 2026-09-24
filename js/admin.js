@@ -7,6 +7,20 @@ function formatearPrecio(valor) {
   return "$" + valor.toLocaleString("es-CL");
 }
 
+/* -------- UTILIDAD: escapar texto antes de meterlo en el HTML --------
+   Convierte los caracteres especiales (< > & " ') en su versión "inofensiva"
+   (&lt; &gt; ...). Así, si alguien se registra con el nombre
+   <img src=x onerror=alert(1)>, el navegador lo MUESTRA como texto
+   en vez de ejecutarlo. Úsala con todo dato que venga del usuario o de la BD. */
+function escaparHTML(texto) {
+  return String(texto ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /* -------- 1. VERIFICAR QUE SEAS ADMINISTRADOR -------- */
 async function verificarAdmin() {
   const respuesta = await fetch("/api/me");
@@ -53,7 +67,7 @@ async function cargarPedidos() {
   contenedor.innerHTML = "";
   pedidos.forEach(function (p) {
     const filas = p.items.map(function (it) {
-      return `<li>${it.cantidad} × ${it.nombre} — ${formatearPrecio(it.precio)}</li>`;
+      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)} — ${formatearPrecio(it.precio)}</li>`;
     }).join("");
 
     contenedor.innerHTML += `
@@ -62,8 +76,8 @@ async function cargarPedidos() {
           <strong>Pedido N° ${p.id}</strong>
           <span class="pedido__total">${formatearPrecio(p.total)}</span>
         </div>
-        <p class="pedido__cliente">👤 ${p.cliente || "Invitado"} · ${p.correo || ""}</p>
-        <p class="pedido__fecha">🕐 ${p.fecha}</p>
+        <p class="pedido__cliente">👤 ${escaparHTML(p.cliente || "Invitado")} · ${escaparHTML(p.correo)}</p>
+        <p class="pedido__fecha">🕐 ${escaparHTML(p.fecha)}</p>
         <ul class="pedido__items">${filas}</ul>
       </div>
     `;
@@ -80,11 +94,11 @@ async function cargarProductos() {
   productos.forEach(function (p) {
     contenedor.innerHTML += `
       <div class="admin-prod">
-        <img src="${p.imagen}" alt="${p.nombre}" />
+        <img src="${escaparHTML(p.imagen)}" alt="${escaparHTML(p.nombre)}" />
         <div class="admin-prod__info">
-          <strong>${p.nombre}</strong>
+          <strong>${escaparHTML(p.nombre)}</strong>
           <span>${formatearPrecio(p.precio)}</span>
-          <small>${p.superficies.join(", ")}</small>
+          <small>${escaparHTML(p.superficies.join(", "))}</small>
         </div>
         <button class="admin-prod__borrar" onclick="borrarProducto(${p.id})">🗑️</button>
       </div>

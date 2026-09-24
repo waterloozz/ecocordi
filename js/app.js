@@ -24,6 +24,20 @@ function formatearPrecio(valor) {
   return "$" + valor.toLocaleString("es-CL");
 }
 
+/* -------- UTILIDAD: escapar texto antes de meterlo en el HTML --------
+   Convierte los caracteres especiales (< > & " ') en su versión "inofensiva"
+   (&lt; &gt; ...). Así, si alguien se registra con el nombre
+   <img src=x onerror=alert(1)>, el navegador lo MUESTRA como texto
+   en vez de ejecutarlo. Úsala con todo dato que venga del usuario o de la BD. */
+function escaparHTML(texto) {
+  return String(texto ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /* -------- 4. TRAER LOS PRODUCTOS DESDE EL SERVIDOR --------
    "fetch" pide datos a la API. "await" espera la respuesta.
    Así el catálogo ya no está escrito a mano: viene de la base de datos. */
@@ -51,11 +65,11 @@ function mostrarProductos(lista) {
   lista.forEach(function (p) {
     const tarjeta = `
       <div class="producto">
-        <img class="producto__imagen" src="${p.imagen}" alt="${p.nombre}"
+        <img class="producto__imagen" src="${escaparHTML(p.imagen)}" alt="${escaparHTML(p.nombre)}"
              loading="lazy" decoding="async" />
         <div class="producto__cuerpo">
-          <h3 class="producto__nombre">${p.nombre}</h3>
-          <p class="producto__desc">${p.descripcion}</p>
+          <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
+          <p class="producto__desc">${escaparHTML(p.descripcion)}</p>
           <p class="producto__precio">${formatearPrecio(p.precio)}</p>
           <button class="producto__boton" onclick="agregarAlCarrito(${p.id})">
             Agregar al carrito
@@ -133,9 +147,9 @@ function actualizarCarrito() {
 
     const fila = `
       <div class="item">
-        <img class="item__color" src="${item.imagen}" alt="${item.nombre}" />
+        <img class="item__color" src="${escaparHTML(item.imagen)}" alt="${escaparHTML(item.nombre)}" />
         <div class="item__info">
-          <div class="item__nombre">${item.nombre}</div>
+          <div class="item__nombre">${escaparHTML(item.nombre)}</div>
           <div class="item__precio">${formatearPrecio(item.precio)}</div>
           <div class="item__controles">
             <button class="item__btn" onclick="cambiarCantidad(${item.id}, -1)">−</button>
@@ -235,7 +249,7 @@ function renderCuenta() {
     const linkAdmin = usuario.es_admin
       ? '<a href="admin.html" class="cuenta__link">Admin</a>' : "";
     cuentaArea.innerHTML = `
-      <span class="cuenta__saludo">Hola, ${primerNombre}</span>
+      <span class="cuenta__saludo">Hola, ${escaparHTML(primerNombre)}</span>
       ${linkAdmin}
       <button class="cuenta__salir" id="btnLogout">Salir</button>
     `;
