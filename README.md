@@ -90,11 +90,20 @@ ecocordi/
 - **Catálogo** cargado desde la base de datos.
 - **Filtro por superficie** (madera, metal, exterior, techo, interior) — la
   funcionalidad estrella, también accesible desde el mega-menú.
-- **Carrito de compras** que se mantiene aunque cierres la página.
+- **Carrito de compras** que se mantiene aunque cierres la página y no deja
+  pedir más unidades de las que hay en bodega.
+- **Stock** por producto: la tienda muestra "¡Quedan N!" cuando quedan 5 o
+  menos y "Agotado" (botón deshabilitado) cuando no queda nada.
 - **Cuentas de usuario** reales: registro e inicio de sesión con contraseñas
   encriptadas (nunca se guardan en texto plano).
-- **Pedidos** guardados en la base de datos al finalizar la compra.
-- **Panel de administración** protegido: ver pedidos y agregar/eliminar productos.
+- **Pedidos** guardados en la base de datos al finalizar la compra. El stock se
+  revisa y descuenta en **una sola transacción**: si dos personas compran el
+  último tarro al mismo tiempo, solo una lo consigue (la otra recibe un aviso).
+- **Estados de pedido**: pendiente → pagado → enviado → entregado, o cancelado
+  (al cancelar, las unidades vuelven al stock).
+- **Mis pedidos**: cada cliente ve sus compras y el estado de cada una.
+- **Panel de administración** protegido: ver pedidos y cambiar su estado,
+  agregar/eliminar productos y editar su precio y stock.
 - **Diseño premium**: cabecera fija estilo Apple con mega-menús, portada
   cinematográfica con efecto parallax y animaciones al hacer scroll.
 - **Responsive**: se adapta a celulares y tablets.
@@ -111,6 +120,10 @@ ecocordi/
   la misma IP en 10 minutos, el servidor responde `429` hasta que pase el tiempo.
 - **El total de cada pedido lo calcula el servidor**, nunca el navegador, y se
   validan el id y la cantidad de cada producto.
+- **Integridad de datos**: `PRAGMA foreign_keys = ON` y restricciones `CHECK`
+  (el stock nunca puede quedar negativo; el estado solo acepta valores válidos).
+- Si la base de datos es de una versión anterior, al arrancar se le agregan las
+  columnas nuevas (`stock`, `estado`) **sin borrar datos**.
 - Consultas SQL **parametrizadas** (protegen contra inyección SQL).
 - Rutas de administrador protegidas (verifican que el usuario sea admin).
 - Protección contra **XSS**: todo dato se escapa antes de mostrarse, y la

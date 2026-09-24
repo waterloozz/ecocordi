@@ -34,6 +34,13 @@ CLAVE_MINIMA = 8          # largo mínimo de la contraseña al registrarse
 DIAS_SESION = 7           # una sesión vale 7 días (igual que la cookie)
 MAX_FALLOS = 5            # intentos fallidos permitidos por IP...
 VENTANA_FALLOS = 10 * 60  # ...en esta cantidad de segundos (10 minutos)
+STOCK_INICIAL = 20        # unidades con que parten los productos de ejemplo
+MAX_STOCK = 100000
+MAX_PRECIO = 100000000
+# Estados posibles de un pedido (en orden). "cancelado" devuelve el stock.
+ESTADOS = ("pendiente", "pagado", "enviado", "entregado", "cancelado")
+_DEF_ESTADO = ("TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ("
+               + ", ".join(f"'{e}'" for e in ESTADOS) + "))")
 
 # Cabeceras de seguridad que se agregan a TODAS las respuestas.
 #  - Content-Security-Policy (CSP): lista de lo que el navegador puede cargar.
@@ -60,6 +67,10 @@ def get_db():
     leer las filas como diccionarios (columna -> valor)."""
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
+    # SQLite NO revisa las FOREIGN KEY a menos que se lo pidamos en CADA
+    # conexión. Con esto, por ejemplo, no se puede guardar un pedido de un
+    # usuario que no existe.
+    con.execute("PRAGMA foreign_keys = ON")
     return con
 
 
@@ -76,7 +87,8 @@ def init_db():
             descripcion TEXT,
             precio      INTEGER NOT NULL,
             imagen      TEXT,
-            superficies TEXT   -- guardado como JSON: ["madera","interior"]
+            superficies TEXT,  -- guardado como JSON: ["madera","interior"]
+            stock       INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0)
         )
     """)
 
@@ -92,12 +104,13 @@ def init_db():
     """)
 
     # Tabla de pedidos (cabecera: quién compró, cuándo y el total)
-    c.execute("""
+    c.execute(f"""
         CREATE TABLE IF NOT EXISTS pedidos (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER,
             total      INTEGER NOT NULL,
             fecha      TEXT DEFAULT (datetime('now','localtime')),
+            estado     {_DEF_ESTADO},
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         )
     """)
@@ -124,6 +137,17 @@ def init_db():
         )
     """)
 
+    # MIGRACIONES: si la base de datos es de una versión anterior del
+    # proyecto, le agregamos las columnas nuevas SIN borrar los datos.
+    if _agregar_columna(c, "productos", "stock",
+                        "INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0)"):
+        # Los productos que ya existían parten con el stock de ejemplo
+        # (si quedaran en 0, la tienda los mostraría todos "Agotado").
+        c.execute("UPDATE productos SET stock = ?", (STOCK_INICIAL,))
+        print(f"  Migración: columna 'stock' agregada ({STOCK_INICIAL} unidades por producto)")
+    if _agregar_columna(c, "pedidos", "estado", _DEF_ESTADO):
+        print("  Migración: columna 'estado' agregada (pedidos existentes: 'pendiente')")
+
     # Limpieza: borramos las sesiones que ya vencieron
     borradas = c.execute(
         "DELETE FROM sesiones WHERE creada IS NULL OR creada <= datetime('now','localtime',?)",
@@ -136,6 +160,16 @@ def init_db():
     _seed_productos(con)
     _seed_admin(con)
     con.close()
+
+
+def _agregar_columna(c, tabla, columna, definicion):
+    """ALTER TABLE ... ADD COLUMN solo si la columna todavía no existe.
+    Devuelve True si la agregó. ALTER TABLE conserva todas las filas."""
+    existentes = [fila["name"] for fila in c.execute(f"PRAGMA table_info({tabla})")]
+    if columna in existentes:
+        return False
+    c.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {definicion}")
+    return True
 
 
 def _seed_productos(con):
@@ -156,8 +190,8 @@ def _seed_productos(con):
     ]
     for nombre, desc, precio, imagen, superf in productos:
         c.execute(
-            "INSERT INTO productos (nombre, descripcion, precio, imagen, superficies) VALUES (?,?,?,?,?)",
-            (nombre, desc, precio, imagen, json.dumps(superf)),
+            "INSERT INTO productos (nombre, descripcion, precio, imagen, superficies, stock) VALUES (?,?,?,?,?,?)",
+            (nombre, desc, precio, imagen, json.dumps(superf), STOCK_INICIAL),
         )
     con.commit()
 
@@ -225,6 +259,15 @@ def verificar_clave(clave, guardado):
         return False
     calculado = hashlib.pbkdf2_hmac("sha256", clave.encode(), salt.encode(), 100000).hex()
     return hmac.compare_digest(calculado, h)  # comparación segura
+
+
+def _id_de_ruta(ruta, prefijo):
+    """'/api/admin/pedidos/7' con prefijo '/api/admin/pedidos/' → 7.
+    Devuelve None si la ruta no empieza así o si lo que sigue no es un número."""
+    if not ruta.startswith(prefijo):
+        return None
+    resto = ruta[len(prefijo):]
+    return int(resto) if resto.isdigit() else None
 
 
 def _texto(datos, campo):
@@ -382,6 +425,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         return self._json({"error": "Ruta no encontrada"}, 404)
 
+    # ---- PATCH (modificar algo que ya existe) ----
+    def do_PATCH(self):
+        ruta = urlparse(self.path)
+        datos = self._leer_json()
+        u = self._usuario_actual()
+        if ruta.path.startswith("/api/admin/"):
+            if not u or not u["es_admin"]:
+                return self._json({"error": "Solo administradores"}, 403)
+            pedido_id = _id_de_ruta(ruta.path, "/api/admin/pedidos/")
+            if pedido_id is not None:
+                return self._cambiar_estado(pedido_id, datos)
+            producto_id = _id_de_ruta(ruta.path, "/api/admin/productos/")
+            if producto_id is not None:
+                return self._editar_producto(producto_id, datos)
+        return self._json({"error": "Ruta no encontrada"}, 404)
+
     # ---- DELETE ----
     def do_DELETE(self):
         ruta = urlparse(self.path)
@@ -477,57 +536,138 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not items:
             return self._json({"error": "El carrito está vacío"}, 400)
 
-        con = get_db()
-        # El total lo calcula el SERVIDOR con los precios reales (nunca confiar
-        # en el precio que manda el navegador: es una regla de seguridad).
-        # Tampoco confiamos en id ni cantidad: los revisamos ANTES de guardar
-        # nada. Si algo está mal, se rechaza el pedido completo (error 400).
-        total = 0
-        detalle = []
+        # 1) Revisamos el FORMATO (sin tocar la base de datos). No confiamos
+        #    en id ni cantidad: si algo está mal se rechaza todo (error 400).
+        pedido = {}  # {id_producto: cantidad}; junta ids repetidos en uno
         for it in items:
             if not isinstance(it, dict):
-                con.close()
                 return self._json({"error": "Pedido con formato inválido"}, 400)
             pid = it.get("id")
             cant = it.get("cantidad")
             # type(...) is int deja fuera textos ("abc"), decimales (1.5) y True/False
             if type(pid) is not int:
-                con.close()
                 return self._json({"error": "Pedido con formato inválido"}, 400)
             if type(cant) is not int or not 1 <= cant <= MAX_CANTIDAD:
-                con.close()
                 return self._json(
                     {"error": f"Cantidad inválida (debe ser un número entre 1 y {MAX_CANTIDAD})"}, 400)
-            prod = con.execute("SELECT * FROM productos WHERE id=?", (pid,)).fetchone()
-            if not prod:
-                con.close()
-                return self._json(
-                    {"error": "Uno de los productos ya no existe. Revisa tu carrito."}, 400)
-            total += prod["precio"] * cant
-            detalle.append((prod["id"], prod["nombre"], prod["precio"], cant))
+            pedido[pid] = pedido.get(pid, 0) + cant
 
-        cur = con.execute("INSERT INTO pedidos (usuario_id, total) VALUES (?,?)", (u["id"], total))
-        pedido_id = cur.lastrowid
-        for pid, nombre, precio, cant in detalle:
-            con.execute(
-                "INSERT INTO pedido_items (pedido_id, producto_id, nombre, precio, cantidad) VALUES (?,?,?,?,?)",
-                (pedido_id, pid, nombre, precio, cant),
-            )
-        con.commit()
-        con.close()
+        # 2) TRANSACCIÓN: revisar stock, descontarlo y guardar el pedido
+        #    ocurre "todo o nada". BEGIN IMMEDIATE reserva la base de datos
+        #    para escribir: si dos personas compran el último tarro al mismo
+        #    tiempo, la segunda ESPERA a que la primera termine y recién ahí
+        #    lee el stock (que ya será 0). Así nunca se vende de más.
+        con = get_db()
+        try:
+            con.execute("BEGIN IMMEDIATE")
+            total = 0
+            detalle = []
+            for pid, cant in pedido.items():
+                prod = con.execute("SELECT * FROM productos WHERE id=?", (pid,)).fetchone()
+                if not prod:
+                    con.rollback()
+                    return self._json(
+                        {"error": "Uno de los productos ya no existe. Revisa tu carrito."}, 400)
+                if prod["stock"] < cant:
+                    con.rollback()  # deshace todo: no se guarda NADA
+                    return self._json({
+                        "error": f"No hay stock suficiente de «{prod['nombre']}»: "
+                                 f"pediste {cant} y quedan {prod['stock']}.",
+                        "producto_id": pid,
+                        "nombre": prod["nombre"],
+                        "disponible": prod["stock"],
+                    }, 409)
+                # El total lo calcula el SERVIDOR con los precios reales
+                total += prod["precio"] * cant
+                detalle.append((pid, prod["nombre"], prod["precio"], cant))
+                con.execute("UPDATE productos SET stock = stock - ? WHERE id=?", (cant, pid))
+
+            cur = con.execute("INSERT INTO pedidos (usuario_id, total) VALUES (?,?)", (u["id"], total))
+            pedido_id = cur.lastrowid
+            for pid, nombre, precio, cant in detalle:
+                con.execute(
+                    "INSERT INTO pedido_items (pedido_id, producto_id, nombre, precio, cantidad) VALUES (?,?,?,?,?)",
+                    (pedido_id, pid, nombre, precio, cant),
+                )
+            con.commit()  # recién aquí los cambios quedan guardados de verdad
+        except sqlite3.Error:
+            con.rollback()
+            return self._json({"error": "No se pudo guardar el pedido. Inténtalo de nuevo."}, 500)
+        finally:
+            con.close()
         return self._json({"ok": True, "pedido_id": pedido_id, "total": total})
+
+    def _cambiar_estado(self, pedido_id, datos):
+        """PATCH /api/admin/pedidos/<id>  {"estado": "enviado"}"""
+        nuevo = datos.get("estado")
+        if nuevo not in ESTADOS:
+            return self._json({"error": "Estado inválido. Usa: " + ", ".join(ESTADOS)}, 400)
+        con = get_db()
+        try:
+            con.execute("BEGIN IMMEDIATE")  # igual que al comprar: todo o nada
+            fila = con.execute("SELECT estado FROM pedidos WHERE id=?", (pedido_id,)).fetchone()
+            if not fila:
+                con.rollback()
+                return self._json({"error": "El pedido no existe"}, 404)
+            actual = fila["estado"]
+            if actual == "cancelado" and nuevo != "cancelado":
+                # Su stock ya se devolvió; "revivirlo" podría vender algo que ya no hay
+                con.rollback()
+                return self._json({"error": "Un pedido cancelado no se puede reactivar"}, 409)
+            if nuevo == "cancelado" and actual != "cancelado":
+                # Devolvemos al stock lo que el pedido había descontado
+                # (si el producto fue borrado, simplemente no hay dónde sumarlo)
+                con.execute("""
+                    UPDATE productos
+                    SET stock = stock + (SELECT SUM(i.cantidad) FROM pedido_items i
+                                         WHERE i.pedido_id = ? AND i.producto_id = productos.id)
+                    WHERE id IN (SELECT producto_id FROM pedido_items WHERE pedido_id = ?)
+                """, (pedido_id, pedido_id))
+            con.execute("UPDATE pedidos SET estado=? WHERE id=?", (nuevo, pedido_id))
+            con.commit()
+        except sqlite3.Error:
+            con.rollback()
+            return self._json({"error": "No se pudo cambiar el estado"}, 500)
+        finally:
+            con.close()
+        return self._json({"ok": True, "id": pedido_id, "estado": nuevo})
+
+    def _editar_producto(self, producto_id, datos):
+        """PATCH /api/admin/productos/<id>  {"precio": 19990, "stock": 15}
+        Se puede mandar solo uno de los dos."""
+        cambios = {}
+        for campo, maximo in (("precio", MAX_PRECIO), ("stock", MAX_STOCK)):
+            if campo in datos:
+                valor = datos[campo]
+                if type(valor) is not int or not 0 <= valor <= maximo:
+                    return self._json(
+                        {"error": f"{campo.capitalize()} inválido (número entero entre 0 y {maximo})"}, 400)
+                cambios[campo] = valor
+        if not cambios:
+            return self._json({"error": "Indica precio y/o stock"}, 400)
+        con = get_db()
+        # Los nombres de columna vienen de nuestra lista fija, no del usuario
+        asignaciones = ", ".join(f"{campo}=?" for campo in cambios)
+        cur = con.execute(f"UPDATE productos SET {asignaciones} WHERE id=?",
+                          (*cambios.values(), producto_id))
+        con.commit()
+        fila = con.execute("SELECT * FROM productos WHERE id=?", (producto_id,)).fetchone()
+        con.close()
+        if cur.rowcount == 0:
+            return self._json({"error": "El producto no existe"}, 404)
+        return self._json({"ok": True, "id": producto_id, "precio": fila["precio"], "stock": fila["stock"]})
 
     def _obtener_pedidos(self, usuario_id):
         con = get_db()
         if usuario_id is None:  # admin: todos los pedidos
             filas = con.execute("""
-                SELECT p.id, p.total, p.fecha, u.nombre AS cliente, u.correo
+                SELECT p.id, p.total, p.fecha, p.estado, u.nombre AS cliente, u.correo
                 FROM pedidos p LEFT JOIN usuarios u ON u.id = p.usuario_id
                 ORDER BY p.id DESC
             """).fetchall()
         else:
             filas = con.execute(
-                "SELECT id, total, fecha FROM pedidos WHERE usuario_id=? ORDER BY id DESC",
+                "SELECT id, total, fecha, estado FROM pedidos WHERE usuario_id=? ORDER BY id DESC",
                 (usuario_id,),
             ).fetchall()
         pedidos = []
@@ -548,17 +688,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             nombre = datos["nombre"].strip()
             precio = int(datos["precio"])
-        except (KeyError, ValueError, AttributeError):
+            stock = int(datos.get("stock", 0))
+        except (KeyError, ValueError, TypeError, AttributeError):
             return self._json({"error": "Nombre y precio son obligatorios"}, 400)
+        if not nombre or not 0 <= precio <= MAX_PRECIO or not 0 <= stock <= MAX_STOCK:
+            return self._json({"error": "Nombre, precio o stock inválidos"}, 400)
         con = get_db()
         cur = con.execute(
-            "INSERT INTO productos (nombre, descripcion, precio, imagen, superficies) VALUES (?,?,?,?,?)",
+            "INSERT INTO productos (nombre, descripcion, precio, imagen, superficies, stock) VALUES (?,?,?,?,?,?)",
             (
                 nombre,
                 datos.get("descripcion", ""),
                 precio,
                 datos.get("imagen", "img/interior.jpg"),
                 json.dumps(datos.get("superficies", [])),
+                stock,
             ),
         )
         con.commit()

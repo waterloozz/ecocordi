@@ -8,6 +8,7 @@
 let productos = [];   // se llenará con los productos que envía el servidor
 let carrito = [];     // productos que el usuario agregó
 let usuario = null;   // datos del usuario si inició sesión (o null)
+let superficieActiva = "todas"; // filtro elegido en el catálogo
 
 /* -------- 2. REFERENCIAS A ELEMENTOS DEL HTML -------- */
 const contenedorProductos = document.getElementById("productos");
@@ -45,7 +46,7 @@ async function cargarProductos() {
   try {
     const respuesta = await fetch("/api/productos");
     productos = await respuesta.json();
-    mostrarProductos(productos);
+    mostrarCatalogo();
     sincronizarCarrito();
   } catch (error) {
     contenedorProductos.innerHTML =
@@ -64,6 +65,14 @@ function mostrarProductos(lista) {
   }
 
   lista.forEach(function (p) {
+    // Stock: "Agotado" si no queda nada, "Quedan N" si quedan 5 o menos
+    const agotado = p.stock <= 0;
+    let avisoStock = "";
+    if (agotado) {
+      avisoStock = '<p class="producto__stock producto__stock--agotado">Agotado</p>';
+    } else if (p.stock <= 5) {
+      avisoStock = `<p class="producto__stock">¡Quedan ${p.stock}!</p>`;
+    }
     const tarjeta = `
       <div class="producto" data-id="${p.id}">
         <img class="producto__imagen" src="${escaparHTML(p.imagen)}" alt="${escaparHTML(p.nombre)}"
@@ -72,8 +81,9 @@ function mostrarProductos(lista) {
           <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
           <p class="producto__desc">${escaparHTML(p.descripcion)}</p>
           <p class="producto__precio">${formatearPrecio(p.precio)}</p>
-          <button class="producto__boton">
-            Agregar al carrito
+          ${avisoStock}
+          <button class="producto__boton" ${agotado ? "disabled" : ""}>
+            ${agotado ? "Agotado" : "Agregar al carrito"}
           </button>
         </div>
       </div>
@@ -103,16 +113,21 @@ contenedorFiltros.addEventListener("click", function (evento) {
   });
   evento.target.classList.add("filtro--activo");
 
-  const superficie = evento.target.dataset.superficie;
-  if (superficie === "todas") {
+  superficieActiva = evento.target.dataset.superficie;
+  mostrarCatalogo();
+});
+
+/* Muestra los productos según el filtro elegido. Se usa también cuando el
+   catálogo se recarga (por ejemplo, después de comprar cambia el stock). */
+function mostrarCatalogo() {
+  if (superficieActiva === "todas") {
     mostrarProductos(productos);
   } else {
-    const filtrados = productos.filter(function (p) {
-      return p.superficies.includes(superficie);
-    });
-    mostrarProductos(filtrados);
+    mostrarProductos(productos.filter(function (p) {
+      return p.superficies.includes(superficieActiva);
+    }));
   }
-});
+}
 
 /* -------- 7. CARRITO: agregar, cambiar cantidad, eliminar -------- */
 function agregarAlCarrito(id) {
@@ -120,6 +135,12 @@ function agregarAlCarrito(id) {
   const enCarrito = carrito.find(function (item) { return item.id === id; });
 
   if (enCarrito) {
+    // No dejamos pedir más de lo que hay en bodega
+    if (enCarrito.cantidad >= producto.stock) {
+      alert("Ya tienes en tu carrito todas las unidades disponibles de " +
+            producto.nombre + " (" + producto.stock + ").");
+      return;
+    }
     enCarrito.cantidad++;
   } else {
     carrito.push({ ...producto, cantidad: 1 });
@@ -130,6 +151,7 @@ function agregarAlCarrito(id) {
 
 function cambiarCantidad(id, cambio) {
   const item = carrito.find(function (i) { return i.id === id; });
+  if (cambio > 0 && item.cantidad >= item.stock) return; // sin más stock
   item.cantidad += cambio;
   if (item.cantidad <= 0) {
     eliminarDelCarrito(id);
@@ -167,8 +189,10 @@ function actualizarCarrito() {
           <div class="item__controles">
             <button class="item__btn" data-accion="restar">−</button>
             <span>${item.cantidad}</span>
-            <button class="item__btn" data-accion="sumar">+</button>
+            <button class="item__btn" data-accion="sumar"
+                    ${item.cantidad >= item.stock ? "disabled" : ""}>+</button>
           </div>
+          ${item.cantidad >= item.stock ? `<div class="item__max">Máximo disponible: ${item.stock}</div>` : ""}
         </div>
         <button class="item__eliminar" data-accion="eliminar">🗑️</button>
       </div>
@@ -205,16 +229,17 @@ function cargarCarrito() {
 }
 
 /* El carrito guardado puede estar desactualizado: quizás el admin borró un
-   producto o cambió su precio. Cuando llega el catálogo real, quitamos lo que
-   ya no existe y copiamos nombre, precio e imagen actuales. */
+   producto, cambió su precio o se agotó. Cuando llega el catálogo real,
+   quitamos lo que ya no existe o está agotado, copiamos nombre, precio,
+   imagen y stock actuales, y bajamos la cantidad si supera el stock. */
 function sincronizarCarrito() {
   carrito = carrito
     .filter(function (item) {
-      return productos.some(function (p) { return p.id === item.id; });
+      return productos.some(function (p) { return p.id === item.id && p.stock > 0; });
     })
     .map(function (item) {
       const actual = productos.find(function (p) { return p.id === item.id; });
-      return { ...actual, cantidad: item.cantidad };
+      return { ...actual, cantidad: Math.min(item.cantidad, actual.stock) };
     });
   actualizarCarrito();
 }
@@ -258,6 +283,12 @@ document.getElementById("btnPagar").addEventListener("click", async function () 
   }
 
   const datos = await respuesta.json();
+  if (respuesta.status === 409) {
+    // Alguien compró antes que tú: traemos el stock real y ajustamos el carrito
+    alert(datos.error + "\nAjustamos tu carrito al stock disponible.");
+    await cargarProductos();
+    return;
+  }
   if (!respuesta.ok) {
     alert("No se pudo completar la compra: " + (datos.error || "error desconocido"));
     return;
@@ -269,6 +300,7 @@ document.getElementById("btnPagar").addEventListener("click", async function () 
   carrito = [];
   actualizarCarrito();
   cerrarCarrito();
+  cargarProductos(); // el stock cambió: refrescamos "Quedan N" / "Agotado"
 });
 
 /* ============================================================
@@ -295,10 +327,12 @@ function renderCuenta() {
       ? '<a href="admin.html" class="cuenta__link">Admin</a>' : "";
     cuentaArea.innerHTML = `
       <span class="cuenta__saludo">Hola, ${escaparHTML(primerNombre)}</span>
+      <button class="cuenta__link cuenta__boton" id="btnMisPedidos">Mis pedidos</button>
       ${linkAdmin}
       <button class="cuenta__salir" id="btnLogout">Salir</button>
     `;
     document.getElementById("btnLogout").addEventListener("click", logout);
+    document.getElementById("btnMisPedidos").addEventListener("click", abrirMisPedidos);
   } else {
     cuentaArea.innerHTML = `
       <button class="cuenta" id="btnCuenta" aria-label="Iniciar sesión">
@@ -322,7 +356,10 @@ function cerrarLogin() {
   modalFondo.classList.remove("abierto");
 }
 document.getElementById("btnCerrarModal").addEventListener("click", cerrarLogin);
-modalFondo.addEventListener("click", cerrarLogin);
+modalFondo.addEventListener("click", function () {
+  cerrarLogin();
+  cerrarMisPedidos();
+});
 
 /* -------- 14. ALTERNAR ENTRE "INICIAR SESIÓN" Y "CREAR CUENTA" --------
    Ponemos el "escuchador" en el contenedor (#modalToggle), que nunca cambia.
@@ -383,10 +420,64 @@ document.getElementById("formLogin").addEventListener("submit", async function (
   document.getElementById("formLogin").reset();
 });
 
+/* -------- 15b. MIS PEDIDOS --------
+   Pide al servidor SOLO los pedidos del usuario con sesión iniciada
+   (GET /api/pedidos) y los muestra con su estado. */
+const modalPedidos = document.getElementById("modalPedidos");
+const listaMisPedidos = document.getElementById("listaMisPedidos");
+
+// Texto amigable para cada estado que guarda el servidor
+const NOMBRES_ESTADO = {
+  pendiente: "⏳ Pendiente",
+  pagado:    "💳 Pagado",
+  enviado:   "🚚 Enviado",
+  entregado: "✅ Entregado",
+  cancelado: "✖ Cancelado",
+};
+
+async function abrirMisPedidos() {
+  listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Cargando…</p>";
+  modalPedidos.classList.add("abierto");
+  modalFondo.classList.add("abierto");
+
+  const respuesta = await fetch("/api/pedidos");
+  if (!respuesta.ok) {
+    listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Inicia sesión para ver tus pedidos.</p>";
+    return;
+  }
+  const pedidos = await respuesta.json();
+  if (pedidos.length === 0) {
+    listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Aún no tienes pedidos. ¡Anímate con tu primera pintura! 🎨</p>";
+    return;
+  }
+  listaMisPedidos.innerHTML = pedidos.map(function (p) {
+    const items = p.items.map(function (it) {
+      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}</li>`;
+    }).join("");
+    return `
+      <div class="mi-pedido">
+        <div class="mi-pedido__cabecera">
+          <strong>Pedido N° ${p.id}</strong>
+          <span class="estado estado--${escaparHTML(p.estado)}">${NOMBRES_ESTADO[p.estado] || escaparHTML(p.estado)}</span>
+        </div>
+        <p class="mi-pedido__fecha">🕐 ${escaparHTML(p.fecha)} · Total ${formatearPrecio(p.total)}</p>
+        <ul class="mi-pedido__items">${items}</ul>
+      </div>
+    `;
+  }).join("");
+}
+
+function cerrarMisPedidos() {
+  modalPedidos.classList.remove("abierto");
+  modalFondo.classList.remove("abierto");
+}
+document.getElementById("btnCerrarPedidos").addEventListener("click", cerrarMisPedidos);
+
 /* -------- 16. CERRAR SESIÓN -------- */
 async function logout() {
   await fetch("/api/logout", { method: "POST" });
   usuario = null;
+  cerrarMisPedidos();
   renderCuenta();
 }
 

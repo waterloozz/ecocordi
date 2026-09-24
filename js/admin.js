@@ -53,6 +53,15 @@ document.querySelectorAll(".admin__tab").forEach(function (tab) {
   });
 });
 
+/* Estados posibles de un pedido (los mismos que acepta el servidor) */
+const ESTADOS = [
+  ["pendiente", "⏳ Pendiente"],
+  ["pagado",    "💳 Pagado"],
+  ["enviado",   "🚚 Enviado"],
+  ["entregado", "✅ Entregado"],
+  ["cancelado", "✖ Cancelado"],
+];
+
 /* -------- 3. CARGAR Y MOSTRAR LOS PEDIDOS -------- */
 async function cargarPedidos() {
   const respuesta = await fetch("/api/admin/pedidos");
@@ -70,12 +79,22 @@ async function cargarPedidos() {
       return `<li>${it.cantidad} × ${escaparHTML(it.nombre)} — ${formatearPrecio(it.precio)}</li>`;
     }).join("");
 
+    // Selector de estado. Un pedido cancelado ya devolvió su stock y no se
+    // puede reactivar, así que su selector queda bloqueado.
+    const opciones = ESTADOS.map(function (e) {
+      return `<option value="${e[0]}" ${e[0] === p.estado ? "selected" : ""}>${e[1]}</option>`;
+    }).join("");
+
     contenedor.innerHTML += `
-      <div class="pedido">
+      <div class="pedido pedido--${escaparHTML(p.estado)}" data-id="${p.id}">
         <div class="pedido__cabecera">
           <strong>Pedido N° ${p.id}</strong>
           <span class="pedido__total">${formatearPrecio(p.total)}</span>
         </div>
+        <label class="pedido__estado">Estado:
+          <select class="pedido__selector" data-anterior="${escaparHTML(p.estado)}"
+                  ${p.estado === "cancelado" ? "disabled" : ""}>${opciones}</select>
+        </label>
         <p class="pedido__cliente">👤 ${escaparHTML(p.cliente || "Invitado")} · ${escaparHTML(p.correo)}</p>
         <p class="pedido__fecha">🕐 ${escaparHTML(p.fecha)}</p>
         <ul class="pedido__items">${filas}</ul>
@@ -99,8 +118,16 @@ async function cargarProductos() {
           <strong>${escaparHTML(p.nombre)}</strong>
           <span>${formatearPrecio(p.precio)}</span>
           <small>${escaparHTML(p.superficies.join(", "))}</small>
+          <small class="${p.stock === 0 ? "admin-prod__agotado" : ""}">
+            Stock: ${p.stock}${p.stock === 0 ? " (agotado)" : ""}
+          </small>
         </div>
-        <button class="admin-prod__borrar">🗑️</button>
+        <button class="admin-prod__borrar" aria-label="Eliminar producto">🗑️</button>
+        <form class="admin-prod__editar">
+          <label>Precio <input type="number" name="precio" min="0" step="1" value="${p.precio}" required /></label>
+          <label>Stock <input type="number" name="stock" min="0" step="1" value="${p.stock}" required /></label>
+          <button type="submit" class="admin-prod__guardar">Guardar</button>
+        </form>
       </div>
     `;
   });
@@ -120,6 +147,7 @@ document.getElementById("formProducto").addEventListener("submit", async functio
     nombre: document.getElementById("pNombre").value,
     descripcion: document.getElementById("pDesc").value,
     precio: document.getElementById("pPrecio").value,
+    stock: document.getElementById("pStock").value || 0,
     imagen: document.getElementById("pImagen").value || "img/interior.jpg",
     superficies: superficies,
   };
@@ -155,5 +183,56 @@ document.getElementById("listaProductos").addEventListener("click", function (ev
   borrarProducto(Number(boton.closest(".admin-prod").dataset.id));
 });
 
-/* -------- 7. ARRANQUE -------- */
+/* -------- 7. EDITAR PRECIO Y STOCK DE UN PRODUCTO --------
+   El evento "submit" también "sube" hasta el contenedor, así que un solo
+   escuchador atiende los formularios de todos los productos. */
+document.getElementById("listaProductos").addEventListener("submit", async function (evento) {
+  evento.preventDefault();
+  const form = evento.target;
+  const id = Number(form.closest(".admin-prod").dataset.id);
+  const respuesta = await fetch("/api/admin/productos/" + id, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      precio: Number(form.precio.value),
+      stock: Number(form.stock.value),
+    }),
+  });
+  const datos = await respuesta.json();
+  if (!respuesta.ok) {
+    alert("Error: " + (datos.error || "no se pudo guardar"));
+    return;
+  }
+  cargarProductos();
+});
+
+/* -------- 8. CAMBIAR EL ESTADO DE UN PEDIDO -------- */
+document.getElementById("listaPedidos").addEventListener("change", async function (evento) {
+  const selector = evento.target.closest(".pedido__selector");
+  if (!selector) return;
+  const id = Number(selector.closest(".pedido").dataset.id);
+  const nuevo = selector.value;
+
+  if (nuevo === "cancelado" &&
+      !confirm("¿Cancelar el pedido N° " + id + "? Sus productos volverán al stock y no se podrá reactivar.")) {
+    selector.value = selector.dataset.anterior; // deshacer la elección
+    return;
+  }
+
+  const respuesta = await fetch("/api/admin/pedidos/" + id, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ estado: nuevo }),
+  });
+  const datos = await respuesta.json();
+  if (!respuesta.ok) {
+    alert("Error: " + (datos.error || "no se pudo cambiar el estado"));
+    selector.value = selector.dataset.anterior;
+    return;
+  }
+  cargarPedidos();
+  if (nuevo === "cancelado") cargarProductos(); // el stock volvió
+});
+
+/* -------- 9. ARRANQUE -------- */
 verificarAdmin();

@@ -213,6 +213,14 @@ body {
   font-weight: bold;
 }
 .cuenta__link:hover { text-decoration: underline; }
+/* Botón que se ve como enlace ("Mis pedidos") */
+.cuenta__boton {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
 .cuenta__salir {
   background: none;
   border: 1px solid rgba(255,255,255,0.4);
@@ -460,6 +468,21 @@ body {
   transition: 0.2s;
 }
 .producto__boton:hover { background: var(--dorado-osc); }
+/* Producto sin stock: botón gris y sin efecto al pasar el mouse */
+.producto__boton:disabled,
+.producto__boton:disabled:hover {
+  background: var(--gris-borde);
+  color: #6b7683;
+  cursor: not-allowed;
+}
+/* Aviso "¡Quedan N!" / "Agotado" */
+.producto__stock {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--dorado-osc);
+  margin: -6px 0 10px;
+}
+.producto__stock--agotado { color: var(--granate); }
 
 .sin-resultados {
   grid-column: 1 / -1;   /* ocupa todo el ancho de la rejilla */
@@ -635,6 +658,8 @@ body {
   cursor: pointer;
   font-weight: bold;
 }
+.item__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.item__max { font-size: 11px; color: #6b7683; margin-top: 3px; }
 .item__eliminar {
   background: none; border: none; color: var(--granate);
   cursor: pointer; font-size: 18px;
@@ -787,6 +812,39 @@ body {
 
 .admin__vacio { color: #6b7683; padding: 20px 0; }
 
+/* Etiqueta de color para el estado de un pedido (tienda y admin) */
+.estado {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.estado--pendiente { background: #FFF3DC; color: #8a5a00; }
+.estado--pagado    { background: #E1ECFF; color: var(--azul-marino); }
+.estado--enviado   { background: #E6F4FF; color: #0b5a8a; }
+.estado--entregado { background: #E3F6E8; color: #1d6b34; }
+.estado--cancelado { background: #F8E3E5; color: var(--granate); }
+
+/* Ventana "Mis pedidos" (más ancha y con scroll si hay muchos) */
+.modal--ancho {
+  width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.mis-pedidos { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.mis-pedidos__vacio { color: #6b7683; text-align: center; padding: 20px 0; }
+.mi-pedido {
+  border: 1px solid var(--gris-borde);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.mi-pedido__cabecera { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.mi-pedido__cabecera strong { color: var(--azul-marino); }
+.mi-pedido__fecha { font-size: 13px; color: #6b7683; margin-top: 4px; }
+.mi-pedido__items { margin-top: 8px; padding-left: 18px; font-size: 14px; }
+
 /* Lista de pedidos */
 .admin__pedidos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 .pedido {
@@ -801,6 +859,26 @@ body {
 .pedido__total { color: var(--granate); font-weight: bold; font-size: 18px; }
 .pedido__cliente, .pedido__fecha { font-size: 13px; color: #6b7683; }
 .pedido__items { margin-top: 10px; padding-left: 18px; font-size: 14px; }
+.pedido--cancelado { border-left-color: var(--granate); opacity: 0.75; }
+.pedido--entregado { border-left-color: #1d6b34; }
+.pedido__estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--azul-marino);
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+.pedido__selector {
+  padding: 5px 8px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pedido__selector:disabled { cursor: not-allowed; }
 
 /* Formulario de nuevo producto */
 .admin__form {
@@ -830,6 +908,7 @@ body {
   border-radius: 10px;
   padding: 12px;
   display: flex;
+  flex-wrap: wrap;          /* el formulario de edición baja a su propia fila */
   align-items: center;
   gap: 12px;
   box-shadow: 0 3px 10px rgba(0,0,0,0.05);
@@ -840,6 +919,44 @@ body {
 .admin-prod__info span { color: var(--granate); font-weight: bold; }
 .admin-prod__info small { color: #6b7683; }
 .admin-prod__borrar { background: none; border: none; cursor: pointer; font-size: 18px; }
+.admin-prod__agotado { color: var(--granate) !important; font-weight: bold; }
+/* Mini formulario para editar precio y stock */
+.admin-prod__editar {
+  flex-basis: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--gris-borde);
+  padding-top: 10px;
+}
+.admin-prod__editar label {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: #6b7683;
+  flex: 1;
+  min-width: 0;
+}
+.admin-prod__editar input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+}
+.admin-prod__editar input:focus { outline: none; border-color: var(--dorado); }
+.admin-prod__guardar {
+  background: var(--azul-marino);
+  color: var(--blanco);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.admin-prod__guardar:hover { background: var(--azul-claro); }
 
 @media (max-width: 800px) {
   .admin__pedidos, .admin__productos { grid-template-columns: 1fr; }
