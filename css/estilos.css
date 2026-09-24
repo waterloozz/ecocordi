@@ -737,19 +737,32 @@ p { text-wrap: pretty; }
 .admin__denegado h1 { font-size: var(--txt-2xl); }
 .admin__denegado p { margin-block: var(--esp-3) var(--esp-5); color: var(--texto-2); }
 
-/* ---- Botón "Continuar con Google" (colores según las normas de marca de Google) ---- */
+/* ---- Botón "Continuar con Google" ----
+   Tiene la misma forma que los botones de la tienda (píldora con borde, como .boton--secundario).
+   La "G" va sobre un círculo blanco y con sus colores originales: así lo piden las normas de
+   marca de Google (el logo no se puede recolorear ni poner sobre otro fondo de color). */
 .login-google { margin-top: var(--esp-5); }
 .boton-google {
-  display: flex; align-items: center; justify-content: center; gap: var(--esp-3);
-  width: 100%; min-height: 46px; padding: var(--esp-2) var(--esp-4);
-  background: #FFFFFF; color: #1F1F1F; border: 1px solid #747775; border-radius: 999px;
-  font-weight: 600; font-size: var(--txt-sm);
-  transition: background-color var(--rapido) var(--curva-salida);
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 46px; padding: var(--esp-2) 52px;
+  color: var(--texto); background: transparent;
+  border: 1.5px solid var(--texto); border-radius: 999px;
+  font-weight: 600; font-size: var(--txt-sm); line-height: 1.2;
+  transition: background-color var(--rapido) var(--curva-salida), color var(--rapido) var(--curva-salida),
+              transform var(--rapido) var(--curva-salida);
 }
-.boton-google:hover { background: #F2F2F2; }
-.boton-google__logo { width: 20px; height: 20px; }
-:root[data-luz="noche"] .boton-google { background: #131314; color: #E3E3E3; border-color: #8E918F; }
-:root[data-luz="noche"] .boton-google:hover { background: #1F1F21; }
+.boton-google:active { transform: scale(0.97); }
+.boton-google__logo {
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  box-sizing: content-box; width: 18px; height: 18px; padding: 8px;
+  background: #FFFFFF; border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--linea);
+}
+@media (hover: hover) {
+  .boton-google:hover { background: var(--texto); color: var(--muro); }
+  .boton-google:hover .boton-google__logo { box-shadow: none; }
+}
 .login-google__separador { display: flex; align-items: center; gap: var(--esp-3); margin-top: var(--esp-5); color: var(--texto-2); font-size: var(--txt-xs); }
 .login-google__separador::before, .login-google__separador::after { content: ""; flex: 1; height: 1px; background: var(--linea); }
 .login-google + .formulario { margin-top: var(--esp-4); }
