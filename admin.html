@@ -3,77 +3,141 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ecocordi | Panel de Administración</title>
+  <title>Panel de administración | Pinturas Ecocordi</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0B2545" />
   <link rel="icon" href="img/favicon.png" type="image/png" />
+  <link rel="preload" href="fonts/figtree-400-800.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="css/estilos.css" />
 </head>
-
 <body class="admin-body">
 
-  <!-- Cabecera simple del panel -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-basura" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></symbol>
+  </svg>
+
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <!-- Cabecera del panel -->
   <header class="cabecera">
     <div class="contenedor cabecera__interior">
-      <a href="index.html" class="logo">
-        <img src="img/logo.png" alt="Ecocordi" class="logo__img" />
+      <a href="index.html" class="cabecera__logo">
+        <img src="img/logo.png" alt="Pinturas Ecocordi, volver a la tienda" width="283" height="122" />
       </a>
-      <div class="cabecera__derecha">
+      <span class="cabecera__titulo">Panel</span>
+      <div class="cabecera__acciones">
         <span class="cuenta__saludo" id="adminNombre"></span>
-        <a href="index.html" class="cuenta__link">← Volver a la tienda</a>
+        <a href="index.html" class="cuenta__link">Volver a la tienda</a>
       </div>
     </div>
   </header>
 
-  <main class="contenedor admin">
+  <main class="contenedor admin" id="contenido">
 
     <!-- Mensaje si NO eres administrador -->
     <div id="accesoDenegado" class="admin__denegado oculto">
-      <h2>Acceso restringido 🔒</h2>
-      <p>Esta página es solo para administradores.</p>
-      <a href="index.html" class="boton boton--principal">Volver al inicio</a>
+      <h1>Acceso restringido</h1>
+      <p>Esta página es solo para administradores. Inicia sesión con una cuenta de administrador desde la tienda.</p>
+      <a href="index.html" class="boton boton--principal">Volver a la tienda</a>
     </div>
 
     <!-- Contenido del panel (oculto hasta confirmar que eres admin) -->
     <div id="panel" class="oculto">
-      <h1 class="admin__titulo">Panel de Administración</h1>
+      <h1 class="admin__titulo">Panel de administración</h1>
+      <p class="admin__bajada">Revisa los pedidos, cambia su estado y mantén el catálogo al día.</p>
 
       <!-- Pestañas -->
-      <div class="admin__tabs">
-        <button class="admin__tab admin__tab--activo" data-tab="pedidos">📦 Pedidos</button>
-        <button class="admin__tab" data-tab="productos">🎨 Productos</button>
+      <div class="admin__tabs" role="tablist" aria-label="Secciones del panel">
+        <button type="button" class="admin__tab admin__tab--activo" data-tab="pedidos"
+                role="tab" id="tabBtnPedidos" aria-selected="true" aria-controls="tabPedidos">
+          Pedidos <span class="admin__contador" id="contadorPedidos"></span>
+        </button>
+        <button type="button" class="admin__tab" data-tab="productos"
+                role="tab" id="tabBtnProductos" aria-selected="false" aria-controls="tabProductos">
+          Productos <span class="admin__contador" id="contadorProductos"></span>
+        </button>
       </div>
 
       <!-- SECCIÓN PEDIDOS -->
-      <section id="tabPedidos" class="admin__seccion">
-        <h2 class="admin__subtitulo">Pedidos recibidos</h2>
-        <div id="listaPedidos" class="admin__pedidos"></div>
+      <section id="tabPedidos" class="admin__seccion" role="tabpanel" aria-labelledby="tabBtnPedidos">
+        <div class="tabla-marco">
+          <table class="tabla">
+            <caption class="solo-lector">Pedidos recibidos</caption>
+            <thead>
+              <tr>
+                <th scope="col">N°</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Cliente</th>
+                <th scope="col">Productos</th>
+                <th scope="col">Total</th>
+                <th scope="col">Estado</th>
+              </tr>
+            </thead>
+            <!-- admin.js pinta aquí una fila por pedido -->
+            <tbody id="listaPedidos"></tbody>
+          </table>
+        </div>
       </section>
 
       <!-- SECCIÓN PRODUCTOS -->
-      <section id="tabProductos" class="admin__seccion oculto">
-        <h2 class="admin__subtitulo">Agregar nuevo producto</h2>
-        <form id="formProducto" class="admin__form">
-          <input type="text" id="pNombre" placeholder="Nombre del producto" required />
-          <input type="text" id="pDesc" placeholder="Descripción" />
-          <input type="number" id="pPrecio" placeholder="Precio (ej: 19990)" required />
-          <input type="number" id="pStock" placeholder="Stock inicial (ej: 20)" min="0" step="1" />
-          <input type="text" id="pImagen" placeholder="Ruta de la imagen (ej: img/interior.jpg)" />
-          <div class="admin__superficies">
-            <span>Superficies:</span>
-            <label><input type="checkbox" value="interior" /> Interior</label>
-            <label><input type="checkbox" value="exterior" /> Exterior</label>
-            <label><input type="checkbox" value="madera" /> Madera</label>
-            <label><input type="checkbox" value="metal" /> Metal</label>
-            <label><input type="checkbox" value="techo" /> Techo</label>
-          </div>
-          <button type="submit" class="boton boton--principal">Guardar producto</button>
-        </form>
+      <section id="tabProductos" class="admin__seccion oculto" role="tabpanel" aria-labelledby="tabBtnProductos">
+        <div class="admin__tarjeta admin__tarjeta--form">
+          <h2 class="admin__subtitulo">Agregar producto</h2>
+          <form id="formProducto" class="admin__form">
+            <label class="campo">
+              <span class="campo__etiqueta">Nombre</span>
+              <input class="campo__control" type="text" id="pNombre" placeholder="Ej: Esmalte al agua" required />
+            </label>
+            <label class="campo">
+              <span class="campo__etiqueta">Precio (pesos)</span>
+              <input class="campo__control" type="number" id="pPrecio" min="0" step="1" placeholder="Ej: 19990" required />
+            </label>
+            <label class="campo campo--ancho">
+              <span class="campo__etiqueta">Descripción</span>
+              <input class="campo__control" type="text" id="pDesc" placeholder="Para qué sirve, en una frase" />
+            </label>
+            <label class="campo">
+              <span class="campo__etiqueta">Stock inicial</span>
+              <input class="campo__control" type="number" id="pStock" min="0" step="1" placeholder="Ej: 20" />
+            </label>
+            <label class="campo">
+              <span class="campo__etiqueta">Imagen</span>
+              <input class="campo__control" type="text" id="pImagen" placeholder="img/interior.jpg" />
+            </label>
+            <fieldset class="admin__superficies">
+              <legend>Superficies</legend>
+              <label class="casilla sup--madera"><input type="checkbox" value="madera" /><span class="casilla__color"></span>Madera</label>
+              <label class="casilla sup--metal"><input type="checkbox" value="metal" /><span class="casilla__color"></span>Metal</label>
+              <label class="casilla sup--exterior"><input type="checkbox" value="exterior" /><span class="casilla__color"></span>Exterior</label>
+              <label class="casilla sup--techo"><input type="checkbox" value="techo" /><span class="casilla__color"></span>Techo</label>
+              <label class="casilla sup--interior"><input type="checkbox" value="interior" /><span class="casilla__color"></span>Interior</label>
+            </fieldset>
+            <div class="admin__form-acciones">
+              <button type="submit" class="boton boton--principal">Guardar producto</button>
+            </div>
+          </form>
+        </div>
 
-        <h2 class="admin__subtitulo">Productos actuales</h2>
-        <div id="listaProductos" class="admin__productos"></div>
+        <div class="tabla-marco">
+          <table class="tabla">
+            <caption>Productos actuales</caption>
+            <thead>
+              <tr>
+                <th scope="col">Producto</th>
+                <th scope="col">Precio</th>
+                <th scope="col">Stock</th>
+                <th scope="col"><span class="solo-lector">Acciones</span></th>
+              </tr>
+            </thead>
+            <!-- admin.js pinta aquí una fila por producto -->
+            <tbody id="listaProductos"></tbody>
+          </table>
+        </div>
       </section>
     </div>
   </main>
 
+  <script src="js/ui.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

@@ -1,7 +1,8 @@
 /* ============================================================
    ECOCORDI - Lógica del sitio (frontend)
-   Ahora conectado a un backend real con base de datos.
+   Conectado a un backend real con base de datos.
    El navegador pide los datos al servidor con "fetch".
+   Los avisos y confirmaciones vienen de js/ui.js (avisar / confirmar).
    ============================================================ */
 
 /* -------- 1. ESTADO GLOBAL -------- */
@@ -10,9 +11,20 @@ let carrito = [];     // productos que el usuario agregó
 let usuario = null;   // datos del usuario si inició sesión (o null)
 let superficieActiva = "todas"; // filtro elegido en el catálogo
 
+// Nombres visibles de cada superficie. También sirve como "lista blanca":
+// solo estas palabras se usan para armar clases CSS (sup--madera, etc.).
+const SUPERFICIES = {
+  madera: "Madera",
+  metal: "Metal",
+  exterior: "Exterior",
+  techo: "Techo",
+  interior: "Interior",
+};
+
 /* -------- 2. REFERENCIAS A ELEMENTOS DEL HTML -------- */
 const contenedorProductos = document.getElementById("productos");
 const contenedorFiltros   = document.getElementById("filtros");
+const filtroActivo        = document.getElementById("filtroActivo");
 const contadorCarrito     = document.getElementById("contadorCarrito");
 const carritoItems        = document.getElementById("carritoItems");
 const carritoTotal        = document.getElementById("carritoTotal");
@@ -39,6 +51,11 @@ function escaparHTML(texto) {
     .replace(/'/g, "&#39;");
 }
 
+/* Clase de color de una superficie ("sup--madera"), solo si es conocida */
+function claseSuperficie(superficie) {
+  return SUPERFICIES[superficie] ? "sup--" + superficie : "";
+}
+
 /* -------- 4. TRAER LOS PRODUCTOS DESDE EL SERVIDOR --------
    "fetch" pide datos a la API. "await" espera la respuesta.
    Así el catálogo ya no está escrito a mano: viene de la base de datos. */
@@ -54,42 +71,51 @@ async function cargarProductos() {
   }
 }
 
-/* -------- 5. MOSTRAR PRODUCTOS EN PANTALLA -------- */
+/* -------- 5. MOSTRAR PRODUCTOS EN PANTALLA --------
+   Cada tarjeta es como una muestra de pintura: la franja de color de abajo
+   es la superficie principal del producto (la primera de su lista). */
 function mostrarProductos(lista) {
-  contenedorProductos.innerHTML = "";
-
   if (lista.length === 0) {
     contenedorProductos.innerHTML =
-      "<p class='sin-resultados'>No hay pinturas para esta superficie todavía.</p>";
+      "<p class='sin-resultados'>Todavía no hay pinturas para esta superficie.</p>";
     return;
   }
 
-  lista.forEach(function (p) {
+  contenedorProductos.innerHTML = lista.map(function (p) {
     // Stock: "Agotado" si no queda nada, "Quedan N" si quedan 5 o menos
     const agotado = p.stock <= 0;
     let avisoStock = "";
     if (agotado) {
-      avisoStock = '<p class="producto__stock producto__stock--agotado">Agotado</p>';
+      avisoStock = '<span class="producto__stock producto__stock--agotado">Agotado</span>';
     } else if (p.stock <= 5) {
-      avisoStock = `<p class="producto__stock">¡Quedan ${p.stock}!</p>`;
+      avisoStock = `<span class="producto__stock producto__stock--pocas">Quedan ${p.stock}</span>`;
     }
-    const tarjeta = `
-      <div class="producto" data-id="${p.id}">
-        <img class="producto__imagen" src="${escaparHTML(p.imagen)}" alt="${escaparHTML(p.nombre)}"
-             loading="lazy" decoding="async" />
+
+    const superficies = p.superficies.map(function (s) {
+      return `<li class="${claseSuperficie(s)}">${escaparHTML(SUPERFICIES[s] || s)}</li>`;
+    }).join("");
+
+    return `
+      <article class="producto ${claseSuperficie(p.superficies[0])}" data-id="${p.id}">
+        <div class="producto__foto">
+          <img src="${escaparHTML(p.imagen)}" alt="" width="400" height="300"
+               loading="lazy" decoding="async" />
+        </div>
         <div class="producto__cuerpo">
           <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
           <p class="producto__desc">${escaparHTML(p.descripcion)}</p>
-          <p class="producto__precio">${formatearPrecio(p.precio)}</p>
-          ${avisoStock}
-          <button class="producto__boton" ${agotado ? "disabled" : ""}>
+          <ul class="producto__superficies" aria-label="Superficies">${superficies}</ul>
+          <div class="producto__pie">
+            <span class="producto__precio">${formatearPrecio(p.precio)}</span>
+            ${avisoStock}
+          </div>
+          <button type="button" class="boton boton--principal producto__boton" ${agotado ? "disabled" : ""}>
             ${agotado ? "Agotado" : "Agregar al carrito"}
           </button>
         </div>
-      </div>
+      </article>
     `;
-    contenedorProductos.innerHTML += tarjeta;
-  });
+  }).join("");
 }
 
 /* -------- 5b. CLIC EN "AGREGAR AL CARRITO" (delegación de eventos) --------
@@ -104,28 +130,52 @@ contenedorProductos.addEventListener("click", function (evento) {
   agregarAlCarrito(Number(tarjeta.dataset.id));
 });
 
-/* -------- 6. FILTRO POR SUPERFICIE (funcionalidad estrella) -------- */
+/* -------- 6. FILTRO POR SUPERFICIE (funcionalidad estrella) --------
+   Los botones grandes tienen contenido adentro (muestra, nombre, detalle),
+   así que usamos closest(".filtro") para encontrar el botón completo. */
 contenedorFiltros.addEventListener("click", function (evento) {
-  if (!evento.target.classList.contains("filtro")) return;
+  const boton = evento.target.closest(".filtro");
+  if (!boton) return;
+  elegirSuperficie(boton.dataset.superficie);
+});
 
+function elegirSuperficie(superficie) {
   document.querySelectorAll(".filtro").forEach(function (btn) {
-    btn.classList.remove("filtro--activo");
+    const activo = btn.dataset.superficie === superficie;
+    btn.classList.toggle("filtro--activo", activo);
+    btn.setAttribute("aria-pressed", activo ? "true" : "false");
   });
-  evento.target.classList.add("filtro--activo");
-
-  superficieActiva = evento.target.dataset.superficie;
+  superficieActiva = superficie;
   mostrarCatalogo();
+}
+
+/* Atajos "¿Qué vas a pintar?" de la portada (y el "Ver todo" del catálogo):
+   cualquier botón con data-elegir-superficie filtra y lleva al catálogo. */
+document.addEventListener("click", function (evento) {
+  const atajo = evento.target.closest("[data-elegir-superficie]");
+  if (!atajo) return;
+  elegirSuperficie(atajo.dataset.elegirSuperficie);
+  document.getElementById("catalogo").scrollIntoView();
 });
 
 /* Muestra los productos según el filtro elegido. Se usa también cuando el
    catálogo se recarga (por ejemplo, después de comprar cambia el stock). */
 function mostrarCatalogo() {
-  if (superficieActiva === "todas") {
-    mostrarProductos(productos);
-  } else {
-    mostrarProductos(productos.filter(function (p) {
+  let lista = productos;
+  if (superficieActiva !== "todas") {
+    lista = productos.filter(function (p) {
       return p.superficies.includes(superficieActiva);
-    }));
+    });
+  }
+  mostrarProductos(lista);
+
+  // Texto que dice qué se está mostrando
+  const cantidad = lista.length === 1 ? "1 producto" : lista.length + " productos";
+  if (superficieActiva === "todas") {
+    filtroActivo.textContent = cantidad;
+  } else {
+    filtroActivo.innerHTML = `Mostrando <strong>${escaparHTML(SUPERFICIES[superficieActiva] || superficieActiva)}</strong> · ${cantidad}
+      <button type="button" class="catalogo__quitar" data-elegir-superficie="todas">Ver todo</button>`;
   }
 }
 
@@ -137,8 +187,8 @@ function agregarAlCarrito(id) {
   if (enCarrito) {
     // No dejamos pedir más de lo que hay en bodega
     if (enCarrito.cantidad >= producto.stock) {
-      alert("Ya tienes en tu carrito todas las unidades disponibles de " +
-            producto.nombre + " (" + producto.stock + ").");
+      avisar("Ya tienes en tu carrito todas las unidades disponibles de " +
+             producto.nombre + " (" + producto.stock + ").", "info");
       return;
     }
     enCarrito.cantidad++;
@@ -167,38 +217,43 @@ function eliminarDelCarrito(id) {
 
 /* -------- 8. ACTUALIZAR EL CARRITO EN PANTALLA -------- */
 function actualizarCarrito() {
-  carritoItems.innerHTML = "";
-
-  if (carrito.length === 0) {
-    carritoItems.innerHTML = "<p class='carrito__vacio'>Tu carrito está vacío 🛒</p>";
-  }
-
   let total = 0;
   let cantidadTotal = 0;
 
-  carrito.forEach(function (item) {
-    total += item.precio * item.cantidad;
-    cantidadTotal += item.cantidad;
-
-    const fila = `
-      <div class="item" data-id="${item.id}">
-        <img class="item__color" src="${escaparHTML(item.imagen)}" alt="${escaparHTML(item.nombre)}" />
-        <div class="item__info">
-          <div class="item__nombre">${escaparHTML(item.nombre)}</div>
-          <div class="item__precio">${formatearPrecio(item.precio)}</div>
-          <div class="item__controles">
-            <button class="item__btn" data-accion="restar">−</button>
-            <span>${item.cantidad}</span>
-            <button class="item__btn" data-accion="sumar"
-                    ${item.cantidad >= item.stock ? "disabled" : ""}>+</button>
+  if (carrito.length === 0) {
+    carritoItems.innerHTML = `
+      <div class="carrito__vacio">
+        <svg class="icono" aria-hidden="true"><use href="#i-tarro"/></svg>
+        <p>Tu carrito está vacío.</p>
+        <p>Elige una superficie y agrega tus pinturas.</p>
+      </div>`;
+  } else {
+    carritoItems.innerHTML = carrito.map(function (item) {
+      total += item.precio * item.cantidad;
+      cantidadTotal += item.cantidad;
+      const nombre = escaparHTML(item.nombre);
+      const alMaximo = item.cantidad >= item.stock;
+      return `
+        <div class="item ${claseSuperficie((item.superficies || [])[0])}" data-id="${item.id}">
+          <img class="item__imagen" src="${escaparHTML(item.imagen)}" alt="" width="64" height="64" loading="lazy" />
+          <div class="item__info">
+            <p class="item__nombre">${nombre}</p>
+            <p class="item__precio">${formatearPrecio(item.precio)} c/u</p>
+            <div class="item__controles">
+              <button type="button" class="item__btn" data-accion="restar" aria-label="Quitar una unidad de ${nombre}">−</button>
+              <span class="item__cantidad" aria-label="Cantidad">${item.cantidad}</span>
+              <button type="button" class="item__btn" data-accion="sumar" aria-label="Agregar una unidad de ${nombre}"
+                      ${alMaximo ? "disabled" : ""}>+</button>
+            </div>
+            ${alMaximo ? `<p class="item__max">Máximo disponible: ${item.stock}</p>` : ""}
           </div>
-          ${item.cantidad >= item.stock ? `<div class="item__max">Máximo disponible: ${item.stock}</div>` : ""}
+          <button type="button" class="item__eliminar" data-accion="eliminar" aria-label="Eliminar ${nombre} del carrito">
+            <svg class="icono" aria-hidden="true"><use href="#i-basura"/></svg>
+          </button>
         </div>
-        <button class="item__eliminar" data-accion="eliminar">🗑️</button>
-      </div>
-    `;
-    carritoItems.innerHTML += fila;
-  });
+      `;
+    }).join("");
+  }
 
   carritoTotal.textContent = formatearPrecio(total);
   contadorCarrito.textContent = cantidadTotal;
@@ -244,23 +299,32 @@ function sincronizarCarrito() {
   actualizarCarrito();
 }
 
-/* -------- 10. ABRIR / CERRAR EL PANEL DEL CARRITO -------- */
+/* -------- 10. ABRIR / CERRAR PANELES --------
+   Recordamos qué botón abrió cada panel para devolverle el foco al cerrar
+   (importante para quien navega con teclado). */
+let focoAnterior = null;
+
 function abrirCarrito() {
+  focoAnterior = document.activeElement;
   panelCarrito.classList.add("abierto");
   fondoCarrito.classList.add("abierto");
+  document.getElementById("btnCerrarCarrito").focus();
 }
 function cerrarCarrito() {
+  if (!panelCarrito.classList.contains("abierto")) return;
   panelCarrito.classList.remove("abierto");
   fondoCarrito.classList.remove("abierto");
+  if (focoAnterior) focoAnterior.focus();
 }
 document.getElementById("btnAbrirCarrito").addEventListener("click", abrirCarrito);
 document.getElementById("btnCerrarCarrito").addEventListener("click", cerrarCarrito);
 fondoCarrito.addEventListener("click", cerrarCarrito);
 
 /* -------- 11. FINALIZAR COMPRA (guarda el pedido en la base de datos) -------- */
-document.getElementById("btnPagar").addEventListener("click", async function () {
+const botonPagar = document.getElementById("btnPagar");
+botonPagar.addEventListener("click", async function () {
   if (carrito.length === 0) {
-    alert("Tu carrito está vacío. ¡Agrega algunas pinturas primero!");
+    avisar("Tu carrito está vacío. ¡Agrega algunas pinturas primero!", "info");
     return;
   }
 
@@ -269,38 +333,43 @@ document.getElementById("btnPagar").addEventListener("click", async function () 
     return { id: i.id, cantidad: i.cantidad };
   });
 
-  const respuesta = await fetch("/api/pedidos", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items: items }),
-  });
+  botonPagar.disabled = true; // evita comprar dos veces con un doble clic
+  try {
+    const respuesta = await fetch("/api/pedidos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: items }),
+    });
 
-  if (respuesta.status === 401) {
-    alert("Debes iniciar sesión para finalizar tu compra.");
+    if (respuesta.status === 401) {
+      avisar("Inicia sesión para finalizar tu compra.", "info");
+      cerrarCarrito();
+      abrirLogin();
+      return;
+    }
+
+    const datos = await respuesta.json();
+    if (respuesta.status === 409) {
+      // Alguien compró antes que tú: traemos el stock real y ajustamos el carrito
+      avisar(datos.error + "\nAjustamos tu carrito al stock disponible.", "error");
+      await cargarProductos();
+      return;
+    }
+    if (!respuesta.ok) {
+      avisar("No se pudo completar la compra: " + (datos.error || "error desconocido"), "error");
+      return;
+    }
+    avisar("¡Gracias por tu compra en Ecocordi!\n" +
+           "Pedido N° " + datos.pedido_id + " · Total " + formatearPrecio(datos.total) + "\n" +
+           "Puedes seguirlo en \"Mis pedidos\".", "exito", 8000);
+
+    carrito = [];
+    actualizarCarrito();
     cerrarCarrito();
-    abrirLogin();
-    return;
+    cargarProductos(); // el stock cambió: refrescamos "Quedan N" / "Agotado"
+  } finally {
+    botonPagar.disabled = false;
   }
-
-  const datos = await respuesta.json();
-  if (respuesta.status === 409) {
-    // Alguien compró antes que tú: traemos el stock real y ajustamos el carrito
-    alert(datos.error + "\nAjustamos tu carrito al stock disponible.");
-    await cargarProductos();
-    return;
-  }
-  if (!respuesta.ok) {
-    alert("No se pudo completar la compra: " + (datos.error || "error desconocido"));
-    return;
-  }
-  alert("¡Gracias por tu compra en Ecocordi! 🎨\n" +
-        "Pedido N° " + datos.pedido_id + "\n" +
-        "Total: " + formatearPrecio(datos.total));
-
-  carrito = [];
-  actualizarCarrito();
-  cerrarCarrito();
-  cargarProductos(); // el stock cambió: refrescamos "Quedan N" / "Agotado"
 });
 
 /* ============================================================
@@ -327,33 +396,36 @@ function renderCuenta() {
       ? '<a href="admin.html" class="cuenta__link">Admin</a>' : "";
     cuentaArea.innerHTML = `
       <span class="cuenta__saludo">Hola, ${escaparHTML(primerNombre)}</span>
-      <button class="cuenta__link cuenta__boton" id="btnMisPedidos">Mis pedidos</button>
+      <button type="button" class="cuenta__boton" id="btnMisPedidos">Mis pedidos</button>
       ${linkAdmin}
-      <button class="cuenta__salir" id="btnLogout">Salir</button>
+      <button type="button" class="cuenta__salir" id="btnLogout">Salir</button>
     `;
     document.getElementById("btnLogout").addEventListener("click", logout);
     document.getElementById("btnMisPedidos").addEventListener("click", abrirMisPedidos);
   } else {
     cuentaArea.innerHTML = `
-      <button class="cuenta" id="btnCuenta" aria-label="Iniciar sesión">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-        </svg>
+      <button type="button" class="cuenta__entrar" id="btnCuenta">
+        <svg class="icono" aria-hidden="true"><use href="#i-usuario"/></svg>Entrar
       </button>
     `;
     document.getElementById("btnCuenta").addEventListener("click", abrirLogin);
   }
 }
 
-/* -------- 13. ABRIR / CERRAR LA VENTANA -------- */
+/* -------- 13. ABRIR / CERRAR LA VENTANA DE LOGIN -------- */
 function abrirLogin() {
+  focoAnterior = document.activeElement;
   modalError.textContent = "";
   modalLogin.classList.add("abierto");
   modalFondo.classList.add("abierto");
+  // Foco en el primer campo para escribir de inmediato
+  document.getElementById(modoRegistro ? "loginNombre" : "loginCorreo").focus();
 }
 function cerrarLogin() {
+  if (!modalLogin.classList.contains("abierto")) return;
   modalLogin.classList.remove("abierto");
   modalFondo.classList.remove("abierto");
+  if (focoAnterior && document.body.contains(focoAnterior)) focoAnterior.focus();
 }
 document.getElementById("btnCerrarModal").addEventListener("click", cerrarLogin);
 modalFondo.addEventListener("click", function () {
@@ -389,6 +461,7 @@ document.getElementById("modalToggle").addEventListener("click", function (e) {
   modoRegistro = !modoRegistro;
   modalError.textContent = "";
   actualizarModoModal();
+  document.getElementById(modoRegistro ? "loginNombre" : "loginCorreo").focus();
 });
 
 /* -------- 15. ENVIAR EL FORMULARIO (login o registro) -------- */
@@ -418,6 +491,10 @@ document.getElementById("formLogin").addEventListener("submit", async function (
   renderCuenta();
   cerrarLogin();
   document.getElementById("formLogin").reset();
+  const primerNombre = usuario.nombre.split(" ")[0];
+  avisar(modoRegistro
+    ? "Cuenta creada. ¡Te damos la bienvenida, " + primerNombre + "!"
+    : "Sesión iniciada. Hola, " + primerNombre + ".", "exito");
 });
 
 /* -------- 15b. MIS PEDIDOS --------
@@ -428,17 +505,19 @@ const listaMisPedidos = document.getElementById("listaMisPedidos");
 
 // Texto amigable para cada estado que guarda el servidor
 const NOMBRES_ESTADO = {
-  pendiente: "⏳ Pendiente",
-  pagado:    "💳 Pagado",
-  enviado:   "🚚 Enviado",
-  entregado: "✅ Entregado",
-  cancelado: "✖ Cancelado",
+  pendiente: "Pendiente",
+  pagado:    "Pagado",
+  enviado:   "Enviado",
+  entregado: "Entregado",
+  cancelado: "Cancelado",
 };
 
 async function abrirMisPedidos() {
+  focoAnterior = document.activeElement;
   listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Cargando…</p>";
   modalPedidos.classList.add("abierto");
   modalFondo.classList.add("abierto");
+  document.getElementById("btnCerrarPedidos").focus();
 
   const respuesta = await fetch("/api/pedidos");
   if (!respuesta.ok) {
@@ -447,20 +526,22 @@ async function abrirMisPedidos() {
   }
   const pedidos = await respuesta.json();
   if (pedidos.length === 0) {
-    listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Aún no tienes pedidos. ¡Anímate con tu primera pintura! 🎨</p>";
+    listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Aún no tienes pedidos. ¡Anímate con tu primera pintura!</p>";
     return;
   }
   listaMisPedidos.innerHTML = pedidos.map(function (p) {
     const items = p.items.map(function (it) {
       return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}</li>`;
     }).join("");
+    // La clase de color solo se arma con estados conocidos
+    const estado = NOMBRES_ESTADO[p.estado] ? p.estado : "pendiente";
     return `
       <div class="mi-pedido">
         <div class="mi-pedido__cabecera">
           <strong>Pedido N° ${p.id}</strong>
-          <span class="estado estado--${escaparHTML(p.estado)}">${NOMBRES_ESTADO[p.estado] || escaparHTML(p.estado)}</span>
+          <span class="estado estado--${estado}">${NOMBRES_ESTADO[p.estado] || escaparHTML(p.estado)}</span>
         </div>
-        <p class="mi-pedido__fecha">🕐 ${escaparHTML(p.fecha)} · Total ${formatearPrecio(p.total)}</p>
+        <p class="mi-pedido__fecha">${escaparHTML(p.fecha)} · Total ${formatearPrecio(p.total)}</p>
         <ul class="mi-pedido__items">${items}</ul>
       </div>
     `;
@@ -468,8 +549,10 @@ async function abrirMisPedidos() {
 }
 
 function cerrarMisPedidos() {
+  if (!modalPedidos.classList.contains("abierto")) return;
   modalPedidos.classList.remove("abierto");
   modalFondo.classList.remove("abierto");
+  if (focoAnterior && document.body.contains(focoAnterior)) focoAnterior.focus();
 }
 document.getElementById("btnCerrarPedidos").addEventListener("click", cerrarMisPedidos);
 
@@ -479,63 +562,50 @@ async function logout() {
   usuario = null;
   cerrarMisPedidos();
   renderCuenta();
+  avisar("Sesión cerrada.", "info");
 }
 
 /* ============================================================
-   ANIMACIONES Y MENÚS
+   MENÚ, TECLADO Y ESPACIOS PREPARADOS
    ============================================================ */
 
-/* -------- 17. APARICIÓN AL HACER SCROLL -------- */
-const observador = new IntersectionObserver(function (entradas) {
-  entradas.forEach(function (entrada) {
-    if (entrada.isIntersecting) entrada.target.classList.add("visible");
-  });
-}, { threshold: 0.2 });
-document.querySelectorAll(".revelar").forEach(function (el) { observador.observe(el); });
+/* -------- 17. MENÚ EN CELULARES -------- */
+const botonMenu = document.getElementById("btnMenu");
+const menu = document.getElementById("menu");
 
-/* -------- 17b. PARALLAX SUAVE (acelerado por GPU) --------
-   Movemos la capa de fondo con "transform", que el navegador dibuja en la
-   tarjeta gráfica: fluido y sin tironeos. Usamos requestAnimationFrame para
-   sincronizar el movimiento con el refresco de la pantalla. */
-const fondos = document.querySelectorAll(".escena__fondo");
-let esperandoFrame = false;
-
-function moverParallax() {
-  fondos.forEach(function (fondo) {
-    const rect = fondo.parentElement.getBoundingClientRect();
-    // Solo calculamos si la escena está visible (ahorra trabajo)
-    if (rect.bottom > 0 && rect.top < window.innerHeight) {
-      const desplazamiento = rect.top * -0.12; // se mueve más lento que el scroll
-      fondo.style.transform = "translate3d(0," + desplazamiento + "px, 0)";
-    }
-  });
-  esperandoFrame = false;
+function cerrarMenu() {
+  menu.classList.remove("menu--abierto");
+  botonMenu.setAttribute("aria-expanded", "false");
+  botonMenu.setAttribute("aria-label", "Abrir menú");
 }
+botonMenu.addEventListener("click", function () {
+  const abierto = menu.classList.toggle("menu--abierto");
+  botonMenu.setAttribute("aria-expanded", abierto ? "true" : "false");
+  botonMenu.setAttribute("aria-label", abierto ? "Cerrar menú" : "Abrir menú");
+});
+// Al elegir una sección, el menú se cierra
+menu.addEventListener("click", function (evento) {
+  if (evento.target.closest(".menu__link")) cerrarMenu();
+});
 
-// Respetamos a quienes configuran "reducir movimiento" en su sistema
-const prefiereMenosMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* -------- 18. TECLA ESC: cierra lo que esté abierto -------- */
+document.addEventListener("keydown", function (evento) {
+  if (evento.key !== "Escape") return;
+  cerrarLogin();
+  cerrarMisPedidos();
+  cerrarCarrito();
+  cerrarMenu();
+});
 
-if (!prefiereMenosMovimiento) {
-  window.addEventListener("scroll", function () {
-    if (!esperandoFrame) {
-      window.requestAnimationFrame(moverParallax);
-      esperandoFrame = true;
-    }
-  }, { passive: true });   // passive = no bloquea el scroll (más fluido)
-  moverParallax();
-}
-
-/* -------- 18. ENLACES DEL MENÚ QUE FILTRAN EL CATÁLOGO -------- */
-document.querySelectorAll(".submenu__link[data-superficie]").forEach(function (enlace) {
-  enlace.addEventListener("click", function () {
-    const superficie = enlace.dataset.superficie;
-    const botonFiltro = document.querySelector(".filtro[data-superficie='" + superficie + "']");
-    if (botonFiltro) botonFiltro.click();
-  });
+/* -------- 19. BOTÓN DE WHATSAPP (espacio preparado) --------
+   Cuando tengan el número, reemplazar esto por un enlace a
+   https://wa.me/569XXXXXXXX y borrar este aviso. */
+document.getElementById("btnWhatsapp").addEventListener("click", function () {
+  avisar("Muy pronto podrás escribirnos por WhatsApp. Mientras tanto: pinturas@ecocordi.cl", "info");
 });
 
 /* ============================================================
-   19. ARRANQUE
+   20. ARRANQUE
    ============================================================ */
 cargarCarrito();     // recupera el carrito guardado
 cargarProductos();   // trae los productos de la base de datos

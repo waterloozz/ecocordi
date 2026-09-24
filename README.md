@@ -74,12 +74,16 @@ ecocordi/
 ├── ecocordi.db        → Base de datos SQLite (se crea sola al arrancar)
 ├── index.html         → Página principal de la tienda
 ├── admin.html         → Panel de administración
+├── terminos.html      → Términos y condiciones (en preparación)
+├── privacidad.html    → Política de privacidad (en preparación)
 ├── iniciar.sh         → Atajo para arrancar el servidor
 ├── css/
-│   └── estilos.css    → Todo el diseño
+│   └── estilos.css    → Todo el diseño (variables de color, espacios y tipografía en :root)
 ├── js/
+│   ├── ui.js          → Avisos (toasts) y diálogo de confirmación, compartidos
 │   ├── app.js         → Lógica de la tienda (catálogo, carrito, login)
 │   └── admin.js       → Lógica del panel de administración
+├── fonts/             → Tipografías servidas desde el propio sitio (licencia OFL)
 └── img/               → Logo e imágenes de productos
 ```
 
@@ -88,8 +92,8 @@ ecocordi/
 ## ✨ Funcionalidades
 
 - **Catálogo** cargado desde la base de datos.
-- **Filtro por superficie** (madera, metal, exterior, techo, interior) — la
-  funcionalidad estrella, también accesible desde el mega-menú.
+- **Filtro por superficie** (madera, metal, exterior, techo, interior): la
+  funcionalidad estrella, con accesos directos desde la portada.
 - **Carrito de compras** que se mantiene aunque cierres la página y no deja
   pedir más unidades de las que hay en bodega.
 - **Stock** por producto: la tienda muestra "¡Quedan N!" cuando quedan 5 o
@@ -104,9 +108,14 @@ ecocordi/
 - **Mis pedidos**: cada cliente ve sus compras y el estado de cada una.
 - **Panel de administración** protegido: ver pedidos y cambiar su estado,
   agregar/eliminar productos y editar su precio y stock.
-- **Diseño premium**: cabecera fija estilo Apple con mega-menús, portada
-  cinematográfica con efecto parallax y animaciones al hacer scroll.
-- **Responsive**: se adapta a celulares y tablets.
+- **Diseño "Carta de color"**: el sitio se arma como un muestrario de pintura.
+  Cada superficie tiene su color y su textura (vetas de madera, metal cepillado,
+  tablas de fachada, tejas, muro liso), dibujadas solo con CSS.
+- **Avisos y confirmaciones propios** (sin `alert()` ni `confirm()`).
+- **Responsive desde 360 px**, foco de teclado visible, contraste AA y respeto
+  por la opción "reducir movimiento" del sistema.
+- **Espacios preparados** (sin lógica todavía): calculadora de m² a litros y
+  botón flotante de WhatsApp.
 
 ---
 
