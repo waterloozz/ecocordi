@@ -26,14 +26,14 @@
   <main class="contenedor admin">
 
     <!-- Mensaje si NO eres administrador -->
-    <div id="accesoDenegado" class="admin__denegado" style="display:none">
+    <div id="accesoDenegado" class="admin__denegado oculto">
       <h2>Acceso restringido 🔒</h2>
       <p>Esta página es solo para administradores.</p>
       <a href="index.html" class="boton boton--principal">Volver al inicio</a>
     </div>
 
     <!-- Contenido del panel (oculto hasta confirmar que eres admin) -->
-    <div id="panel" style="display:none">
+    <div id="panel" class="oculto">
       <h1 class="admin__titulo">Panel de Administración</h1>
 
       <!-- Pestañas -->
@@ -49,7 +49,7 @@
       </section>
 
       <!-- SECCIÓN PRODUCTOS -->
-      <section id="tabProductos" class="admin__seccion" style="display:none">
+      <section id="tabProductos" class="admin__seccion oculto">
         <h2 class="admin__subtitulo">Agregar nuevo producto</h2>
         <form id="formProducto" class="admin__form">
           <input type="text" id="pNombre" placeholder="Nombre del producto" required />

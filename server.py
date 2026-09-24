@@ -19,6 +19,8 @@ import hmac
 import secrets
 import os
 import mimetypes
+import threading
+import time
 from http.cookies import SimpleCookie
 from urllib.parse import urlparse, parse_qs
 
@@ -28,6 +30,26 @@ DB_PATH = os.path.join(BASE, "ecocordi.db")
 PUERTO = 8000
 ADMIN_CORREO = os.environ.get("ADMIN_CORREO", "admin@ecocordi.cl")
 MAX_CANTIDAD = 999  # unidades máximas de un mismo producto por pedido
+CLAVE_MINIMA = 8          # largo mínimo de la contraseña al registrarse
+DIAS_SESION = 7           # una sesión vale 7 días (igual que la cookie)
+MAX_FALLOS = 5            # intentos fallidos permitidos por IP...
+VENTANA_FALLOS = 10 * 60  # ...en esta cantidad de segundos (10 minutos)
+
+# Cabeceras de seguridad que se agregan a TODAS las respuestas.
+#  - Content-Security-Policy (CSP): lista de lo que el navegador puede cargar.
+#    Con default-src 'self' solo se aceptan archivos de NUESTRO servidor: si
+#    alguien lograra meter un <script> o un onclick="..." en la página, el
+#    navegador se negaría a ejecutarlo. Es la segunda barrera contra XSS.
+#  - X-Content-Type-Options: nosniff → el navegador no "adivina" el tipo de
+#    archivo (evita que un .jpg se ejecute como si fuera JavaScript).
+#  - Referrer-Policy: same-origin → no le contamos a otros sitios desde qué
+#    página de la tienda llegó el usuario.
+CABECERAS_SEGURIDAD = {
+    "Content-Security-Policy":
+        "default-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+}
 
 
 # ------------------------------------------------------------
@@ -101,6 +123,14 @@ def init_db():
             creada     TEXT DEFAULT (datetime('now','localtime'))
         )
     """)
+
+    # Limpieza: borramos las sesiones que ya vencieron
+    borradas = c.execute(
+        "DELETE FROM sesiones WHERE creada IS NULL OR creada <= datetime('now','localtime',?)",
+        (f"-{DIAS_SESION} days",),
+    ).rowcount
+    if borradas:
+        print(f"  Se borraron {borradas} sesiones vencidas")
 
     con.commit()
     _seed_productos(con)
@@ -197,21 +227,75 @@ def verificar_clave(clave, guardado):
     return hmac.compare_digest(calculado, h)  # comparación segura
 
 
+def _texto(datos, campo):
+    """Lee un campo de texto del JSON; si mandan otra cosa (número, lista...), da ""."""
+    valor = datos.get(campo)
+    return valor if isinstance(valor, str) else ""
+
+
+# ------------------------------------------------------------
+#  LÍMITE DE INTENTOS (rate limiting)
+#  Evita que alguien pruebe miles de contraseñas seguidas ("fuerza bruta").
+#  Anotamos la hora de cada intento FALLIDO por IP. Si una IP acumula
+#  MAX_FALLOS en los últimos VENTANA_FALLOS segundos, la bloqueamos (429)
+#  hasta que el fallo más antiguo "caduque".
+# ------------------------------------------------------------
+_fallos = {}                 # {(ruta, ip): [hora_fallo1, hora_fallo2, ...]}
+_fallos_lock = threading.Lock()  # el servidor atiende varias peticiones a la vez
+
+
+def _fallos_recientes(clave):
+    """Devuelve los fallos de los últimos 10 minutos (y olvida los más viejos)."""
+    limite = time.time() - VENTANA_FALLOS
+    recientes = [t for t in _fallos.get(clave, []) if t > limite]
+    if recientes:
+        _fallos[clave] = recientes
+    else:
+        _fallos.pop(clave, None)
+    return recientes
+
+
+def segundos_bloqueado(clave):
+    """0 si puede intentar; si no, cuántos segundos le faltan para desbloquearse."""
+    with _fallos_lock:
+        recientes = _fallos_recientes(clave)
+        if len(recientes) < MAX_FALLOS:
+            return 0
+        return int(recientes[-MAX_FALLOS] + VENTANA_FALLOS - time.time()) + 1
+
+
+def anotar_fallo(clave):
+    with _fallos_lock:
+        _fallos_recientes(clave)
+        _fallos.setdefault(clave, []).append(time.time())
+
+
 # ------------------------------------------------------------
 #  MANEJADOR DE PETICIONES HTTP
 # ------------------------------------------------------------
 class Handler(http.server.BaseHTTPRequestHandler):
 
     # ---- utilidades ----
-    def _json(self, data, status=200, set_cookie=None):
+    def end_headers(self):
+        """Se llama justo antes de enviar CUALQUIER respuesta (JSON, archivos
+        y errores 404), así que es el lugar para agregar las cabeceras de
+        seguridad una sola vez para todo el sitio."""
+        for nombre, valor in CABECERAS_SEGURIDAD.items():
+            self.send_header(nombre, valor)
+        super().end_headers()
+
+    def _json(self, data, status=200, set_cookie=None, extra=None):
         cuerpo = json.dumps(data).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(cuerpo)))
         if set_cookie:
             self.send_header("Set-Cookie", set_cookie)
+        for nombre, valor in (extra or {}).items():
+            self.send_header(nombre, valor)
         self.end_headers()
         self.wfile.write(cuerpo)
+        return status  # así quien llama sabe si salió bien (200) o no
 
     def _leer_json(self):
         try:
@@ -238,7 +322,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             SELECT u.id, u.nombre, u.correo, u.es_admin
             FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
             WHERE s.token = ?
-        """, (token,)).fetchone()
+              AND s.creada > datetime('now','localtime',?)  -- no vencida
+        """, (token, f"-{DIAS_SESION} days")).fetchone()
         con.close()
         return dict(fila) if fila else None
 
@@ -286,10 +371,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         ruta = urlparse(self.path)
         datos = self._leer_json()
 
-        if ruta.path == "/api/register":
-            return self._registrar(datos)
-        if ruta.path == "/api/login":
-            return self._login(datos)
+        if ruta.path in ("/api/register", "/api/login"):
+            return self._con_limite(ruta.path, datos)
         if ruta.path == "/api/logout":
             return self._logout()
         if ruta.path == "/api/pedidos":
@@ -315,12 +398,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._json({"error": "Ruta no encontrada"}, 404)
 
     # ---- lógica de negocio ----
+    def _con_limite(self, ruta, datos):
+        """Atiende login/registro, pero antes revisa si esta IP está bloqueada.
+        Cada ruta lleva su propio contador. Solo cuentan los intentos FALLIDOS."""
+        clave = (ruta, self.client_address[0])
+        espera = segundos_bloqueado(clave)
+        if espera:
+            minutos = (espera + 59) // 60
+            return self._json(
+                {"error": f"Demasiados intentos fallidos. Espera {minutos} minuto(s) e inténtalo de nuevo."},
+                429, extra={"Retry-After": str(espera)})
+        manejar = self._registrar if ruta == "/api/register" else self._login
+        status = manejar(datos)
+        if status != 200:
+            anotar_fallo(clave)
+
     def _registrar(self, datos):
-        nombre = (datos.get("nombre") or "").strip()
-        correo = (datos.get("correo") or "").strip().lower()
-        clave = datos.get("clave") or ""
-        if not nombre or not correo or len(clave) < 4:
-            return self._json({"error": "Datos incompletos (clave mínima 4 caracteres)"}, 400)
+        nombre = _texto(datos, "nombre").strip()
+        correo = _texto(datos, "correo").strip().lower()
+        clave = _texto(datos, "clave")
+        if not nombre or not correo:
+            return self._json({"error": "Completa nombre, correo y contraseña"}, 400)
+        if len(clave) < CLAVE_MINIMA:
+            return self._json(
+                {"error": f"La contraseña debe tener al menos {CLAVE_MINIMA} caracteres"}, 400)
         con = get_db()
         if con.execute("SELECT 1 FROM usuarios WHERE correo=?", (correo,)).fetchone():
             con.close()
@@ -335,8 +436,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._iniciar_sesion(usuario_id, nombre, correo, 0)
 
     def _login(self, datos):
-        correo = (datos.get("correo") or "").strip().lower()
-        clave = datos.get("clave") or ""
+        correo = _texto(datos, "correo").strip().lower()
+        clave = _texto(datos, "clave")
         con = get_db()
         u = con.execute("SELECT * FROM usuarios WHERE correo=?", (correo,)).fetchone()
         con.close()
@@ -350,7 +451,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         con.execute("INSERT INTO sesiones (token, usuario_id) VALUES (?,?)", (token, usuario_id))
         con.commit()
         con.close()
-        cookie = f"sesion={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+        cookie = f"sesion={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age={DIAS_SESION * 24 * 3600}"
         return self._json(
             {"id": usuario_id, "nombre": nombre, "correo": correo, "es_admin": es_admin},
             set_cookie=cookie,

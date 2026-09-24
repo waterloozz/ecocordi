@@ -286,6 +286,14 @@ body {
   z-index: 0;
 }
 
+/* Foto de cada escena. Antes estaba en el HTML con style="...", pero la
+   Content-Security-Policy del servidor bloquea los estilos escritos en el
+   HTML, así que viven aquí. (La ruta es relativa a este archivo CSS.) */
+.escena__fondo--constructoras { background-image: url("../img/constructoras.jpg"); }
+.escena__fondo--interior      { background-image: url("../img/interior.jpg"); }
+.escena__fondo--exterior      { background-image: url("../img/exterior.jpg"); }
+.escena__fondo--madera        { background-image: url("../img/madera.jpg"); }
+
 /* Capa oscura azul marino encima de la foto para que el texto se lea */
 .escena__capa {
   position: absolute;
@@ -836,3 +844,10 @@ body {
 @media (max-width: 800px) {
   .admin__pedidos, .admin__productos { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   UTILIDAD: ocultar un elemento al cargar la página
+   Reemplaza al antiguo style="display:none" del HTML (bloqueado por la CSP).
+   JavaScript lo muestra después con elemento.style.display = "block".
+   ============================================================ */
+.oculto { display: none; }

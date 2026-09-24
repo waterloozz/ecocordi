@@ -65,14 +65,14 @@ function mostrarProductos(lista) {
 
   lista.forEach(function (p) {
     const tarjeta = `
-      <div class="producto">
+      <div class="producto" data-id="${p.id}">
         <img class="producto__imagen" src="${escaparHTML(p.imagen)}" alt="${escaparHTML(p.nombre)}"
              loading="lazy" decoding="async" />
         <div class="producto__cuerpo">
           <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
           <p class="producto__desc">${escaparHTML(p.descripcion)}</p>
           <p class="producto__precio">${formatearPrecio(p.precio)}</p>
-          <button class="producto__boton" onclick="agregarAlCarrito(${p.id})">
+          <button class="producto__boton">
             Agregar al carrito
           </button>
         </div>
@@ -81,6 +81,18 @@ function mostrarProductos(lista) {
     contenedorProductos.innerHTML += tarjeta;
   });
 }
+
+/* -------- 5b. CLIC EN "AGREGAR AL CARRITO" (delegación de eventos) --------
+   En vez de poner onclick="..." en cada botón (la CSP del servidor lo
+   bloquea), ponemos UN solo "escuchador" en el contenedor de productos.
+   Cuando haces clic en cualquier parte de adentro, revisamos si fue en un
+   botón, y leemos el id desde el atributo data-id de la tarjeta. */
+contenedorProductos.addEventListener("click", function (evento) {
+  const boton = evento.target.closest(".producto__boton");
+  if (!boton) return; // el clic no fue en el botón
+  const tarjeta = boton.closest(".producto");
+  agregarAlCarrito(Number(tarjeta.dataset.id));
+});
 
 /* -------- 6. FILTRO POR SUPERFICIE (funcionalidad estrella) -------- */
 contenedorFiltros.addEventListener("click", function (evento) {
@@ -147,18 +159,18 @@ function actualizarCarrito() {
     cantidadTotal += item.cantidad;
 
     const fila = `
-      <div class="item">
+      <div class="item" data-id="${item.id}">
         <img class="item__color" src="${escaparHTML(item.imagen)}" alt="${escaparHTML(item.nombre)}" />
         <div class="item__info">
           <div class="item__nombre">${escaparHTML(item.nombre)}</div>
           <div class="item__precio">${formatearPrecio(item.precio)}</div>
           <div class="item__controles">
-            <button class="item__btn" onclick="cambiarCantidad(${item.id}, -1)">−</button>
+            <button class="item__btn" data-accion="restar">−</button>
             <span>${item.cantidad}</span>
-            <button class="item__btn" onclick="cambiarCantidad(${item.id}, 1)">+</button>
+            <button class="item__btn" data-accion="sumar">+</button>
           </div>
         </div>
-        <button class="item__eliminar" onclick="eliminarDelCarrito(${item.id})">🗑️</button>
+        <button class="item__eliminar" data-accion="eliminar">🗑️</button>
       </div>
     `;
     carritoItems.innerHTML += fila;
@@ -168,6 +180,19 @@ function actualizarCarrito() {
   contadorCarrito.textContent = cantidadTotal;
   guardarCarrito(); // guardamos en el navegador para que no se pierda
 }
+
+/* -------- 8b. CLICS DENTRO DEL CARRITO (delegación de eventos) --------
+   Cada botón dice qué hace con data-accion ("restar", "sumar", "eliminar")
+   y la fila del carrito guarda el id del producto en data-id. */
+carritoItems.addEventListener("click", function (evento) {
+  const boton = evento.target.closest("[data-accion]");
+  if (!boton) return;
+  const id = Number(boton.closest(".item").dataset.id);
+  const accion = boton.dataset.accion;
+  if (accion === "restar")   cambiarCantidad(id, -1);
+  if (accion === "sumar")    cambiarCantidad(id, 1);
+  if (accion === "eliminar") eliminarDelCarrito(id);
+});
 
 /* -------- 9. CARRITO PERSISTENTE (localStorage) --------
    localStorage guarda datos en el navegador aunque cierres la página. */
@@ -309,6 +334,13 @@ function actualizarModoModal() {
   document.getElementById("modalSubtitulo").textContent = modoRegistro
     ? "Regístrate en Ecocordi" : "Accede a tu cuenta Ecocordi";
   document.getElementById("modalEnviar").textContent = modoRegistro ? "Registrarme" : "Entrar";
+  // Al registrarse pedimos mínimo 8 caracteres (el servidor también lo revisa).
+  // Al iniciar sesión no, porque hay cuentas antiguas con claves más cortas.
+  const campoClave = document.getElementById("loginClave");
+  campoClave.minLength = modoRegistro ? 8 : 0;
+  campoClave.placeholder = modoRegistro ? "Mínimo 8 caracteres" : "••••••••";
+  // Le dice al gestor de contraseñas si debe sugerir una clave nueva o la guardada
+  campoClave.autocomplete = modoRegistro ? "new-password" : "current-password";
   document.getElementById("modalToggle").innerHTML = modoRegistro
     ? '¿Ya tienes cuenta? <a href="#" id="linkToggle">Iniciar sesión</a>'
     : '¿No tienes cuenta? <a href="#" id="linkToggle">Crear cuenta</a>';

@@ -104,10 +104,20 @@ ecocordi/
 ## 🔐 Buenas prácticas de seguridad aplicadas
 
 - Contraseñas encriptadas con **PBKDF2** (hash con sal, 100.000 iteraciones).
-- Sesiones mediante **cookie HttpOnly** (no accesible desde JavaScript).
-- **El total de cada pedido lo calcula el servidor**, nunca el navegador.
+- Contraseñas de **mínimo 8 caracteres** al registrarse.
+- Sesiones mediante **cookie HttpOnly** (no accesible desde JavaScript) que
+  **vencen a los 7 días** también en el servidor; las vencidas se borran al arrancar.
+- **Límite de intentos:** tras 5 intentos fallidos de login (o de registro) desde
+  la misma IP en 10 minutos, el servidor responde `429` hasta que pase el tiempo.
+- **El total de cada pedido lo calcula el servidor**, nunca el navegador, y se
+  validan el id y la cantidad de cada producto.
 - Consultas SQL **parametrizadas** (protegen contra inyección SQL).
 - Rutas de administrador protegidas (verifican que el usuario sea admin).
+- Protección contra **XSS**: todo dato se escapa antes de mostrarse, y la
+  cabecera **Content-Security-Policy** impide ejecutar scripts, `onclick="..."`
+  o estilos escritos dentro del HTML. Por eso los eventos se conectan con
+  `addEventListener` y los estilos viven en `css/estilos.css`.
+- Cabeceras `X-Content-Type-Options: nosniff` y `Referrer-Policy: same-origin`.
 
 ---
 

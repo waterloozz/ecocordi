@@ -95,7 +95,7 @@
   <!-- ================= HERO / INICIO ================= -->
   <!-- ESCENA 1: portada -->
   <section class="escena" id="inicio">
-    <div class="escena__fondo" style="background-image: url('img/constructoras.jpg')"></div>
+    <div class="escena__fondo escena__fondo--constructoras"></div>
     <div class="escena__capa">
       <div class="escena__contenido revelar">
         <img src="img/logo3.png" alt="Pinturas Ecocordi" class="escena__logo" />
@@ -108,7 +108,7 @@
 
   <!-- ESCENA 2: interior -->
   <section class="escena">
-    <div class="escena__fondo" style="background-image: url('img/interior.jpg')"></div>
+    <div class="escena__fondo escena__fondo--interior"></div>
     <div class="escena__capa">
       <div class="escena__contenido revelar">
         <h2 class="escena__titulo">Pinturas para Interior</h2>
@@ -119,7 +119,7 @@
 
   <!-- ESCENA 3: exterior -->
   <section class="escena">
-    <div class="escena__fondo" style="background-image: url('img/exterior.jpg')"></div>
+    <div class="escena__fondo escena__fondo--exterior"></div>
     <div class="escena__capa">
       <div class="escena__contenido revelar">
         <h2 class="escena__titulo">Pinturas para Exterior</h2>
@@ -130,7 +130,7 @@
 
   <!-- ESCENA 4: madera -->
   <section class="escena">
-    <div class="escena__fondo" style="background-image: url('img/madera.jpg')"></div>
+    <div class="escena__fondo escena__fondo--madera"></div>
     <div class="escena__capa">
       <div class="escena__contenido revelar">
         <h2 class="escena__titulo">Protección de Madera</h2>
@@ -277,16 +277,16 @@
 
     <form class="modal__form" id="formLogin">
       <!-- Este campo solo aparece en modo "registro" -->
-      <div id="campoNombre" style="display:none">
+      <div id="campoNombre" class="oculto">
         <label for="loginNombre">Nombre</label>
-        <input type="text" id="loginNombre" placeholder="Tu nombre" />
+        <input type="text" id="loginNombre" placeholder="Tu nombre" autocomplete="name" />
       </div>
 
       <label for="loginCorreo">Correo</label>
-      <input type="email" id="loginCorreo" placeholder="tucorreo@ejemplo.cl" required />
+      <input type="email" id="loginCorreo" placeholder="tucorreo@ejemplo.cl" autocomplete="email" required />
 
       <label for="loginClave">Contraseña</label>
-      <input type="password" id="loginClave" placeholder="••••••••" required />
+      <input type="password" id="loginClave" placeholder="••••••••" autocomplete="current-password" required />
 
       <p class="modal__error" id="modalError"></p>
 

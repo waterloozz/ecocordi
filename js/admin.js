@@ -93,14 +93,14 @@ async function cargarProductos() {
   contenedor.innerHTML = "";
   productos.forEach(function (p) {
     contenedor.innerHTML += `
-      <div class="admin-prod">
+      <div class="admin-prod" data-id="${p.id}">
         <img src="${escaparHTML(p.imagen)}" alt="${escaparHTML(p.nombre)}" />
         <div class="admin-prod__info">
           <strong>${escaparHTML(p.nombre)}</strong>
           <span>${formatearPrecio(p.precio)}</span>
           <small>${escaparHTML(p.superficies.join(", "))}</small>
         </div>
-        <button class="admin-prod__borrar" onclick="borrarProducto(${p.id})">🗑️</button>
+        <button class="admin-prod__borrar">🗑️</button>
       </div>
     `;
   });
@@ -146,6 +146,14 @@ async function borrarProducto(id) {
   await fetch("/api/admin/productos/" + id, { method: "DELETE" });
   cargarProductos();
 }
+
+/* Un solo "escuchador" para todos los botones de borrar (delegación de
+   eventos): el id sale del data-id de la fila del producto. */
+document.getElementById("listaProductos").addEventListener("click", function (evento) {
+  const boton = evento.target.closest(".admin-prod__borrar");
+  if (!boton) return;
+  borrarProducto(Number(boton.closest(".admin-prod").dataset.id));
+});
 
 /* -------- 7. ARRANQUE -------- */
 verificarAdmin();
