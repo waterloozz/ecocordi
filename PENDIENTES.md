@@ -28,6 +28,16 @@ o la función queda oculta. Cada punto dice **dónde se completa**.
 |----------|--------|----------|
 | `WHATSAPP_NUMERO` | Número de WhatsApp de la empresa, con código de país (ej: `56912345678`) | El botón de WhatsApp no aparece |
 | `SITIO_URL` | Dirección pública del sitio (ej: `https://www.ecocordi.cl`) | El sitemap, robots.txt y las vistas previas en redes usan `http://localhost:8000` |
+| `PRECIOS_INCLUYEN_IVA` | `1` si los precios del catálogo ya incluyen IVA; `0` si son netos | Se asume `1` (lo exigido al vender a consumidores en Chile). **Confirmar con la empresa.** |
+
+## Checkout
+
+| Dato | Dónde se completa |
+|------|-------------------|
+| **Tarifas de despacho** por región | Panel → pestaña "Despacho". Sin tarifa, el checkout dice "Coordinar despacho" y el costo se acuerda antes de pagar. |
+| Dirección y horario de retiro en cada sucursal | `index.html` (sección Sucursales). El checkout hoy dice "te avisaremos cuando esté listo para retirar". |
+| Medios de pago y plazos de entrega | Términos (`legales/generar.py`). Hoy **no se cobra en línea**: la empresa contacta al cliente. |
+| **Envío de correos** (servidor SMTP) | Aún no existe. Hace falta para: enviar una copia del pedido (la exige el Reglamento de Comercio Electrónico), y verificar el correo de las cuentas con contraseña para vincularles sus compras como invitado (hoy solo se vinculan al entrar con Google). |
 
 ## Catálogo
 
@@ -42,4 +52,4 @@ o la función queda oculta. Cada punto dice **dónde se completa**.
 ## Revisión final
 
 - [ ] Revisión de un abogado de Términos, Privacidad y Devoluciones.
-- [ ] Definir despacho, medios de pago e IVA (se configuran en las fases siguientes).
+- [ ] Revisar con el contador cómo se emitirán las boletas y facturas (el sitio guarda los datos, pero no emite documentos tributarios).

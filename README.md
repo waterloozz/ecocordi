@@ -94,6 +94,7 @@ ecocordi/
 ├── pruebas/           → Pruebas automáticas (python3 pruebas/prueba_base_datos.py)
 ├── index.html         → Página principal: portada, superficies y 3 destacados
 ├── catalogo.html      → Catálogo completo con filtro por superficie (?superficie=madera)
+├── pedido.html        → Finalizar pedido: datos, entrega, boleta/factura y resumen final
 ├── admin.html         → Panel de administración
 ├── terminos.html, privacidad.html, cookies.html, devoluciones.html → Páginas legales
 ├── legales/generar.py → Genera las páginas legales
@@ -105,6 +106,7 @@ ecocordi/
 │   ├── luz.js         → Elige la luz (mañana/tarde/noche) antes de dibujar la página
 │   ├── ui.js          → Avisos (toasts) y diálogo de confirmación, compartidos
 │   ├── app.js         → Lógica de la tienda (catálogo, carrito, login)
+│   ├── pedido.js      → Lógica de "Finalizar pedido"
 │   └── admin.js       → Lógica del panel de administración
 ├── fonts/             → Tipografías servidas desde el propio sitio (licencia OFL)
 ├── actualizar_catalogo.py → Actualiza fotos y descripciones de productos en una ecocordi.db antigua
@@ -138,15 +140,30 @@ ecocordi/
   menos y "Agotado" (botón deshabilitado) cuando no queda nada.
 - **Cuentas de usuario** reales: registro e inicio de sesión con contraseñas
   encriptadas (nunca se guardan en texto plano).
-- **Pedidos** guardados en la base de datos al finalizar la compra. El stock se
+- **Finalizar pedido** (`pedido.html`), en dos pasos:
+  1. **Datos y entrega:** nombre, correo y teléfono (se puede comprar **como
+     invitado**, sin cuenta); **retiro en sucursal** (Talca o Santiago, sin
+     costo) o **despacho a domicilio** (región, comuna y dirección) con la
+     tarifa de la región, o "Coordinar despacho" si la región no tiene tarifa;
+     **boleta o factura** (RUT con dígito verificador, razón social, giro y
+     dirección).
+  2. **Revisar y enviar:** resumen final calculado por el servidor (productos,
+     despacho, **neto, IVA y total**), casilla de aceptación de los Términos y
+     enlace a Cambios y devoluciones.
+- **Pedidos** guardados en la base de datos con todo lo anterior. El stock se
   revisa y descuenta en **una sola transacción**: si dos personas compran el
   último tarro al mismo tiempo, solo una lo consigue (la otra recibe un aviso).
+- **Compras como invitado vinculadas**: si después la persona entra con Google
+  usando el mismo correo, sus pedidos aparecen en "Mis pedidos". (Con
+  contraseña no se vinculan solos: el sitio no verifica correos, y cualquiera
+  podría registrarse con un correo ajeno para ver esos pedidos.)
 - **Estados de pedido**: pendiente → pagado → enviado → entregado, o cancelado
   (al cancelar, las unidades vuelven al stock).
 - **Mis pedidos**: cada cliente ve sus compras y el estado de cada una.
-- **Panel de administración** protegido: ver pedidos y cambiar su estado,
-  agregar/eliminar productos, agregar/eliminar formatos y editar el precio y
-  stock de cada formato.
+- **Panel de administración** protegido: ver pedidos (con entrega, documento,
+  neto e IVA) y cambiar su estado; agregar/eliminar productos y formatos,
+  editar precio, stock y rendimiento; y fijar la **tarifa de despacho de cada
+  región** (pestaña "Despacho").
 - **Diseño "Luz de ventana"**: el mismo color cambia con la luz del día, y la
   página lo muestra. Según la hora de quien la visita se ve con luz de **mañana**,
   **tarde** o **noche** (fondo oscuro), y también se puede elegir a mano. Todas
@@ -170,8 +187,11 @@ ecocordi/
   **vencen a los 7 días** también en el servidor; las vencidas se borran al arrancar.
 - **Límite de intentos:** tras 5 intentos fallidos de login (o de registro) desde
   la misma IP en 10 minutos, el servidor responde `429` hasta que pase el tiempo.
-- **El total de cada pedido lo calcula el servidor**, nunca el navegador, y se
-  validan el id y la cantidad de cada producto.
+- **El total de cada pedido lo calcula el servidor** (precios, despacho, neto e
+  IVA), nunca el navegador, y se validan el formato, la cantidad, el RUT, el
+  teléfono y cada dato del checkout.
+- **Límite de pedidos**: máximo 10 por hora desde la misma conexión (así nadie
+  puede "reservar" todo el stock con pedidos falsos).
 - **Integridad de datos**: `PRAGMA foreign_keys = ON` y restricciones `CHECK`
   (el stock nunca puede quedar negativo; el estado solo acepta valores válidos).
 - Si la base de datos es de una versión anterior, al arrancar se **migra sola
@@ -224,7 +244,8 @@ Tablas principales:
 | `producto_superficies` | para qué superficies sirve cada producto (un producto → varias superficies) |
 | `producto_formatos` | formatos de venta: nombre, litros, **precio y stock** |
 | `usuarios`, `sesiones` | cuentas y sesiones iniciadas |
-| `pedidos`, `pedido_items` | pedidos y su detalle (con copia del nombre, formato y precio del momento) |
+| `pedidos`, `pedido_items` | pedidos (contacto, entrega, documento, neto, IVA y total) y su detalle (con copia del nombre, formato y precio del momento) |
+| `tarifas_despacho` | costo del despacho por región (región sin fila = "coordinar despacho") |
 
 Tiene índices para las búsquedas frecuentes (pedidos por usuario y por estado,
 detalle por pedido, sesiones por usuario y por fecha).
@@ -265,6 +286,7 @@ Cada prueba arranca su propio servidor con una **base de datos temporal**
 ```bash
 python3 pruebas/prueba_base_datos.py   # Fase 1: base de datos, formatos, migraciones, respaldos
 python3 pruebas/prueba_catalogo.py     # Fase 2: configuración, SEO, rendimiento
+python3 pruebas/prueba_checkout.py     # Fase 3: invitado, entrega, factura, IVA, tarifas
 ```
 
 ## ⚖️ Aspectos legales y de privacidad

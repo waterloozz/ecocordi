@@ -624,6 +624,7 @@ p { text-wrap: pretty; }
 .mi-pedido__fecha { margin-top: var(--esp-1); font-size: var(--txt-xs); color: var(--texto-2); font-variant-numeric: tabular-nums; }
 .mi-pedido__items { margin-top: var(--esp-2); font-size: var(--txt-sm); }
 .mi-pedido__formato { color: var(--texto-2); }
+.mi-pedido__entrega { margin-top: var(--esp-2); font-size: var(--txt-xs); color: var(--texto-2); }
 
 .estado { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: var(--txt-xs); font-weight: 600; white-space: nowrap; }
 .estado::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -704,6 +705,95 @@ p { text-wrap: pretty; }
 .dialogo__acciones { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--esp-2); margin-top: var(--esp-6); }
 @keyframes entrar-dialogo { from { opacity: 0; transform: scale(0.97); } }
 
+/* ============ 11b. FINALIZAR PEDIDO (pedido.html) ============ */
+.pedido { padding-block: var(--esp-7) var(--esp-seccion); }
+.pedido__titulo { font-size: var(--txt-3xl); letter-spacing: -0.02em; line-height: 0.95; }
+.pedido__pasos { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-block: var(--esp-5) var(--esp-6); counter-reset: paso; }
+.pedido__paso {
+  counter-increment: paso; display: inline-flex; align-items: center; gap: var(--esp-2);
+  min-height: 38px; padding: 0 var(--esp-4) 0 6px; border: 1.5px solid var(--linea); border-radius: 999px;
+  font-size: var(--txt-sm); font-weight: 600; color: var(--texto-2);
+}
+.pedido__paso::before {
+  content: counter(paso); display: grid; place-items: center; width: 26px; height: 26px;
+  border-radius: 50%; background: var(--muro-2); color: var(--texto); font-size: var(--txt-xs);
+}
+.pedido__paso--activo { color: var(--texto); border-color: var(--texto); }
+.pedido__paso--activo::before { background: var(--acento); color: var(--sobre-acento); }
+.pedido__paso--hecho::before { content: "✓"; background: var(--acento); color: var(--sobre-acento); }
+
+.pedido__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: var(--esp-6); align-items: start; }
+.pedido__bloque, .pedido__revisar, .pedido__listo {
+  padding: var(--esp-6); background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio-lg);
+}
+.pedido__bloque + .pedido__bloque { margin-top: var(--esp-5); }
+.pedido__subtitulo { float: left; width: 100%; margin-bottom: var(--esp-4); font-family: var(--serif); font-size: var(--txt-xl); line-height: 1.1; }
+.pedido__revisar .pedido__subtitulo, .pedido__listo .pedido__subtitulo { float: none; }
+.pedido__subtitulo:focus { outline: none; }
+.pedido__nota { clear: both; font-size: var(--txt-xs); color: var(--texto-2); line-height: 1.5; }
+.pedido__nota:empty { display: none; }
+.pedido__nota + .pedido__campos, .pedido__campos + .pedido__nota { margin-top: var(--esp-3); }
+.pedido__campos { clear: both; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-4); }
+.pedido__campos .campo--ancho { grid-column: 1 / -1; }
+.campo__ayuda { font-size: var(--txt-xs); color: var(--texto-2); line-height: 1.4; }
+.campo__control:read-only { color: var(--texto-2); }
+.pedido__sub { min-width: 0; margin-top: var(--esp-4); border: none; }
+.pedido__sub .campo + .pedido__nota { margin-top: var(--esp-2); }
+
+/* Opciones grandes (retiro/despacho, boleta/factura): la tarjeta entera se puede elegir */
+.opciones { clear: both; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-3); }
+.opcion {
+  display: flex; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-4);
+  border: 1.5px solid var(--linea); border-radius: var(--radio); cursor: pointer;
+  transition: border-color var(--rapido) var(--curva-salida), background-color var(--rapido) var(--curva-salida);
+}
+.opcion:hover { border-color: var(--texto-2); }
+.opcion input { flex-shrink: 0; width: 20px; height: 20px; margin-top: 2px; accent-color: var(--acento); cursor: pointer; }
+.opcion:has(input:checked) { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 8%, transparent); }
+.opcion__cuerpo { display: grid; gap: 2px; }
+.opcion__titulo { font-weight: 600; }
+.opcion__detalle { font-size: var(--txt-xs); color: var(--texto-2); }
+
+.pedido__form .formulario__error { margin-top: var(--esp-4); }
+.pedido__continuar { margin-top: var(--esp-5); min-width: min(100%, 260px); }
+
+/* Paso 2: revisión */
+.pedido__datos { display: grid; gap: var(--esp-3); margin-bottom: var(--esp-2); }
+.pedido__datos div { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--esp-3); padding-bottom: var(--esp-3); border-bottom: 1px solid var(--linea); }
+.pedido__datos dt { font-size: var(--txt-xs); font-weight: 600; color: var(--texto-2); padding-top: 2px; }
+.pedido__datos dd { font-size: var(--txt-sm); line-height: 1.5; overflow-wrap: anywhere; }
+.pedido__legal { display: grid; gap: var(--esp-3); margin-top: var(--esp-5); }
+.pedido__revisar .catalogo__quitar { margin-left: 0; }
+.pedido__revisar .formulario__error { margin-top: var(--esp-3); }
+
+/* Listo */
+.pedido__listo > * + * { margin-top: var(--esp-3); }
+.pedido__numero { font-size: var(--txt-lg); }
+.pedido__listo-acciones { display: flex; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-5); }
+.pedido__vacio { display: grid; justify-items: center; gap: var(--esp-4); padding: var(--esp-8) 0; font-family: var(--serif); font-size: var(--txt-xl); color: var(--texto-2); }
+
+/* Resumen (columna derecha) */
+.pedido__resumen {
+  position: sticky; top: calc(var(--alto-cabecera) + var(--esp-4));
+  padding: var(--esp-6); background: var(--papel); border: 1px solid var(--linea); border-radius: var(--radio-lg);
+}
+.pedido__resumen-titulo { font-size: var(--txt-xl); margin-bottom: var(--esp-4); }
+.pedido__items { display: grid; gap: var(--esp-3); }
+.pedido__item { display: flex; justify-content: space-between; gap: var(--esp-3); font-size: var(--txt-sm); }
+.pedido__cantidad { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pedido__formato { display: block; font-size: var(--txt-xs); color: var(--texto-2); }
+.pedido__precio { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pedido__editar-carrito { display: inline-flex; align-items: center; min-height: 36px; margin-top: var(--esp-2); font-size: var(--txt-xs); font-weight: 600; }
+.pedido__montos { display: grid; gap: var(--esp-2); margin-block: var(--esp-4) var(--esp-3); padding-top: var(--esp-4); border-top: 1px solid var(--linea); }
+.pedido__montos div { display: flex; justify-content: space-between; gap: var(--esp-3); font-size: var(--txt-sm); font-variant-numeric: tabular-nums; }
+.pedido__montos .pedido__monto-secundario { color: var(--texto-2); font-size: var(--txt-xs); }
+.pedido__monto-total { padding-top: var(--esp-2); border-top: 1px solid var(--linea); font-weight: 600; }
+.pedido__monto-total dd { font-size: var(--txt-lg); }
+
+/* Pie simple (páginas de compra) */
+.pie--simple .pie__legal { border-top: none; padding-block: var(--esp-5); }
+.pie--simple a { color: #EEF1F4; }
+
 /* ============ 12. PANEL DE ADMINISTRACIÓN ============ */
 .admin-body { background: var(--muro); }
 .cabecera__titulo { margin-right: auto; padding-left: var(--esp-4); border-left: 1px solid var(--linea); font-family: var(--serif); font-style: italic; font-size: var(--txt-lg); color: var(--texto-2); }
@@ -755,6 +845,13 @@ p { text-wrap: pretty; }
 .tabla .numero { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 .tabla__secundario { display: block; color: var(--texto-2); font-size: var(--txt-xs); }
 .tabla__items li { line-height: 1.5; }
+.tabla__documento { display: block; margin-top: var(--esp-2); font-weight: 600; }
+.tabla__coordinar { color: var(--aviso); }
+.etiqueta-invitado {
+  display: inline-block; margin-left: var(--esp-1); padding: 1px 8px; border-radius: 999px;
+  background: var(--muro-2); color: var(--texto-2); font-size: var(--txt-xs); font-weight: 600;
+}
+.admin__bajada--seccion { margin-bottom: var(--esp-5); max-width: 70ch; }
 
 .pedido--cancelado td { color: var(--texto-2); }
 .pedido__selector { min-height: 38px; padding: 4px 30px 4px 12px; border: 1.5px solid transparent; border-radius: 999px; font-weight: 600; font-size: var(--txt-xs); cursor: pointer; }
@@ -836,6 +933,7 @@ p { text-wrap: pretty; }
 .carrito__legal { display: grid; gap: var(--esp-3); margin-bottom: var(--esp-4); }
 .carrito__aviso { font-size: var(--txt-xs); line-height: 1.5; color: var(--texto-2); }
 .carrito__aviso strong { color: var(--texto); }
+.carrito__iva { font-size: var(--txt-xs); font-weight: 400; color: var(--texto-2); }
 .mis-pedidos__cuenta { margin-top: var(--esp-6); padding-top: var(--esp-4); border-top: 1px solid var(--linea); font-size: var(--txt-xs); color: var(--texto-2); display: grid; gap: var(--esp-2); justify-items: start; }
 .enlace-peligro { min-height: 44px; color: var(--error); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 /* Etiqueta "Imagen referencial" sobre fotos que no muestran el producto real */
@@ -906,6 +1004,8 @@ p { text-wrap: pretty; }
   .ventana__foto, .ventana__luz { aspect-ratio: 4 / 5; }
   .beneficios__lista { grid-template-columns: 1fr; gap: var(--esp-6); }
   .barra-filtros__interior { flex-direction: column; align-items: stretch; gap: var(--esp-2); }
+  .pedido__grid { grid-template-columns: 1fr; }
+  .pedido__resumen { position: static; order: -1; }
   .buscador { flex: 1 1 100%; }
   .nosotros__grid { grid-template-columns: 1fr; }
   .pie__grid { grid-template-columns: 1fr 1fr; }
@@ -968,6 +1068,11 @@ p { text-wrap: pretty; }
   .tabla td > .tabla__secundario { grid-column: 2; } /* el correo va bajo el nombre, no bajo la etiqueta */
   .tabla td.tabla__sin-etiqueta { grid-template-columns: 1fr; }
   .tabla td.tabla__sin-etiqueta::before { display: none; }
+
+  /* Finalizar pedido: una columna; el resumen (con el total) va primero */
+  .pedido__campos, .opciones { grid-template-columns: 1fr; }
+  .pedido__bloque, .pedido__revisar, .pedido__listo, .pedido__resumen { padding: var(--esp-5) var(--esp-4); }
+  .pedido__datos div { grid-template-columns: 1fr; gap: 2px; }
   .cabecera__titulo { display: none; }
 }
 

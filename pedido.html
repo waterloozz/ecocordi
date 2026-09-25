@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es" data-luz="manana">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finalizar pedido | Pinturas Ecocordi</title>
+  <!-- Página de compra: no debe aparecer en los buscadores -->
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="img/favicon.png" type="image/png" />
+  <link rel="preload" href="fonts/instrument-serif-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/instrument-sans-400-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="css/estilos.css" />
+  <script src="js/luz.js"></script>
+</head>
+<body>
+
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-usuario" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6.5 8-6.5s8 2.5 8 6.5"/></symbol>
+    <symbol id="i-tarro" viewBox="0 0 24 24"><path d="M4 9h16l-1.5 10.4A2 2 0 0 1 16.5 21h-9a2 2 0 0 1-2-1.6L4 9Z"/><path d="M7 9a5 5 0 0 1 10 0"/></symbol>
+    <symbol id="i-basura" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></symbol>
+    <symbol id="i-cerrar" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-buscar" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/></symbol>
+    <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.4-7-12a7 7 0 0 1 14 0c0 5.6-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></symbol>
+    <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 20l1.4-4.2A8 8 0 1 1 8.4 19L4 20Z"/><path d="M9 10.5h6M9 13.5h4"/></symbol>
+    <symbol id="i-sol" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-atardecer" viewBox="0 0 24 24"><path d="M5 16a7 7 0 0 1 14 0"/><path d="M2.5 16h19M7 20h10M12 3.5v3M4.2 8.2l1.9 1.9M19.8 8.2l-1.9 1.9"/></symbol>
+    <symbol id="i-luna" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></symbol>
+    <symbol id="i-facebook" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></symbol>
+    <symbol id="i-correo" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></symbol>
+  </svg>
+
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a href="index.html" class="marca" aria-label="Pinturas Ecocordi, inicio">
+        <span class="marca__nombre">Ecocordi</span>
+        <span class="marca__sub">Pinturas</span>
+      </a>
+      <span class="cabecera__titulo">Finalizar pedido</span>
+      <div class="cabecera__acciones">
+        <a href="catalogo.html" class="cuenta__link">Volver al catálogo</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="contenedor pedido" id="contenido">
+    <h1 class="pedido__titulo">Finalizar <em>pedido</em></h1>
+
+    <!-- Pasos: 1) datos, entrega y documento · 2) revisar y enviar -->
+    <ol class="pedido__pasos" aria-label="Pasos del pedido">
+      <li class="pedido__paso pedido__paso--activo" id="indicadorPaso1" aria-current="step">Datos y entrega</li>
+      <li class="pedido__paso" id="indicadorPaso2">Revisar y enviar</li>
+    </ol>
+
+    <!-- Si el carrito está vacío, pedido.js muestra esto en vez del formulario -->
+    <div class="pedido__vacio oculto" id="pedidoVacio">
+      <p>Tu carrito está vacío.</p>
+      <a href="catalogo.html" class="boton boton--principal">Ver el catálogo</a>
+    </div>
+
+    <div class="pedido__grid" id="pedidoGrid">
+      <div class="pedido__principal">
+
+        <!-- ===== PASO 1: datos, entrega y documento ===== -->
+        <form class="pedido__form" id="formPedido">
+          <fieldset class="pedido__bloque">
+            <legend class="pedido__subtitulo">Tus datos</legend>
+            <!-- pedido.js escribe aquí si compras con tu cuenta o como invitado -->
+            <p class="pedido__nota" id="sesionInfo"></p>
+            <div class="pedido__campos">
+              <label class="campo">
+                <span class="campo__etiqueta">Nombre y apellido</span>
+                <input class="campo__control" type="text" id="pNombre" maxlength="80" autocomplete="name" required />
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Correo</span>
+                <input class="campo__control" type="email" id="pCorreo" maxlength="254" autocomplete="email" required
+                       aria-describedby="ayudaCorreo" />
+                <span class="campo__ayuda" id="ayudaCorreo">Te escribiremos aquí para coordinar el pago y la entrega.</span>
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Teléfono</span>
+                <input class="campo__control" type="tel" id="pTelefono" maxlength="20" autocomplete="tel"
+                       placeholder="+56 9 1234 5678" pattern="[+]?[0-9 ().-]{8,20}" required />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="pedido__bloque">
+            <legend class="pedido__subtitulo">Entrega</legend>
+            <div class="opciones">
+              <label class="opcion">
+                <input type="radio" name="entrega" value="retiro" checked />
+                <span class="opcion__cuerpo">
+                  <span class="opcion__titulo">Retiro en sucursal</span>
+                  <span class="opcion__detalle">Sin costo · Talca o Santiago</span>
+                </span>
+              </label>
+              <label class="opcion">
+                <input type="radio" name="entrega" value="despacho" />
+                <span class="opcion__cuerpo">
+                  <span class="opcion__titulo">Despacho a domicilio</span>
+                  <span class="opcion__detalle">Según tu región</span>
+                </span>
+              </label>
+            </div>
+
+            <fieldset class="pedido__sub" id="bloqueRetiro">
+              <legend class="solo-lector">Sucursal de retiro</legend>
+              <label class="campo">
+                <span class="campo__etiqueta">Sucursal</span>
+                <select class="campo__control" id="pSucursal" required>
+                  <option value="">Elige una sucursal</option>
+                </select>
+              </label>
+              <p class="pedido__nota">Te avisaremos cuando tu pedido esté listo para retirar.</p>
+            </fieldset>
+
+            <fieldset class="pedido__sub oculto" id="bloqueDespacho" disabled>
+              <legend class="solo-lector">Dirección de despacho</legend>
+              <div class="pedido__campos">
+                <label class="campo">
+                  <span class="campo__etiqueta">Región</span>
+                  <select class="campo__control" id="pRegion" required>
+                    <option value="">Elige una región</option>
+                  </select>
+                </label>
+                <label class="campo">
+                  <span class="campo__etiqueta">Comuna</span>
+                  <input class="campo__control" type="text" id="pComuna" maxlength="60" autocomplete="address-level2" required />
+                </label>
+                <label class="campo campo--ancho">
+                  <span class="campo__etiqueta">Dirección</span>
+                  <input class="campo__control" type="text" id="pDireccion" maxlength="150" autocomplete="street-address"
+                         placeholder="Calle, número, depto. o referencia" required />
+                </label>
+              </div>
+              <p class="pedido__nota" id="tarifaInfo" aria-live="polite"></p>
+            </fieldset>
+          </fieldset>
+
+          <fieldset class="pedido__bloque">
+            <legend class="pedido__subtitulo">Documento</legend>
+            <div class="opciones">
+              <label class="opcion">
+                <input type="radio" name="documento" value="boleta" checked />
+                <span class="opcion__cuerpo">
+                  <span class="opcion__titulo">Boleta</span>
+                  <span class="opcion__detalle">Para personas</span>
+                </span>
+              </label>
+              <label class="opcion">
+                <input type="radio" name="documento" value="factura" />
+                <span class="opcion__cuerpo">
+                  <span class="opcion__titulo">Factura</span>
+                  <span class="opcion__detalle">Para empresas: pide RUT y giro</span>
+                </span>
+              </label>
+            </div>
+
+            <fieldset class="pedido__sub oculto" id="bloqueFactura" disabled>
+              <legend class="solo-lector">Datos para la factura</legend>
+              <div class="pedido__campos">
+                <label class="campo">
+                  <span class="campo__etiqueta">RUT de la empresa</span>
+                  <input class="campo__control" type="text" id="pRut" maxlength="12" inputmode="text" autocomplete="off"
+                         placeholder="76.123.456-7" required aria-describedby="ayudaRut" />
+                  <span class="campo__ayuda" id="ayudaRut">Con dígito verificador. Revisamos que sea válido.</span>
+                </label>
+                <label class="campo">
+                  <span class="campo__etiqueta">Razón social</span>
+                  <input class="campo__control" type="text" id="pRazonSocial" maxlength="100" autocomplete="organization" required />
+                </label>
+                <label class="campo">
+                  <span class="campo__etiqueta">Giro</span>
+                  <input class="campo__control" type="text" id="pGiro" maxlength="80" required />
+                </label>
+                <label class="campo">
+                  <span class="campo__etiqueta">Dirección comercial</span>
+                  <input class="campo__control" type="text" id="pDireccionFactura" maxlength="150" required />
+                </label>
+              </div>
+            </fieldset>
+          </fieldset>
+
+          <p class="formulario__error" id="pedidoError" role="alert"></p>
+          <button type="submit" class="boton boton--principal pedido__continuar" id="btnRevisar">Revisar pedido</button>
+        </form>
+
+        <!-- ===== PASO 2: resumen final, aceptación y envío ===== -->
+        <section class="pedido__revisar oculto" id="pasoRevisar" aria-labelledby="revisarTitulo">
+          <h2 class="pedido__subtitulo" id="revisarTitulo" tabindex="-1">Revisa tu pedido</h2>
+          <!-- pedido.js pinta aquí contacto, entrega y documento -->
+          <dl class="pedido__datos" id="revisarDatos"></dl>
+          <button type="button" class="catalogo__quitar" id="btnEditar">Editar datos</button>
+
+          <div class="pedido__legal">
+            <p class="carrito__aviso"><strong>No se cobra nada en línea.</strong> Tu pedido queda registrado y
+              Pinturas Ecocordi te contactará para coordinar el pago y la entrega o el retiro.</p>
+            <p class="carrito__aviso"><strong>Derecho a retracto:</strong> 10 días desde que recibes el producto,
+              salvo pinturas preparadas a pedido o productos ya usados.
+              <a href="devoluciones.html" target="_blank" rel="noopener">Cambios y devoluciones</a></p>
+            <p class="carrito__aviso">Usaremos tus datos solo para gestionar este pedido
+              (<a href="privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>).</p>
+            <label class="casilla-legal">
+              <input type="checkbox" id="aceptaPedido" />
+              <span>Acepto los <a href="terminos.html" target="_blank" rel="noopener">Términos y condiciones</a>
+                y la <a href="devoluciones.html" target="_blank" rel="noopener">Política de cambios y devoluciones</a>.</span>
+            </label>
+          </div>
+          <p class="formulario__error" id="enviarError" role="alert"></p>
+          <button type="button" class="boton boton--principal pedido__continuar" id="btnEnviar">Enviar pedido</button>
+        </section>
+
+        <!-- ===== LISTO ===== -->
+        <section class="pedido__listo oculto" id="pasoListo" aria-labelledby="listoTitulo">
+          <h2 class="pedido__subtitulo" id="listoTitulo" tabindex="-1">¡Recibimos tu pedido!</h2>
+          <div id="listoDetalle"></div>
+          <div class="pedido__listo-acciones">
+            <a href="catalogo.html" class="boton boton--principal">Seguir comprando</a>
+            <a href="index.html" class="boton boton--secundario">Ir al inicio</a>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== RESUMEN (a la derecha en escritorio, arriba en celular) ===== -->
+      <aside class="pedido__resumen" aria-labelledby="resumenTitulo">
+        <h2 class="pedido__resumen-titulo" id="resumenTitulo">Tu pedido</h2>
+        <ul class="pedido__items" id="resumenItems"></ul>
+        <a href="catalogo.html" class="pedido__editar-carrito" id="linkEditarCarrito">Cambiar productos</a>
+        <dl class="pedido__montos" id="resumenMontos" aria-live="polite"></dl>
+        <p class="pedido__nota" id="notaIva"></p>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="pie pie--simple">
+    <p class="contenedor pie__legal">
+      <a href="terminos.html">Términos</a> · <a href="privacidad.html">Privacidad</a> ·
+      <a href="devoluciones.html">Cambios y devoluciones</a> · © 2026 Pinturas Ecocordi
+    </p>
+  </footer>
+
+  <script src="js/ui.js"></script>
+  <script src="js/pedido.js"></script>
+</body>
+</html>

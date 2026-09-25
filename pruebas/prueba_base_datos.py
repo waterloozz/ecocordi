@@ -15,7 +15,7 @@ import threading
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from utilidades import RAIZ, Servidor, ok, terminar, titulo  # noqa: E402
+from utilidades import RAIZ, Servidor, ok, pedido, terminar, titulo  # noqa: E402
 
 
 def columnas(db, tabla):
@@ -95,7 +95,7 @@ ok(sorted(p["nombre"] for p in techo) == ["Impermeabilizante Techo", "Línea Con
 titulo("Pedidos por formato")
 cliente.registrar("comprador@correo.cl")
 fid = productos[0]["formatos"][0]["id"]
-estado, r = cliente.pedir("POST", "/api/pedidos", {"items": [{"formato_id": fid, "cantidad": 3}], "acepta_terminos": True})
+estado, r = cliente.pedir("POST", "/api/pedidos", pedido([{"formato_id": fid, "cantidad": 3}]))
 ok(estado == 200 and r["total"] == 3 * 18990, "Pedido con formato_id: total calculado por el servidor", r)
 stock = consulta(srv.db, "SELECT stock FROM producto_formatos WHERE id=?", (fid,))[0][0]
 ok(stock == 17, "El stock se descuenta del formato", stock)
@@ -107,11 +107,11 @@ for items, texto in (([{"id": fid, "cantidad": 1}], "formato antiguo {id}"),
                      ([{"formato_id": fid, "cantidad": "abc"}], "cantidad 'abc'"),
                      ([{"formato_id": fid, "cantidad": -5}], "cantidad -5"),
                      ([{"formato_id": str(fid), "cantidad": 1}], "formato_id como texto")):
-    estado, _ = cliente.pedir("POST", "/api/pedidos", {"items": items, "acepta_terminos": True})
+    estado, _ = cliente.pedir("POST", "/api/pedidos", pedido(items))
     ok(estado == 400, f"Rechaza {texto} (400)", estado)
-estado, r = cliente.pedir("POST", "/api/pedidos", {"items": [{"formato_id": 99999, "cantidad": 1}], "acepta_terminos": True})
+estado, r = cliente.pedir("POST", "/api/pedidos", pedido([{"formato_id": 99999, "cantidad": 1}]))
 ok(estado == 400, "Rechaza un formato que no existe (400)", estado)
-estado, r = cliente.pedir("POST", "/api/pedidos", {"items": [{"formato_id": fid, "cantidad": 18}], "acepta_terminos": True})
+estado, r = cliente.pedir("POST", "/api/pedidos", pedido([{"formato_id": fid, "cantidad": 18}]))
 ok(estado == 409 and r.get("disponible") == 17 and r.get("formato_id") == fid, "Sin stock suficiente: 409 con lo disponible", r)
 
 # Dos compras al mismo tiempo por la última unidad
@@ -121,7 +121,7 @@ otro = srv.cliente()
 otro.registrar("otro@correo.cl")
 respuestas = []
 hilos = [threading.Thread(target=lambda c=c: respuestas.append(
-    c.pedir("POST", "/api/pedidos", {"items": [{"formato_id": fid, "cantidad": 1}], "acepta_terminos": True})[0]))
+    c.pedir("POST", "/api/pedidos", pedido([{"formato_id": fid, "cantidad": 1}]))[0]))
     for c in (cliente, otro)]
 [h.start() for h in hilos]
 [h.join() for h in hilos]

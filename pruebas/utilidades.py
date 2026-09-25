@@ -22,6 +22,21 @@ ADMIN_CLAVE = "ClaveDePrueba123"
 
 resultados = {"ok": 0, "fallas": []}
 
+# Datos mínimos de un checkout válido (retiro en sucursal + boleta)
+CHECKOUT = {
+    "cliente": {"nombre": "Cliente Prueba", "correo": "invitado@correo.cl", "telefono": "+56 9 1234 5678"},
+    "entrega": {"tipo": "retiro", "sucursal": "talca"},
+    "documento": {"tipo": "boleta"},
+    "acepta_terminos": True,
+}
+
+
+def pedido(items, **cambios):
+    """Cuerpo de POST /api/pedidos con los ítems dados (y lo que se quiera cambiar)."""
+    cuerpo = dict(CHECKOUT, items=items)
+    cuerpo.update(cambios)
+    return cuerpo
+
 
 def ok(condicion, texto, extra=""):
     if condicion:

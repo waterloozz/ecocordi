@@ -56,6 +56,10 @@
                 role="tab" id="tabBtnProductos" aria-selected="false" aria-controls="tabProductos">
           Productos <span class="admin__contador" id="contadorProductos"></span>
         </button>
+        <button type="button" class="admin__tab" data-tab="despacho"
+                role="tab" id="tabBtnDespacho" aria-selected="false" aria-controls="tabDespacho">
+          Despacho
+        </button>
       </div>
 
       <!-- SECCIÓN PEDIDOS -->
@@ -68,6 +72,7 @@
                 <th scope="col">N°</th>
                 <th scope="col">Fecha</th>
                 <th scope="col">Cliente</th>
+                <th scope="col">Entrega y documento</th>
                 <th scope="col">Productos</th>
                 <th scope="col">Total</th>
                 <th scope="col">Estado</th>
@@ -157,6 +162,26 @@
           <option value="galón"></option>
           <option value="tineta"></option>
         </datalist>
+      </section>
+
+      <!-- SECCIÓN DESPACHO: tarifa por región -->
+      <section id="tabDespacho" class="admin__seccion oculto" role="tabpanel" aria-labelledby="tabBtnDespacho">
+        <p class="admin__bajada admin__bajada--seccion">Costo del despacho a domicilio para cada región.
+          Si dejas una región <strong>vacía</strong>, en el checkout aparece «Coordinar despacho» y el
+          costo se acuerda con el cliente antes de pagar.</p>
+        <div class="tabla-marco">
+          <table class="tabla">
+            <caption>Tarifas de despacho</caption>
+            <thead>
+              <tr>
+                <th scope="col">Región</th>
+                <th scope="col">Costo (pesos)</th>
+              </tr>
+            </thead>
+            <!-- admin.js pinta aquí una fila por región -->
+            <tbody id="listaTarifas"></tbody>
+          </table>
+        </div>
       </section>
     </div>
   </main>

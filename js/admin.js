@@ -46,6 +46,7 @@ async function verificarAdmin() {
   document.getElementById("adminNombre").textContent = "Hola, " + usuario.nombre;
   cargarPedidos();
   cargarProductos();
+  cargarTarifas();
 }
 
 /* -------- 2. PESTAÑAS (cambiar entre Pedidos y Productos) -------- */
@@ -61,6 +62,7 @@ document.querySelectorAll(".admin__tab").forEach(function (tab) {
     const cual = tab.dataset.tab;
     document.getElementById("tabPedidos").style.display = cual === "pedidos" ? "block" : "none";
     document.getElementById("tabProductos").style.display = cual === "productos" ? "block" : "none";
+    document.getElementById("tabDespacho").style.display = cual === "despacho" ? "block" : "none";
   });
 });
 
@@ -83,7 +85,7 @@ async function cargarPedidos() {
 
   if (pedidos.length === 0) {
     contenedor.innerHTML =
-      "<tr><td colspan='6' class='admin__vacio tabla__sin-etiqueta'>Aún no hay pedidos.</td></tr>";
+      "<tr><td colspan='7' class='admin__vacio tabla__sin-etiqueta'>Aún no hay pedidos.</td></tr>";
     return;
   }
 
@@ -106,11 +108,16 @@ async function cargarPedidos() {
         <td class="numero" data-etiqueta="N°">${p.id}</td>
         <td data-etiqueta="Fecha"><span class="numero">${escaparHTML(p.fecha)}</span></td>
         <td data-etiqueta="Cliente">
-          ${escaparHTML(p.cliente || "Invitado")}
-          <span class="tabla__secundario">${escaparHTML(p.correo)}</span>
+          <div>
+            ${escaparHTML(p.cliente_nombre || "Sin nombre")}
+            ${p.invitado ? '<span class="etiqueta-invitado">Invitado</span>' : ""}
+            <span class="tabla__secundario">${escaparHTML(p.cliente_correo || "")}</span>
+            <span class="tabla__secundario">${escaparHTML(p.cliente_telefono || "")}</span>
+          </div>
         </td>
+        <td data-etiqueta="Entrega">${entregaYDocumento(p)}</td>
         <td data-etiqueta="Productos"><ul class="tabla__items">${items}</ul></td>
-        <td class="numero" data-etiqueta="Total">${formatearPrecio(p.total)}</td>
+        <td data-etiqueta="Total">${montos(p)}</td>
         <td data-etiqueta="Estado">
           <select class="pedido__selector estado--${estado}" data-anterior="${estado}"
                   aria-label="Estado del pedido N° ${p.id}"
@@ -119,6 +126,38 @@ async function cargarPedidos() {
       </tr>
     `;
   }).join("");
+}
+
+/* Entrega (retiro/despacho) y documento (boleta/factura) de un pedido. Ya escapado. */
+function entregaYDocumento(p) {
+  if (!p.entrega) return '<span class="tabla__secundario">Pedido anterior al checkout</span>';
+  let entrega;
+  if (p.entrega === "retiro") {
+    entrega = "Retiro en " + escaparHTML(p.sucursal_nombre || p.sucursal);
+  } else {
+    const costo = p.costo_despacho === null
+      ? '<strong class="tabla__coordinar">Coordinar despacho</strong>' : formatearPrecio(p.costo_despacho);
+    entrega = `Despacho · ${costo}
+      <span class="tabla__secundario">${escaparHTML(p.direccion || "(dirección borrada)")}</span>
+      <span class="tabla__secundario">${escaparHTML(p.comuna)}, ${escaparHTML(p.region_nombre || p.region)}</span>`;
+  }
+  const documento = p.documento === "factura"
+    ? `<span class="tabla__documento">Factura</span>
+       <span class="tabla__secundario">RUT ${escaparHTML(p.factura_rut)} · ${escaparHTML(p.factura_razon_social)}</span>
+       <span class="tabla__secundario">Giro: ${escaparHTML(p.factura_giro)}</span>
+       <span class="tabla__secundario">${escaparHTML(p.factura_direccion)}</span>`
+    : '<span class="tabla__documento">Boleta</span>';
+  return `<div>${entrega}${documento}</div>`;
+}
+
+/* Total, con neto e IVA si el pedido los tiene */
+function montos(p) {
+  let html = `<span class="numero">${formatearPrecio(p.total)}</span>`;
+  if (p.neto !== null && p.neto !== undefined) {
+    html += `<span class="tabla__secundario">Neto ${formatearPrecio(p.neto)} · IVA ${formatearPrecio(p.iva)}</span>`;
+    if (p.costo_despacho) html += `<span class="tabla__secundario">Incluye despacho ${formatearPrecio(p.costo_despacho)}</span>`;
+  }
+  return `<div>${html}</div>`;
 }
 
 /* -------- 4. FORMATOS DE VENTA --------
@@ -369,6 +408,41 @@ document.getElementById("listaProductos").addEventListener("submit", async funct
     }, "Formato agregado: " + nombre + " (" + formato + ")")) {
       cargarProductos();
     }
+  }
+});
+
+/* -------- 7c. TARIFAS DE DESPACHO POR REGIÓN --------
+   Vacío = sin tarifa: en el checkout aparece "Coordinar despacho". */
+async function cargarTarifas() {
+  const config = await (await fetch("/api/config")).json();
+  document.getElementById("listaTarifas").innerHTML = Object.entries(config.regiones).map(function (r) {
+    const costo = config.tarifas_despacho[r[0]];
+    const nombre = escaparHTML(r[1]);
+    return `
+      <tr class="tarifa" data-region="${escaparHTML(r[0])}">
+        <td data-etiqueta="Región">${nombre}</td>
+        <td data-etiqueta="Costo">
+          <form class="admin-formato__form tarifa__form">
+            <input class="admin-prod__input" type="number" name="costo" min="0" step="1"
+                   value="${costo === undefined ? "" : costo}" placeholder="Coordinar"
+                   aria-label="Costo de despacho a ${nombre} (vacío para coordinar)" />
+            <button type="submit" class="admin-prod__guardar">Guardar</button>
+            ${costo === undefined ? '<span class="tabla__secundario">Se coordina con el cliente</span>' : ""}
+          </form>
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+document.getElementById("listaTarifas").addEventListener("submit", async function (evento) {
+  evento.preventDefault();
+  const fila = evento.target.closest(".tarifa");
+  const valor = evento.target.elements.costo.value.trim();
+  const region = fila.querySelector("td").textContent;
+  if (await enviar("PATCH", "/api/admin/tarifas/" + encodeURIComponent(fila.dataset.region),
+                   { costo: valor === "" ? null : Number(valor) },
+                   valor === "" ? "Despacho a " + region + ": se coordina" : "Tarifa guardada: " + region)) {
+    cargarTarifas();
   }
 });
 

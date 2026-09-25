@@ -61,6 +61,7 @@ _cargar_env(os.path.join(BASE, ".env"))
 DB_PATH = os.environ.get("ECOCORDI_DB") or os.path.join(BASE, "ecocordi.db")
 PUERTO = int(os.environ.get("PUERTO", "8000"))
 ADMIN_CORREO = os.environ.get("ADMIN_CORREO", "admin@ecocordi.cl")
+CORREO_EMPRESA = "pinturas@ecocordi.cl"  # correo de contacto público de la empresa
 MAX_CANTIDAD = 999  # unidades máximas de un mismo producto por pedido
 CLAVE_MINIMA = 8          # largo mínimo de la contraseña al registrarse
 DIAS_SESION = 7           # una sesión vale 7 días (igual que la cookie)
@@ -78,12 +79,52 @@ FORMATO_MIGRACION = "galón"   # formato que reciben los productos antiguos
 LITROS_GALON = 3.785          # 1 galón = 3,785 litros (confirmar con la empresa)
 MAX_NOMBRE_FORMATO = 40
 MAX_BUSQUEDA = 60         # largo máximo del texto del buscador
+
+# ---- Checkout (entrega, documento e IVA) ----
+TASA_IVA = 19  # IVA en Chile: 19 % (fijado por ley, no es un dato de la empresa)
+
+
+def _si_no(valor, por_defecto):
+    valor = (valor or "").strip().lower()
+    if valor in ("1", "si", "sí", "true", "yes"):
+        return True
+    if valor in ("0", "no", "false"):
+        return False
+    return por_defecto
+
+
+# ¿Los precios del catálogo ya incluyen IVA? En Chile, los precios que se
+# muestran a consumidores deben incluir los impuestos (Ley 19.496, art. 30),
+# por eso el valor por defecto es "sí". La empresa debe confirmarlo (PENDIENTES.md).
+PRECIOS_INCLUYEN_IVA = _si_no(os.environ.get("PRECIOS_INCLUYEN_IVA"), True)
+
+# Sucursales para "Retiro en sucursal"
+SUCURSALES = {"talca": "Talca", "santiago": "Santiago"}
+
+# Regiones de Chile (para el despacho). La tarifa de cada una la define el
+# admin en el panel; si una región no tiene tarifa, se "coordina el despacho".
+REGIONES = {
+    "arica": "Arica y Parinacota", "tarapaca": "Tarapacá", "antofagasta": "Antofagasta",
+    "atacama": "Atacama", "coquimbo": "Coquimbo", "valparaiso": "Valparaíso",
+    "metropolitana": "Metropolitana de Santiago", "ohiggins": "Libertador General Bernardo O'Higgins",
+    "maule": "Maule", "nuble": "Ñuble", "biobio": "Biobío", "araucania": "La Araucanía",
+    "losrios": "Los Ríos", "loslagos": "Los Lagos", "aysen": "Aysén del General Carlos Ibáñez del Campo",
+    "magallanes": "Magallanes y de la Antártica Chilena",
+}
+MAX_TELEFONO = 20
+MAX_COMUNA = 60
+MAX_DIRECCION = 150
+MAX_RAZON_SOCIAL = 100
+MAX_GIRO = 80
+# Límite de pedidos por IP (evita que alguien "reserve" todo el stock con pedidos falsos)
+MAX_PEDIDOS_IP = int(os.environ.get("MAX_PEDIDOS_IP", "10"))
+VENTANA_PEDIDOS = 60 * 60  # ...por hora
 MAX_LITROS = 1000
 # Estados posibles de un pedido (en orden). "cancelado" devuelve el stock.
 ESTADOS = ("pendiente", "pagado", "enviado", "entregado", "cancelado")
 # Versión de los Términos y la Política de privacidad. Si se cambian esos
 # textos, subir esta fecha: así queda registro de QUÉ versión aceptó cada persona.
-VERSION_TERMINOS = "2026-09-24.2"  # .2: se agregó el inicio de sesión con Google
+VERSION_TERMINOS = "2026-09-25"  # 2026-09-24.2: login con Google · 2026-09-25: checkout (invitado, entrega, factura, IVA)
 MAX_NOMBRE = 80           # solo pedimos lo necesario, y con un largo razonable
 MAX_CORREO = 254
 # En producción con HTTPS: COOKIE_SEGURA=1 python3 server.py
@@ -121,6 +162,24 @@ GOOGLE_EMISORES = ("https://accounts.google.com", "accounts.google.com")
 GOOGLE_MINUTOS = 10  # tiempo máximo para completar el inicio de sesión en Google
 _DEF_ESTADO = ("TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ("
                + ", ".join(f"'{e}'" for e in ESTADOS) + "))")
+
+# Datos que el checkout guarda en cada pedido. Los pedidos antiguos quedan
+# con estas columnas vacías (NULL).
+COLUMNAS_CHECKOUT = [
+    # Quién compra (con o sin cuenta: si compra como invitado, usuario_id queda NULL)
+    ("cliente_nombre", "TEXT"), ("cliente_correo", "TEXT"), ("cliente_telefono", "TEXT"),
+    # Entrega: retiro en sucursal o despacho a domicilio
+    ("entrega", "TEXT CHECK (entrega IS NULL OR entrega IN ('retiro', 'despacho'))"),
+    ("sucursal", "TEXT"), ("region", "TEXT"), ("comuna", "TEXT"), ("direccion", "TEXT"),
+    ("costo_despacho", "INTEGER"),  # NULL = "coordinar despacho" (la región no tiene tarifa)
+    # Documento tributario
+    ("documento", "TEXT CHECK (documento IS NULL OR documento IN ('boleta', 'factura'))"),
+    ("factura_rut", "TEXT"), ("factura_razon_social", "TEXT"), ("factura_giro", "TEXT"),
+    ("factura_direccion", "TEXT"),
+    # Montos (el total ya existía): subtotal de productos, neto e IVA
+    ("subtotal", "INTEGER"), ("neto", "INTEGER"), ("iva", "INTEGER"),
+    ("precios_incluyen_iva", "INTEGER"),  # cómo se calculó el IVA en ESE momento
+]
 
 # Cabeceras de seguridad que se agregan a TODAS las respuestas.
 #  - Content-Security-Policy (CSP): lista de lo que el navegador puede cargar.
@@ -227,6 +286,19 @@ def init_db():
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         )
     """)
+    # Columnas del checkout (se agregan también a bases de datos antiguas, más abajo)
+    for columna, definicion in COLUMNAS_CHECKOUT:
+        _agregar_columna(c, "pedidos", columna, definicion)
+
+    # Tarifas de despacho por región (las edita el admin). Si una región no
+    # está en esta tabla, el despacho a esa región se coordina con el cliente.
+    _regiones = ", ".join(f"'{r}'" for r in REGIONES)
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS tarifas_despacho (
+            region TEXT PRIMARY KEY CHECK (region IN ({_regiones})),
+            costo  INTEGER NOT NULL CHECK (costo >= 0)
+        )
+    """)
 
     # Detalle de cada pedido. Se guarda una COPIA del nombre, formato y precio
     # del momento de la compra: si después el producto cambia o se borra, el
@@ -281,6 +353,8 @@ def init_db():
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google ON usuarios(google_sub)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_pedidos_usuario ON pedidos(usuario_id)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos(estado)")
+    # Para vincular pedidos hechos como invitado cuando la persona entra con Google
+    c.execute("CREATE INDEX IF NOT EXISTS idx_pedidos_invitado ON pedidos(cliente_correo) WHERE usuario_id IS NULL")
     c.execute("CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido ON pedido_items(pedido_id)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones(usuario_id)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_sesiones_creada ON sesiones(creada)")
@@ -557,6 +631,84 @@ def _leer_superficies(valor):
 
 
 # ------------------------------------------------------------
+#  CHECKOUT: validaciones y cálculo de montos
+# ------------------------------------------------------------
+def normalizar_rut(texto):
+    """Revisa un RUT chileno con su dígito verificador (módulo 11).
+    Acepta "12.345.678-5", "12345678-5" o "123456785" y devuelve "12345678-5";
+    None si el formato o el dígito verificador no calzan."""
+    limpio = re.sub(r"[.\s-]", "", texto or "").upper()
+    if not re.fullmatch(r"\d{7,8}[\dK]", limpio):
+        return None
+    cuerpo, dv = limpio[:-1], limpio[-1]
+    suma, factor = 0, 2
+    for digito in reversed(cuerpo):
+        suma += int(digito) * factor
+        factor = 2 if factor == 7 else factor + 1
+    resto = 11 - suma % 11
+    esperado = "0" if resto == 11 else "K" if resto == 10 else str(resto)
+    return f"{int(cuerpo)}-{dv}" if dv == esperado else None
+
+
+def normalizar_telefono(texto):
+    """Deja solo dígitos (y el + inicial). Entre 8 y 15 dígitos; si no, None."""
+    texto = (texto or "").strip()
+    digitos = re.sub(r"[\s().-]", "", texto)
+    if not re.fullmatch(r"\+?\d{8,15}", digitos):
+        return None
+    return digitos
+
+
+def calcular_totales(subtotal, despacho):
+    """Neto, IVA y total del pedido (en pesos, sin decimales).
+    - Si los precios YA incluyen IVA: el total es la suma y de ahí se separa el IVA.
+    - Si NO lo incluyen: la suma es el neto y el IVA se agrega encima.
+    El despacho sigue la misma regla que los precios. Si el despacho se
+    coordina (None), no se suma todavía."""
+    base = subtotal + (despacho or 0)
+    if PRECIOS_INCLUYEN_IVA:
+        total = base
+        neto = (total * 200 + (100 + TASA_IVA)) // (2 * (100 + TASA_IVA))  # redondeo al peso más cercano
+        iva = total - neto
+    else:
+        neto = base
+        iva = (neto * TASA_IVA * 2 + 100) // 200
+        total = neto + iva
+    return {"subtotal": subtotal, "despacho": despacho, "neto": neto, "iva": iva, "total": total}
+
+
+_pedidos_ip = {}                    # {ip: [hora_pedido1, ...]}
+_pedidos_lock = threading.Lock()
+
+
+def pedidos_recientes_ip(ip, anotar=False):
+    """Cuántos pedidos hizo esta IP en la última hora (y, si anotar, suma uno)."""
+    with _pedidos_lock:
+        limite = time.time() - VENTANA_PEDIDOS
+        recientes = [t for t in _pedidos_ip.get(ip, []) if t > limite]
+        if anotar:
+            recientes.append(time.time())
+        if recientes:
+            _pedidos_ip[ip] = recientes
+        else:
+            _pedidos_ip.pop(ip, None)
+        return len(recientes)
+
+
+def limpiar_pedidos_viejos():
+    for ip in list(_pedidos_ip):
+        pedidos_recientes_ip(ip)
+
+
+def vincular_pedidos_invitado(con, usuario_id, correo):
+    """Los pedidos hechos como invitado con este correo pasan a la cuenta.
+    Solo se llama cuando el correo está VERIFICADO (entrar con Google): si no,
+    cualquiera podría crear una cuenta con un correo ajeno y ver esos pedidos."""
+    return con.execute("UPDATE pedidos SET usuario_id=? WHERE usuario_id IS NULL AND cliente_correo=?",
+                       (usuario_id, correo.strip().lower())).rowcount
+
+
+# ------------------------------------------------------------
 #  LÍMITE DE INTENTOS (rate limiting)
 #  Evita que alguien pruebe miles de contraseñas seguidas ("fuerza bruta").
 #  Anotamos la hora de cada intento FALLIDO por IP. Si una IP acumula
@@ -623,7 +775,7 @@ def _volver_seguro(volver):
     para redirigir a otra web (open redirect). La dirección se ARMA de nuevo
     solo con lo permitido: la página y los filtros del catálogo."""
     pagina, _, consulta = (volver or "").partition("?")
-    if pagina not in ("index.html", "catalogo.html"):
+    if pagina not in ("index.html", "catalogo.html", "pedido.html"):
         return "/"
     params = parse_qs(consulta)
     seguros = {}
@@ -677,6 +829,7 @@ def _limpieza_periodica():
         time.sleep(60)
         limpiar_fallos_viejos()
         limpiar_google_viejos()
+        limpiar_pedidos_viejos()
 
 
 def anotar_fallo(clave):
@@ -820,7 +973,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _api_get(self, ruta):
         if ruta.path == "/api/config":
             # Configuración PÚBLICA que necesita la página (nada secreto aquí)
-            return self._json({"whatsapp": WHATSAPP_NUMERO or None})
+            con = get_db()
+            tarifas = {f["region"]: f["costo"] for f in con.execute("SELECT region, costo FROM tarifas_despacho")}
+            con.close()
+            return self._json({
+                "whatsapp": WHATSAPP_NUMERO or None,
+                "precios_incluyen_iva": PRECIOS_INCLUYEN_IVA,
+                "tasa_iva": TASA_IVA,
+                "sucursales": SUCURSALES,
+                "regiones": REGIONES,
+                "tarifas_despacho": tarifas,  # región sin tarifa = "coordinar despacho"
+            })
         if ruta.path == "/api/auth/google/disponible":
             return self._json({"disponible": google_configurado()})
         if ruta.path == "/api/auth/google/iniciar":
@@ -867,6 +1030,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._eliminar_cuenta()
         if ruta.path == "/api/pedidos":
             return self._crear_pedido(datos)
+        if ruta.path == "/api/pedidos/cotizar":
+            return self._cotizar_pedido(datos)
         if ruta.path == "/api/admin/productos":
             return self._crear_producto(datos)
         if ruta.path.startswith("/api/admin/productos/") and ruta.path.endswith("/formatos"):
@@ -891,6 +1056,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             formato_id = _id_de_ruta(ruta.path, "/api/admin/formatos/")
             if formato_id is not None:
                 return self._editar_formato(formato_id, datos)
+            if ruta.path.startswith("/api/admin/tarifas/"):
+                return self._editar_tarifa(ruta.path[len("/api/admin/tarifas/"):], datos)
         return self._json({"error": "Ruta no encontrada"}, 404)
 
     # ---- DELETE ----
@@ -973,7 +1140,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """Crea una sesión en la base de datos y devuelve su cookie."""
         token = secrets.token_hex(32)
         con = get_db()
-        con.execute("INSERT INTO sesiones (token, usuario_id) VALUES (?,?)", (token, usuario_id))
+        con.execute("INSERT INTO sesiones (token, usuario_id, creada) VALUES (?, ?, datetime('now','localtime'))", (token, usuario_id))
         con.commit()
         con.close()
         cookie = f"sesion={token}; HttpOnly; Path=/; SameSite=Lax; Max-Age={DIAS_SESION * 24 * 3600}"
@@ -1082,6 +1249,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if u and u["es_admin"]:
                 return "admin", None  # el admin entra solo con su contraseña
             if u:
+                # Google verificó el correo: sus compras como invitado pasan a la cuenta
+                if vincular_pedidos_invitado(con, u["id"], correo):
+                    con.commit()
                 return "ok", u["id"]
             # Cuenta nueva: solo si aceptó los Términos y la Política de privacidad
             if not acepta:
@@ -1091,6 +1261,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 # Sin contraseña: se guarda una imposible de adivinar (solo entra con Google)
                 (nombre, correo, "google$" + secrets.token_hex(32), _registro_consentimiento(), sub),
             )
+            vincular_pedidos_invitado(con, cur.lastrowid, correo)
             con.commit()
             return "nuevo", cur.lastrowid
         finally:
@@ -1130,79 +1301,191 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "UPDATE usuarios SET nombre=?, correo=?, clave=?, terminos_aceptados=NULL, google_sub=NULL WHERE id=?",
                 ("Cuenta eliminada", f"eliminada-{u['id']}@invalid", "eliminada$" + secrets.token_hex(32), u["id"]),
             )
+            # En sus pedidos borramos los datos de contacto y la dirección de
+            # despacho. Quedan la comuna, la región y los datos de la factura
+            # (la empresa debe conservar sus documentos tributarios).
+            con.execute("""UPDATE pedidos SET cliente_nombre='Cuenta eliminada', cliente_correo=NULL,
+                           cliente_telefono=NULL, direccion=NULL WHERE usuario_id=?""", (u["id"],))
         con.close()
         return self._json({"ok": True}, set_cookie="sesion=; HttpOnly; Path=/; Max-Age=0")
 
-    def _crear_pedido(self, datos):
-        u = self._usuario_actual()
-        if not u:
-            return self._json({"error": "Debes iniciar sesión para comprar"}, 401)
+    # ---- Checkout ----
+    def _leer_checkout(self, datos, u):
+        """Revisa TODO lo que manda el checkout, sin tocar la base de datos.
+        Devuelve (checkout, None) o (None, (mensaje, código_http))."""
         items = datos.get("items")
         if not isinstance(items, list):
-            return self._json({"error": "Pedido con formato inválido"}, 400)
+            return None, ("Pedido con formato inválido", 400)
         if not items:
-            return self._json({"error": "El carrito está vacío"}, 400)
-        if datos.get("acepta_terminos") is not True:
-            return self._json(
-                {"error": "Para enviar tu pedido debes aceptar los Términos y la Política de cambios y devoluciones"}, 400)
+            return None, ("El carrito está vacío", 400)
 
-        # 1) Revisamos que los datos vengan bien (sin tocar la base de datos).
-        #    Cada ítem es un FORMATO de venta (formato_id) y una cantidad. No
-        #    confiamos en ninguno de los dos: si algo está mal se rechaza todo (400).
+        # Cada ítem es un FORMATO de venta (formato_id) y una cantidad. No
+        # confiamos en ninguno de los dos: si algo está mal se rechaza todo.
         pedido = {}  # {formato_id: cantidad}; junta ids repetidos en uno
         for it in items:
             if not isinstance(it, dict):
-                return self._json({"error": "Pedido con formato inválido"}, 400)
-            pid = it.get("formato_id")
+                return None, ("Pedido con formato inválido", 400)
+            fid = it.get("formato_id")
             cant = it.get("cantidad")
             # type(...) is int deja fuera textos ("abc"), decimales (1.5) y True/False
-            if type(pid) is not int:
-                return self._json({"error": "Pedido con formato inválido"}, 400)
+            if type(fid) is not int:
+                return None, ("Pedido con formato inválido", 400)
             if type(cant) is not int or not 1 <= cant <= MAX_CANTIDAD:
-                return self._json(
-                    {"error": f"Cantidad inválida (debe ser un número entre 1 y {MAX_CANTIDAD})"}, 400)
-            pedido[pid] = pedido.get(pid, 0) + cant
+                return None, (f"Cantidad inválida (debe ser un número entre 1 y {MAX_CANTIDAD})", 400)
+            pedido[fid] = pedido.get(fid, 0) + cant
 
-        # 2) TRANSACCIÓN: revisar stock, descontarlo y guardar el pedido
-        #    ocurre "todo o nada". BEGIN IMMEDIATE reserva la base de datos
-        #    para escribir: si dos personas compran el último tarro al mismo
-        #    tiempo, la segunda ESPERA a que la primera termine y recién ahí
-        #    lee el stock (que ya será 0). Así nunca se vende de más.
+        # Quién compra. Con cuenta, el correo es el de la cuenta.
+        cliente = datos.get("cliente") if isinstance(datos.get("cliente"), dict) else {}
+        nombre = _texto(cliente, "nombre").strip()
+        correo = u["correo"] if u else _texto(cliente, "correo").strip().lower()
+        telefono = normalizar_telefono(_texto(cliente, "telefono"))
+        if not nombre or len(nombre) > MAX_NOMBRE:
+            return None, ("Escribe tu nombre", 400)
+        if len(correo) > MAX_CORREO or not _correo_valido(correo):
+            return None, ("Escribe un correo válido", 400)
+        if not telefono:
+            return None, ("Escribe un teléfono válido (entre 8 y 15 dígitos)", 400)
+
+        # Entrega: retiro en sucursal o despacho a domicilio
+        entrega = datos.get("entrega") if isinstance(datos.get("entrega"), dict) else {}
+        tipo_entrega = entrega.get("tipo")
+        checkout_entrega = {"entrega": tipo_entrega, "sucursal": None, "region": None, "comuna": None, "direccion": None}
+        if tipo_entrega == "retiro":
+            if entrega.get("sucursal") not in SUCURSALES:
+                return None, ("Elige la sucursal donde retirarás", 400)
+            checkout_entrega["sucursal"] = entrega["sucursal"]
+        elif tipo_entrega == "despacho":
+            comuna = _texto(entrega, "comuna").strip()
+            direccion = _texto(entrega, "direccion").strip()
+            if entrega.get("region") not in REGIONES:
+                return None, ("Elige la región de despacho", 400)
+            if not comuna or len(comuna) > MAX_COMUNA:
+                return None, ("Escribe la comuna de despacho", 400)
+            if not direccion or len(direccion) > MAX_DIRECCION:
+                return None, (f"Escribe la dirección de despacho (máximo {MAX_DIRECCION} caracteres)", 400)
+            checkout_entrega.update(region=entrega["region"], comuna=comuna, direccion=direccion)
+        else:
+            return None, ("Elige cómo quieres recibir tu pedido: retiro en sucursal o despacho", 400)
+
+        # Documento: boleta o factura (con datos de la empresa que compra)
+        documento = datos.get("documento") if isinstance(datos.get("documento"), dict) else {}
+        tipo_documento = documento.get("tipo")
+        factura = {"factura_rut": None, "factura_razon_social": None, "factura_giro": None, "factura_direccion": None}
+        if tipo_documento == "factura":
+            rut = normalizar_rut(_texto(documento, "rut"))
+            razon = _texto(documento, "razon_social").strip()
+            giro = _texto(documento, "giro").strip()
+            direccion_f = _texto(documento, "direccion").strip()
+            if not rut:
+                return None, ("El RUT de la factura no es válido: revisa el número y el dígito verificador", 400)
+            if not razon or len(razon) > MAX_RAZON_SOCIAL:
+                return None, ("Escribe la razón social para la factura", 400)
+            if not giro or len(giro) > MAX_GIRO:
+                return None, ("Escribe el giro para la factura", 400)
+            if not direccion_f or len(direccion_f) > MAX_DIRECCION:
+                return None, ("Escribe la dirección para la factura", 400)
+            factura = {"factura_rut": rut, "factura_razon_social": razon, "factura_giro": giro,
+                       "factura_direccion": direccion_f}
+        elif tipo_documento != "boleta":
+            return None, ("Elige boleta o factura", 400)
+
+        return {"items": pedido, "cliente_nombre": nombre, "cliente_correo": correo, "cliente_telefono": telefono,
+                **checkout_entrega, "documento": tipo_documento, **factura}, None
+
+    def _calcular_pedido(self, con, checkout):
+        """Dentro de una transacción: revisa stock y calcula montos con los
+        precios y tarifas REALES de la base de datos. Devuelve (resumen, None)
+        o (None, (datos_de_error, código_http))."""
+        subtotal = 0
+        detalle = []
+        for fid, cant in checkout["items"].items():
+            fmt = con.execute("""
+                SELECT f.id, f.producto_id, f.nombre AS formato, f.precio, f.stock, p.nombre
+                FROM producto_formatos f JOIN productos p ON p.id = f.producto_id
+                WHERE f.id = ?""", (fid,)).fetchone()
+            if not fmt:
+                return None, ({"error": "Uno de los productos ya no existe. Revisa tu carrito."}, 400)
+            if fmt["stock"] < cant:
+                return None, ({
+                    "error": f"No hay stock suficiente de «{fmt['nombre']}» ({fmt['formato']}): "
+                             f"pediste {cant} y quedan {fmt['stock']}.",
+                    "formato_id": fid,
+                    "nombre": fmt["nombre"],
+                    "disponible": fmt["stock"],
+                }, 409)
+            subtotal += fmt["precio"] * cant
+            detalle.append({"producto_id": fmt["producto_id"], "formato_id": fid, "nombre": fmt["nombre"],
+                            "formato": fmt["formato"], "precio": fmt["precio"], "cantidad": cant})
+        despacho = 0  # retiro en sucursal: sin costo
+        if checkout["entrega"] == "despacho":
+            fila = con.execute("SELECT costo FROM tarifas_despacho WHERE region=?", (checkout["region"],)).fetchone()
+            despacho = fila["costo"] if fila else None  # sin tarifa: se coordina
+        totales = calcular_totales(subtotal, despacho)
+        return {"items": detalle, **totales, "despacho_por_coordinar": despacho is None,
+                "precios_incluyen_iva": PRECIOS_INCLUYEN_IVA, "tasa_iva": TASA_IVA}, None
+
+    def _cotizar_pedido(self, datos):
+        """POST /api/pedidos/cotizar: mismo cálculo que al comprar, pero sin
+        guardar nada. El checkout lo usa para mostrar el resumen final."""
+        checkout, error = self._leer_checkout(datos, self._usuario_actual())
+        if error:
+            return self._json({"error": error[0]}, error[1])
+        con = get_db()
+        try:
+            resumen, error = self._calcular_pedido(con, checkout)
+        finally:
+            con.close()
+        if error:
+            return self._json(error[0], error[1])
+        return self._json(resumen)
+
+    def _crear_pedido(self, datos):
+        """POST /api/pedidos: con cuenta o como invitado."""
+        u = self._usuario_actual()
+        if datos.get("acepta_terminos") is not True:
+            return self._json(
+                {"error": "Para enviar tu pedido debes aceptar los Términos y la Política de cambios y devoluciones"}, 400)
+        checkout, error = self._leer_checkout(datos, u)
+        if error:
+            return self._json({"error": error[0]}, error[1])
+        ip = self.client_address[0]
+        if pedidos_recientes_ip(ip) >= MAX_PEDIDOS_IP:
+            return self._json({"error": "Recibimos muchos pedidos desde tu conexión en la última hora. "
+                                        f"Escríbenos a {CORREO_EMPRESA} y te ayudamos."}, 429)
+
+        # TRANSACCIÓN: revisar stock, descontarlo y guardar el pedido ocurre
+        # "todo o nada". BEGIN IMMEDIATE reserva la base de datos para
+        # escribir: si dos personas compran el último tarro al mismo tiempo,
+        # la segunda ESPERA a que la primera termine y recién ahí lee el stock
+        # (que ya será 0). Así nunca se vende de más.
         con = get_db()
         try:
             con.execute("BEGIN IMMEDIATE")
-            total = 0
-            detalle = []
-            for fid, cant in pedido.items():
-                fmt = con.execute("""
-                    SELECT f.id, f.producto_id, f.nombre AS formato, f.precio, f.stock, p.nombre
-                    FROM producto_formatos f JOIN productos p ON p.id = f.producto_id
-                    WHERE f.id = ?""", (fid,)).fetchone()
-                if not fmt:
-                    con.rollback()
-                    return self._json(
-                        {"error": "Uno de los productos ya no existe. Revisa tu carrito."}, 400)
-                if fmt["stock"] < cant:
-                    con.rollback()  # deshace todo: no se guarda NADA
-                    return self._json({
-                        "error": f"No hay stock suficiente de «{fmt['nombre']}» ({fmt['formato']}): "
-                                 f"pediste {cant} y quedan {fmt['stock']}.",
-                        "formato_id": fid,
-                        "nombre": fmt["nombre"],
-                        "disponible": fmt["stock"],
-                    }, 409)
-                # El total lo calcula el SERVIDOR con los precios reales
-                total += fmt["precio"] * cant
-                detalle.append((fmt["producto_id"], fid, fmt["nombre"], fmt["formato"], fmt["precio"], cant))
-                con.execute("UPDATE producto_formatos SET stock = stock - ? WHERE id=?", (cant, fid))
-
-            cur = con.execute("INSERT INTO pedidos (usuario_id, total, terminos_aceptados) VALUES (?,?,?)",
-                              (u["id"], total, _registro_consentimiento()))
+            resumen, error = self._calcular_pedido(con, checkout)
+            if error:
+                con.rollback()  # deshace todo: no se guarda NADA
+                return self._json(error[0], error[1])
+            for item in resumen["items"]:
+                con.execute("UPDATE producto_formatos SET stock = stock - ? WHERE id=?",
+                            (item["cantidad"], item["formato_id"]))
+            columnas = {
+                "usuario_id": u["id"] if u else None,
+                "total": resumen["total"], "subtotal": resumen["subtotal"], "neto": resumen["neto"],
+                "iva": resumen["iva"], "costo_despacho": resumen["despacho"],
+                "precios_incluyen_iva": 1 if PRECIOS_INCLUYEN_IVA else 0,
+                "terminos_aceptados": _registro_consentimiento(),
+                **{k: v for k, v in checkout.items() if k != "items"},
+            }
+            # Los nombres de columna vienen de nuestro propio diccionario, no del usuario
+            cur = con.execute(
+                f"INSERT INTO pedidos ({', '.join(columnas)}) VALUES ({', '.join('?' for _ in columnas)})",
+                tuple(columnas.values()))
             pedido_id = cur.lastrowid
             con.executemany(
                 """INSERT INTO pedido_items (pedido_id, producto_id, formato_id, nombre, formato, precio, cantidad)
                    VALUES (?,?,?,?,?,?,?)""",
-                [(pedido_id, *fila) for fila in detalle],
+                [(pedido_id, i["producto_id"], i["formato_id"], i["nombre"], i["formato"], i["precio"], i["cantidad"])
+                 for i in resumen["items"]],
             )
             con.commit()  # recién aquí los cambios quedan guardados de verdad
         except sqlite3.Error:
@@ -1210,7 +1493,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._json({"error": "No se pudo guardar el pedido. Inténtalo de nuevo."}, 500)
         finally:
             con.close()
-        return self._json({"ok": True, "pedido_id": pedido_id, "total": total})
+        pedidos_recientes_ip(ip, anotar=True)
+        return self._json({"ok": True, "pedido_id": pedido_id, "invitado": u is None,
+                           **{k: v for k, v in resumen.items() if k != "items"}})
 
     def _cambiar_estado(self, pedido_id, datos):
         """PATCH /api/admin/pedidos/<id>  {"estado": "enviado"}"""
@@ -1339,21 +1624,32 @@ class Handler(http.server.BaseHTTPRequestHandler):
             con.close()
 
     def _obtener_pedidos(self, usuario_id):
+        """Pedidos con su detalle. usuario_id=None: todos (para el admin)."""
+        campos = ("p.id, p.total, p.fecha, p.estado, p.usuario_id, "
+                  + ", ".join("p." + c for c, _ in COLUMNAS_CHECKOUT))
         con = get_db()
         if usuario_id is None:  # admin: todos los pedidos
-            filas = con.execute("""
-                SELECT p.id, p.total, p.fecha, p.estado, u.nombre AS cliente, u.correo
+            filas = con.execute(f"""
+                SELECT {campos}, u.nombre AS cuenta_nombre, u.correo AS cuenta_correo
                 FROM pedidos p LEFT JOIN usuarios u ON u.id = p.usuario_id
                 ORDER BY p.id DESC
             """).fetchall()
         else:
-            filas = con.execute(
-                "SELECT id, total, fecha, estado FROM pedidos WHERE usuario_id=? ORDER BY id DESC",
-                (usuario_id,),
-            ).fetchall()
+            filas = con.execute(f"SELECT {campos} FROM pedidos p WHERE p.usuario_id=? ORDER BY p.id DESC",
+                                (usuario_id,)).fetchall()
         pedidos = []
         for f in filas:
             p = dict(f)
+            if usuario_id is None:
+                # Pedidos antiguos (antes del checkout) no tienen cliente_*: usamos la cuenta
+                p["cliente_nombre"] = p["cliente_nombre"] or p.pop("cuenta_nombre", None)
+                p["cliente_correo"] = p["cliente_correo"] or p.pop("cuenta_correo", None)
+                p.pop("cuenta_nombre", None)
+                p.pop("cuenta_correo", None)
+                p["invitado"] = p["usuario_id"] is None and p["entrega"] is not None
+            p.pop("usuario_id")
+            p["sucursal_nombre"] = SUCURSALES.get(p["sucursal"])
+            p["region_nombre"] = REGIONES.get(p["region"])
             items = con.execute(
                 "SELECT nombre, formato, precio, cantidad FROM pedido_items WHERE pedido_id=?", (p["id"],)
             ).fetchall()
@@ -1361,6 +1657,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
             pedidos.append(p)
         con.close()
         return pedidos
+
+    def _editar_tarifa(self, region, datos):
+        """PATCH /api/admin/tarifas/<region>  {"costo": 4990}  o  {"costo": null}
+        null borra la tarifa: el despacho a esa región pasa a "coordinar"."""
+        if region not in REGIONES:
+            return self._json({"error": "Región desconocida"}, 404)
+        if "costo" not in datos:
+            return self._json({"error": "Indica el costo (o null para coordinar el despacho)"}, 400)
+        costo = datos["costo"]
+        if costo is not None and (type(costo) is not int or not 0 <= costo <= MAX_PRECIO):
+            return self._json({"error": f"Costo inválido (número entero entre 0 y {MAX_PRECIO})"}, 400)
+        con = get_db()
+        with con:
+            if costo is None:
+                con.execute("DELETE FROM tarifas_despacho WHERE region=?", (region,))
+            else:
+                con.execute("INSERT INTO tarifas_despacho (region, costo) VALUES (?, ?) "
+                            "ON CONFLICT(region) DO UPDATE SET costo=excluded.costo", (region, costo))
+        con.close()
+        return self._json({"ok": True, "region": region, "costo": costo})
 
     def _crear_producto(self, datos):
         """POST /api/admin/productos

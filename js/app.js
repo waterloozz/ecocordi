@@ -556,66 +556,30 @@ document.getElementById("btnAbrirCarrito").addEventListener("click", abrirCarrit
 document.getElementById("btnCerrarCarrito").addEventListener("click", cerrarCarrito);
 fondoCarrito.addEventListener("click", cerrarCarrito);
 
-/* -------- 11. FINALIZAR COMPRA (guarda el pedido en la base de datos) -------- */
-const botonPagar = document.getElementById("btnPagar");
-botonPagar.addEventListener("click", async function () {
+/* -------- 11. CONTINUAR CON EL PEDIDO --------
+   El pedido se completa en pedido.html: datos de contacto, entrega (retiro o
+   despacho), boleta o factura, y un resumen final antes de enviarlo.
+   El carrito "viaja" a esa página guardado en el navegador (localStorage). */
+document.getElementById("btnPagar").addEventListener("click", function () {
   if (carrito.length === 0) {
     avisar("Tu carrito está vacío. ¡Agrega algunas pinturas primero!", "info");
     return;
   }
-
-  // Antes de enviar: aceptar los Términos y la Política de cambios y devoluciones
-  const aceptaPedido = document.getElementById("aceptaPedido");
-  if (!aceptaPedido.checked) {
-    avisar("Para enviar tu pedido, marca la casilla de aceptación de los Términos y la Política de cambios y devoluciones.", "error");
-    aceptaPedido.focus();
-    return;
-  }
-
-  // Enviamos solo el formato y la cantidad; el servidor calcula el total con precios reales
-  const items = carrito.map(function (i) {
-    return { formato_id: i.formato_id, cantidad: i.cantidad };
-  });
-
-  botonPagar.disabled = true; // evita comprar dos veces con un doble clic
-  try {
-    const respuesta = await fetch("/api/pedidos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: items, acepta_terminos: true }),
-    });
-
-    if (respuesta.status === 401) {
-      avisar("Inicia sesión para finalizar tu compra.", "info");
-      cerrarCarrito();
-      abrirLogin();
-      return;
-    }
-
-    const datos = await respuesta.json();
-    if (respuesta.status === 409) {
-      // Alguien compró antes que tú: traemos el stock real y ajustamos el carrito
-      avisar(datos.error + "\nAjustamos tu carrito al stock disponible.", "error");
-      await cargarProductos();
-      return;
-    }
-    if (!respuesta.ok) {
-      avisar("No se pudo completar la compra: " + (datos.error || "error desconocido"), "error");
-      return;
-    }
-    avisar("¡Recibimos tu pedido!\n" +
-           "Pedido N° " + datos.pedido_id + " · Total " + formatearPrecio(datos.total) + "\n" +
-           "Te contactaremos para coordinar el pago y la entrega. Puedes seguirlo en \"Mis pedidos\".", "exito", 9000);
-    aceptaPedido.checked = false;
-
-    carrito = [];
-    actualizarCarrito();
-    cerrarCarrito();
-    cargarProductos(); // el stock cambió: refrescamos "Quedan N" / "Agotado"
-  } finally {
-    botonPagar.disabled = false;
-  }
+  guardarCarrito();
+  location.href = "pedido.html";
 });
+
+/* Desde pedido.html, "Inicia sesión" trae aquí con ?entrar=pedido: abrimos
+   la ventana de inicio de sesión y, al entrar, volvemos al pedido. */
+let volverAlPedido = false;
+function revisarEntrarParaPedido() {
+  const url = new URL(location.href);
+  if (url.searchParams.get("entrar") !== "pedido") return;
+  url.searchParams.delete("entrar");
+  history.replaceState(null, "", url);
+  volverAlPedido = true;
+  abrirLogin();
+}
 
 /* ============================================================
    CUENTAS DE USUARIO (registro / inicio de sesión)
@@ -740,6 +704,10 @@ document.getElementById("formLogin").addEventListener("submit", async function (
   }
 
   usuario = datos;
+  if (volverAlPedido) {
+    location.href = "pedido.html";
+    return;
+  }
   renderCuenta();
   cerrarLogin();
   document.getElementById("formLogin").reset();
@@ -773,7 +741,8 @@ document.getElementById("btnGoogle").addEventListener("click", function () {
     casilla.focus();
     return;
   }
-  const volver = location.pathname.replace(/^\//, "") + location.search;
+  // Si venía del pedido, Google nos devuelve directo a pedido.html
+  const volver = volverAlPedido ? "pedido.html" : location.pathname.replace(/^\//, "") + location.search;
   location.href = "/api/auth/google/iniciar?" + new URLSearchParams({
     acepta: modoRegistro && casilla.checked ? "1" : "0",
     volver: volver,
@@ -857,9 +826,20 @@ async function abrirMisPedidos() {
         </div>
         <p class="mi-pedido__fecha">${escaparHTML(p.fecha)} · Total ${formatearPrecio(p.total)}</p>
         <ul class="mi-pedido__items">${items}</ul>
+        ${textoEntrega(p) ? `<p class="mi-pedido__entrega">${textoEntrega(p)}</p>` : ""}
       </div>
     `;
   }).join("");
+}
+
+/* "Retiro en sucursal Talca" o "Despacho a Comuna, Región (costo)". Ya escapado. */
+function textoEntrega(p) {
+  if (p.entrega === "retiro") return "Retiro en sucursal " + escaparHTML(p.sucursal_nombre || p.sucursal);
+  if (p.entrega === "despacho") {
+    const costo = p.costo_despacho === null ? "a coordinar" : formatearPrecio(p.costo_despacho);
+    return `Despacho a ${escaparHTML(p.comuna || "")}, ${escaparHTML(p.region_nombre || "")} (${costo})`;
+  }
+  return "";
 }
 
 function cerrarMisPedidos() {
@@ -933,22 +913,27 @@ document.addEventListener("keydown", function (evento) {
   cerrarMenu();
 });
 
-/* -------- 19. BOTÓN DE WHATSAPP --------
-   El número NO está en el código: lo entrega el servidor (/api/config), que
-   lo lee de la configuración (WHATSAPP_NUMERO). Si no hay número, el botón
-   queda oculto. */
-async function configurarWhatsapp() {
-  const boton = document.getElementById("btnWhatsapp");
-  if (!boton) return;
+/* -------- 19. CONFIGURACIÓN DE LA TIENDA: WHATSAPP E IVA --------
+   Estos datos NO están en el código: los entrega el servidor (/api/config),
+   que los lee de la configuración (.env).
+   - WhatsApp: si no hay número (WHATSAPP_NUMERO), el botón queda oculto.
+   - IVA: junto a los precios dice si lo incluyen (PRECIOS_INCLUYEN_IVA). */
+async function cargarConfiguracion() {
+  let config;
   try {
-    const respuesta = await fetch("/api/config");
-    const config = await respuesta.json();
-    if (!config.whatsapp || !/^\d{8,15}$/.test(config.whatsapp)) return;
-    boton.href = "https://wa.me/" + config.whatsapp + "?" + new URLSearchParams({
-      text: "Hola, Pinturas Ecocordi. Tengo una consulta:",
-    });
-    boton.classList.remove("oculto");
-  } catch (error) { /* sin configuración: el botón sigue oculto */ }
+    config = await (await fetch("/api/config")).json();
+  } catch (error) {
+    return; // sin configuración: WhatsApp sigue oculto y no se muestra la nota del IVA
+  }
+  document.querySelectorAll("[data-nota-iva]").forEach(function (nota) {
+    nota.textContent = config.precios_incluyen_iva ? ", IVA incluido" : ", más IVA";
+  });
+  const boton = document.getElementById("btnWhatsapp");
+  if (!boton || !config.whatsapp || !/^\d{8,15}$/.test(config.whatsapp)) return;
+  boton.href = "https://wa.me/" + config.whatsapp + "?" + new URLSearchParams({
+    text: "Hola, Pinturas Ecocordi. Tengo una consulta:",
+  });
+  boton.classList.remove("oculto");
 }
 
 /* -------- 19b. CALCULADORA: ¿CUÁNTA PINTURA NECESITO? --------
@@ -1125,5 +1110,6 @@ cargarProductos();   // trae los productos de la base de datos
 cargarUsuario();     // revisa si ya hay sesión iniciada
 mostrarBotonGoogle(); // muestra "Continuar con Google" si está disponible
 revisarVueltaDeGoogle(); // mensajes al volver de Google
-configurarWhatsapp(); // muestra el botón de WhatsApp si hay número configurado
+cargarConfiguracion(); // WhatsApp (si hay número) y la nota del IVA junto a los precios
+revisarEntrarParaPedido(); // abre "Iniciar sesión" si viene desde pedido.html
 actualizarCarrito(); // dibuja el carrito

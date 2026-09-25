@@ -17,7 +17,7 @@ import html
 import os
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FECHA = "24 de septiembre de 2026"
+FECHA = "25 de septiembre de 2026"
 CORREO = "pinturas@ecocordi.cl"
 
 # Datos oficiales de la empresa. None = todavía no los tenemos.
@@ -128,22 +128,28 @@ TERMINOS = f'''
       <li>Eres responsable de mantener tu contraseña en reserva. Si crees que alguien la conoce, escríbenos.</li>
       <li>Puedes eliminar tu cuenta cuando quieras desde “Mis pedidos” (ver la <a href="privacidad.html">Política de privacidad</a>).</li>
       <li>Si eres menor de edad, pide a tu madre, padre o representante legal que haga la compra.</li>
+      <li>No necesitas una cuenta para comprar: también puedes comprar <strong>como invitado</strong>. Si después entras con Google usando el mismo correo, esos pedidos aparecerán en tu cuenta.</li>
     </ul>
 
     <h2>4. Productos, imágenes y precios</h2>
     <ul>
       <li>Cada producto muestra su nombre, descripción, superficies para las que sirve, precio y disponibilidad (“Quedan N” o “Agotado”) antes de que envíes tu pedido.</li>
       <li>Las fotografías son <strong>imágenes referenciales</strong> de superficies y ambientes: no muestran el envase ni el color exacto del producto.</li>
-      <li>Los precios están en pesos chilenos. El precio que se aplica es el vigente al momento de enviar tu pedido.</li>
+      <li>Los precios están en pesos chilenos. El sitio indica junto a los precios si incluyen IVA, y el resumen de tu pedido muestra por separado el neto, el IVA (19 %) y el total. El precio que se aplica es el vigente al momento de enviar tu pedido.</li>
+      <li>Cada producto puede venderse en distintos formatos (por ejemplo, 1/4 galón, galón o tineta), cada uno con su precio y su stock.</li>
+      <li>La calculadora de pintura entrega una <strong>estimación</strong>: el consumo real depende de la superficie y de cómo se aplique.</li>
     </ul>
-{pendiente("confirmar si los precios incluyen IVA e indicarlo junto a cada precio; informar costos de despacho, zonas y plazos de entrega o retiro, y los medios de pago aceptados.")}
+{pendiente("confirmar si los precios incluyen IVA (configuración PRECIOS_INCLUYEN_IVA), las tarifas de despacho por región, los plazos de entrega o retiro y los medios de pago aceptados.")}
 
     <h2>5. Cómo funciona un pedido</h2>
     <ul>
-      <li>Antes de enviarlo, el carrito te muestra los productos, cantidades, precios y el total.</li>
+      <li>Al finalizar tu pedido indicas tus datos de contacto (nombre, correo y teléfono), cómo lo recibes y qué documento necesitas.</li>
+      <li><strong>Entrega:</strong> retiro sin costo en nuestras sucursales de Talca o Santiago, o despacho a domicilio. El despacho tiene la tarifa que el sitio muestra para tu región; si tu región no tiene tarifa publicada, el costo se <strong>coordina contigo antes de que pagues</strong> y no se suma al total mostrado.</li>
+      <li><strong>Documento:</strong> boleta, o factura si indicas el RUT, la razón social, el giro y la dirección de la empresa.</li>
+      <li>Antes de enviarlo verás un <strong>resumen final</strong> con los productos, la entrega, el documento, el neto, el IVA y el total.</li>
       <li>Al enviarlo, el pedido queda registrado con estado “Pendiente” y las unidades quedan reservadas.</li>
-      <li><strong>No se cobra nada en línea.</strong> Pinturas Ecocordi te contactará al correo de tu cuenta para coordinar el pago y la entrega o retiro.</li>
-      <li>Puedes seguir el estado de tus pedidos (pendiente, pagado, enviado, entregado o cancelado) en “Mis pedidos”.</li>
+      <li><strong>No se cobra nada en línea.</strong> Pinturas Ecocordi te contactará al correo o teléfono que indicaste para coordinar el pago y la entrega o retiro.</li>
+      <li>Si tienes cuenta, puedes seguir el estado de tus pedidos (pendiente, pagado, enviado, entregado o cancelado) en “Mis pedidos”. Si compraste como invitado, guarda tu número de pedido.</li>
       <li>Mientras tu pedido no esté pagado, puedes pedir su anulación escribiendo a <a href="mailto:{CORREO}">{CORREO}</a>, sin costo.</li>
     </ul>
 {pendiente("definir y describir el proceso real de confirmación, pago y entrega, y enviar al cliente una copia escrita de cada pedido (por ejemplo, un correo automático). El Reglamento de Comercio Electrónico exige esa copia; hoy el sitio no envía correos.")}
@@ -174,9 +180,11 @@ TERMINOS = f'''
 
 PRIVACIDAD = f'''
     <div class="legal__resumen">
-      <p><strong>En resumen:</strong> pedimos solo tu nombre, tu correo y una contraseña (o los recibimos de
-      Google si eliges “Continuar con Google”), y guardamos tus pedidos. Los usamos para tu cuenta y tus pedidos. No los vendemos, no los usamos para publicidad
-      y no usamos herramientas de analítica ni de seguimiento. Puedes eliminar tu cuenta cuando quieras.</p>
+      <p><strong>En resumen:</strong> para tu cuenta pedimos nombre, correo y contraseña (o los recibimos de
+      Google si eliges “Continuar con Google”). Para cada pedido pedimos también tu teléfono y, según lo que
+      elijas, la dirección de despacho y los datos de facturación de la empresa. Los usamos solo para tu cuenta
+      y tus pedidos. No los vendemos, no los usamos para publicidad y no usamos herramientas de analítica ni de
+      seguimiento. Puedes eliminar tu cuenta cuando quieras.</p>
     </div>
 
     <h2>1. Responsable de tus datos</h2>
@@ -187,25 +195,31 @@ PRIVACIDAD = f'''
     <ul>
       <li><strong>Cuenta:</strong> nombre, correo electrónico y contraseña. La contraseña se guarda transformada (“hash” PBKDF2 con sal): nadie, ni siquiera nosotros, puede leerla.</li>
       <li><strong>Si entras con Google:</strong> Google nos envía tu nombre, tu correo (verificado por Google), un identificador de tu cuenta de Google y la dirección de tu foto de perfil. Guardamos solo el nombre, el correo y el identificador; la foto no. Nunca recibimos tu contraseña de Google.</li>
-      <li><strong>Pedidos:</strong> productos, cantidades, precios, total, fecha y estado.</li>
+      <li><strong>Pedidos:</strong> productos, formatos, cantidades, precios, neto, IVA, total, fecha y estado.</li>
+      <li><strong>Datos de contacto del pedido:</strong> nombre, correo y teléfono. Los pedimos también si compras como invitado (sin cuenta).</li>
+      <li><strong>Entrega:</strong> la sucursal de retiro o, si eliges despacho, la dirección, comuna y región.</li>
+      <li><strong>Facturación (solo si pides factura):</strong> RUT, razón social, giro y dirección comercial de la empresa.</li>
       <li><strong>Consentimiento:</strong> la fecha y la versión de los términos que aceptaste.</li>
       <li><strong>Sesión:</strong> una cookie técnica que te mantiene conectado (ver la <a href="cookies.html">Política de cookies</a>).</li>
-      <li><strong>Seguridad:</strong> si un intento de iniciar sesión o registrarse falla, la dirección IP se usa solo en la memoria del servidor para bloquear intentos repetidos, y se descarta a los pocos minutos (el bloqueo dura 10). No se guarda en la base de datos ni en registros.</li>
+      <li><strong>Seguridad:</strong> si un intento de iniciar sesión o registrarse falla, la dirección IP se usa solo en la memoria del servidor para bloquear intentos repetidos, y se descarta a los pocos minutos (el bloqueo dura 10). Al enviar un pedido, la IP se anota en memoria durante una hora para limitar pedidos repetidos. No se guarda en la base de datos ni en registros.</li>
     </ul>
-    <p>No pedimos RUT, dirección, teléfono ni datos de tarjetas, y no tratamos datos sensibles.</p>
+    <p>No pedimos datos de tarjetas ni tratamos datos sensibles. El RUT solo se pide si solicitas factura.</p>
 
     <h2>3. Para qué los usamos</h2>
     <ul>
       <li>Crear y mantener tu cuenta.</li>
-      <li>Registrar tus pedidos, mostrarte su estado y contactarte para coordinar el pago y la entrega.</li>
+      <li>Registrar tus pedidos, mostrarte su estado y contactarte para coordinar el pago y la entrega o el retiro.</li>
+      <li>Emitir la boleta o factura que pediste.</li>
+      <li>Si compraste como invitado y luego entras con Google usando el mismo correo (verificado por Google), mostrarte esos pedidos en tu cuenta.</li>
       <li>Proteger el sitio y tu cuenta (por ejemplo, frente a intentos de adivinar contraseñas).</li>
       <li>Cumplir obligaciones legales, como las de protección al consumidor y tributarias.</li>
     </ul>
     <p>No los usamos para publicidad, no hacemos perfiles y no los vendemos ni los cedemos.</p>
 
     <h2>4. Base para usarlos</h2>
-    <p>Tu consentimiento, que entregas al marcar la casilla al crear tu cuenta, y la necesidad de
-    gestionar los pedidos que tú envías. Puedes retirar tu consentimiento eliminando tu cuenta.</p>
+    <p>Tu consentimiento, que entregas al marcar la casilla al crear tu cuenta o al enviar un pedido, y la
+    necesidad de gestionar los pedidos que tú envías (incluidas las obligaciones tributarias de la venta).
+    Puedes retirar tu consentimiento eliminando tu cuenta.</p>
 
     <h2>5. Con quién los compartimos</h2>
     <p><strong>Google:</strong> si eliges “Continuar con Google”, Google sabrá que iniciaste sesión en
@@ -221,7 +235,8 @@ PRIVACIDAD = f'''
     <ul>
       <li><strong>Cuenta:</strong> hasta que la elimines.</li>
       <li><strong>Sesión:</strong> 7 días, o hasta que cierres sesión.</li>
-      <li><strong>Pedidos:</strong> el tiempo que exijan las normas tributarias y de protección al consumidor. Si eliminas tu cuenta, tus pedidos quedan registrados sin tu nombre ni tu correo.</li>
+      <li><strong>Pedidos:</strong> el tiempo que exijan las normas tributarias y de protección al consumidor. Si eliminas tu cuenta, tus pedidos quedan registrados sin tu nombre, correo, teléfono ni dirección de despacho; se conservan la comuna, la región y los datos de la factura, porque la empresa debe guardar sus documentos tributarios.</li>
+      <li><strong>Compras como invitado:</strong> igual que los pedidos. Para pedir que borremos tus datos de contacto, escríbenos desde el correo que usaste en la compra.</li>
       <li><strong>IP de intentos fallidos:</strong> unos 10 minutos, solo en memoria.</li>
     </ul>
 
