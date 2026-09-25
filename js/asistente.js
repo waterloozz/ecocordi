@@ -58,7 +58,12 @@ const PREGUNTAS = {
 };
 // Orden de las preguntas (y de los parámetros en la dirección)
 const ORDEN = ["superficie", "uso", "condicion", "acabado", "m2"];
-const PARAMETROS = ORDEN.concat(["manos", "producto"]);
+const PARAMETROS = ORDEN.concat(["manos", "producto", "color"]);
+// Para "Ver en el visualizador": qué ambiente y qué zona corresponden a cada superficie
+const AMBIENTE_DE = {
+  interior: ["living", "muro"], exterior: ["fachada", "fachada"], techo: ["fachada", "fachada"],
+  madera: ["terraza", "baranda"], metal: ["terraza", "reja"],
+};
 // Medidas típicas para el mini cálculo de m² (la persona puede corregir el total)
 const M2_PUERTA = 1.8;
 const M2_VENTANA = 1.5;
@@ -100,6 +105,8 @@ function leerRespuestas() {
   }
   if (/^[1-5]$/.test(url.get("manos") || "")) r.manos = Number(url.get("manos"));
   if (/^\d{1,9}$/.test(url.get("producto") || "")) r.producto = Number(url.get("producto"));
+  // Color elegido en el visualizador: se usa al agregar al carrito
+  if (/^\d{1,9}$/.test(url.get("color") || "")) r.color = Number(url.get("color"));
   return r;
 }
 
@@ -301,6 +308,29 @@ async function mostrarProductoElegido(r) {
 }
 
 /* -------- 5. EL RESULTADO -------- */
+let colorDelVisualizador = null; // { id, nombre, codigo, hex, productos } si viene ?color=
+
+async function cargarColorDelVisualizador(r) {
+  if (r.color === undefined) return;
+  if (colorDelVisualizador && colorDelVisualizador.id === r.color) return;
+  try {
+    const datos = await (await fetch("/api/colores")).json();
+    colorDelVisualizador = datos.colores.find(function (c) { return c.id === r.color; }) || null;
+  } catch (error) {
+    colorDelVisualizador = null;
+  }
+}
+
+/* El enlace al visualizador: el ambiente de esa superficie y, si hay color, pintado */
+function enlaceVisualizador(p, r) {
+  const destino = AMBIENTE_DE[r.superficie] || ["living", "muro"];
+  const params = new URLSearchParams({ modo: "ambiente", ambiente: destino[0] });
+  if (colorDelVisualizador && (p.colores || []).includes(colorDelVisualizador.id)) {
+    params.set("zonas", destino[1] + ":" + colorDelVisualizador.id);
+  }
+  params.set("producto", p.id);
+  return "visualizador.html?" + params;
+}
 async function dibujarResultado(r, numeroDibujo, enfocar) {
   pantalla.innerHTML = `<h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">Buscando tu pintura…</h2>`;
   if (enfocar) enfocarTitulo();
@@ -312,7 +342,7 @@ async function dibujarResultado(r, numeroDibujo, enfocar) {
   if (typeof r.m2 === "number") params.set("m2", r.m2);
   let datos;
   try {
-    await catalogoListo;
+    await Promise.all([catalogoListo, cargarColorDelVisualizador(r)]);
     // Lo que ya está en el carrito no se vuelve a ofrecer
     const enCarrito = carritoComoParametro();
     if (enCarrito) params.set("carrito", enCarrito);
@@ -338,10 +368,11 @@ async function dibujarResultado(r, numeroDibujo, enfocar) {
       <h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">Tu <em>pintura</em></h2>
       ${htmlResumenRespuestas(r)}
       ${datos.aviso ? `<p class="asistente__aviso">${escaparHTML(datos.aviso)}</p>` : ""}
-      ${htmlRecomendacion(datos.recomendado, 0)}
+      ${htmlRecomendacion(datos.recomendado, 0, r)}
       ${datos.alternativas.length ? `
         <h2 class="alternativas__titulo">Otras <em>opciones</em></h2>
-        <div class="alternativas">${datos.alternativas.map(function (p, i) { return htmlRecomendacion(p, i + 1); }).join("")}</div>` : ""}`;
+        <div class="alternativas">${datos.alternativas.map(function (p, i) { return htmlRecomendacion(p, i + 1, r); }).join("")}</div>` : ""}`;
+    pintarMuestras(pantalla);
   }
   if (enfocar) enfocarTitulo();
 }
@@ -354,9 +385,10 @@ function htmlResumenRespuestas(r) {
   }).filter(Boolean);
   if (typeof r.m2 === "number") partes.push(formatearNumero(r.m2) + " m²");
   if (r.manos) partes.push(r.manos + (r.manos === 1 ? " mano" : " manos"));
+  const color = r.color !== undefined && colorDelVisualizador;
   return `<ul class="asistente__resumen" aria-label="Tus respuestas">${partes.map(function (p) {
     return `<li>${escaparHTML(p)}</li>`;
-  }).join("")}</ul>`;
+  }).join("")}${color ? `<li>${htmlColorElegido(color.nombre, color.codigo, color.hex)}</li>` : ""}</ul>`;
 }
 
 function htmlCalculo(p, indice) {
@@ -386,7 +418,7 @@ function htmlCalculo(p, indice) {
   return `<div class="recomendacion__calculo">${html}</div>`;
 }
 
-function htmlRecomendacion(p, indice) {
+function htmlRecomendacion(p, indice, r) {
   const principal = indice === 0;
   const motivos = p.motivos.map(function (m) {
     return `<li><svg class="icono" aria-hidden="true"><use href="#i-check"/></svg><span>${escaparHTML(m)}</span></li>`;
@@ -403,15 +435,27 @@ function htmlRecomendacion(p, indice) {
         <p class="recomendacion__precio-litro">Desde ${formatearPrecio(p.precio_litro)} por litro</p>
         <p class="solo-lector">Por qué te la recomendamos:</p>
         <ul class="recomendacion__motivos">${motivos}</ul>
+        ${htmlColorDeProducto(p)}
         ${htmlCalculo(p, indice)}
         ${p.ficha_demo ? `<p class="recomendacion__demo">Ficha técnica de ejemplo: Ecocordi todavía debe confirmar
           el rendimiento y las resistencias de esta pintura.</p>` : ""}
         <p class="recomendacion__acciones">
+          ${(p.colores || []).length ? `<a class="boton boton--secundario" href="${escaparHTML(enlaceVisualizador(p, r))}">
+            <span class="producto__paleta" aria-hidden="true"></span>Ver en el visualizador</a>` : ""}
           <a class="enlace-flecha" href="catalogo.html?${new URLSearchParams({ q: p.nombre.slice(0, 60) })}">
             Ver en el catálogo <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg></a>
         </p>
       </div>
     </article>`;
+}
+
+/* Si viene un color del visualizador: ¿esta pintura viene en ese color? */
+function htmlColorDeProducto(p) {
+  const c = colorDelVisualizador;
+  if (!c) return "";
+  return (p.colores || []).includes(c.id)
+    ? `<p class="recomendacion__color">${htmlColorElegido(c.nombre, c.codigo, c.hex)} <span>(se agrega al carrito en este color)</span></p>`
+    : `<p class="recomendacion__color recomendacion__color--no">Esta pintura no viene en el color ${escaparHTML(c.nombre)}.</p>`;
 }
 
 function htmlSinResultado(datos) {
@@ -467,8 +511,23 @@ pantalla.addEventListener("click", async function (evento) {
     const opcion = resultadoActual[Number(agregar.dataset.agregar)];
     if (!opcion || !opcion.calculo || !opcion.calculo.combinacion) return;
     await catalogoListo;
+    // Con el color del visualizador (el servidor revisa que esa pintura venga en ese color)
+    let color = null;
+    const c = colorDelVisualizador;
+    if (c && (opcion.colores || []).includes(c.id)) {
+      const respuesta = await fetch("/api/carrito/item", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formato_id: opcion.calculo.combinacion.items[0].formato_id, color_id: c.id }),
+      });
+      const datos = await respuesta.json();
+      if (!respuesta.ok) {
+        avisar(datos.error || "Ese color no está disponible.", "error");
+        return;
+      }
+      color = datos.color;
+    }
     opcion.calculo.combinacion.items.forEach(function (item) {
-      agregarAlCarrito(item.formato_id, item.cantidad, false);
+      agregarAlCarrito(item.formato_id, item.cantidad, false, color);
     });
     agregar.disabled = true;
     agregar.innerHTML = '<svg class="icono" aria-hidden="true"><use href="#i-check"/></svg>Agregado al carrito';

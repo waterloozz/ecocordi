@@ -90,23 +90,36 @@ function guardarCarrito() {
 }
 
 /* Actualiza precios y stock con el catálogo real (igual que la tienda):
-   quita lo que ya no existe o se agotó, y ajusta cantidades al stock. */
+   quita lo que ya no existe, se agotó o tiene un color que ya no está
+   disponible, y ajusta cantidades al stock (el stock es del formato: se
+   reparte entre sus colores). */
 function sincronizarCarrito(productos) {
   const formatos = {};
   productos.forEach(function (p) {
     p.formatos.forEach(function (f) { formatos[f.id] = { producto: p, formato: f }; });
   });
   const antes = carrito.length;
+  const usados = {}; // unidades ya asignadas de cada formato
   carrito = carrito
-    .filter(function (item) { return formatos[item.formato_id] && formatos[item.formato_id].formato.stock > 0; })
+    .filter(function (item) {
+      const f = formatos[item.formato_id];
+      const colorOk = !Number.isInteger(item.color_id) || (f && (f.producto.colores || []).includes(item.color_id));
+      return f && f.formato.stock > 0 && colorOk;
+    })
     .map(function (item) {
       const { producto, formato } = formatos[item.formato_id];
+      const cantidad = Math.min(Number(item.cantidad) || 1, formato.stock - (usados[formato.id] || 0));
+      usados[formato.id] = (usados[formato.id] || 0) + Math.max(cantidad, 0);
+      const conColor = Number.isInteger(item.color_id);
       return {
         formato_id: formato.id, producto_id: producto.id, nombre: producto.nombre, formato: formato.nombre,
         precio: formato.precio, stock: formato.stock, imagen: producto.imagen, superficies: producto.superficies,
-        cantidad: Math.min(Number(item.cantidad) || 1, formato.stock),
+        cantidad: cantidad,
+        color_id: conColor ? item.color_id : null, color_nombre: conColor ? item.color_nombre : null,
+        color_codigo: conColor ? item.color_codigo : null, color_hex: conColor ? item.color_hex : null,
       };
-    });
+    })
+    .filter(function (item) { return item.cantidad > 0; });
   guardarCarrito();
   if (carrito.length < antes) {
     avisar("Quitamos de tu pedido productos que ya no están disponibles.", "info");
@@ -130,7 +143,11 @@ function datosDelFormulario() {
     : { tipo: "factura", rut: campo("pRut").value, razon_social: campo("pRazonSocial").value,
         giro: campo("pGiro").value, direccion: campo("pDireccionFactura").value };
   return {
-    items: carrito.map(function (i) { return { formato_id: i.formato_id, cantidad: i.cantidad }; }),
+    items: carrito.map(function (i) {
+      const item = { formato_id: i.formato_id, cantidad: i.cantidad };
+      if (Number.isInteger(i.color_id)) item.color_id = i.color_id;
+      return item;
+    }),
     cliente: { nombre: campo("pNombre").value, correo: campo("pCorreo").value, telefono: campo("pTelefono").value },
     entrega: entrega,
     documento: documento,
@@ -153,10 +170,12 @@ function pintarResumen(montos) {
     return `
       <li class="pedido__item">
         <span><span class="pedido__cantidad">${item.cantidad} ×</span> ${escaparHTML(item.nombre)}
-          <span class="pedido__formato">${escaparHTML(item.formato)}</span></span>
+          <span class="pedido__formato">${escaparHTML(item.formato)}</span>
+          ${htmlColorElegido(item.color_nombre, item.color_codigo, item.color_hex)}</span>
         <span class="pedido__precio">${formatearPrecio(item.precio * item.cantidad)}</span>
       </li>`;
   }).join("");
+  pintarMuestras(campo("resumenItems"));
 
   const despacho = montos ? montos.despacho : costoDespacho();
   const totales = montos || calcularTotales(subtotalCarrito(), despacho || 0);

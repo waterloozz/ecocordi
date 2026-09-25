@@ -49,6 +49,27 @@ o la función queda oculta. Cada punto dice **dónde se completa**.
 | **Ficha técnica** de cada producto — hoy son **valores de EJEMPLO** (marcados en la base de datos con `ficha_demo = 1` y avisados en pantalla): rendimiento (m² por litro en una mano), manos recomendadas, uso (interior / exterior / ambos), acabado (mate / satinado / brillante) y si resiste humedad, resiste sol directo y es lavable. El asistente y la calculadora usan estos datos. Los valores de ejemplo están en `server.py` (`FICHAS_DEMO`). | Panel → Productos → "Ficha técnica" de cada producto: corregir y desmarcar "Valores de ejemplo". |
 | Productos, descripciones y fotos reales | Panel de administración |
 
+## Asistente y visualizador de color (datos de EJEMPLO)
+
+Para que estas funciones se pudieran probar, se cargaron **valores de ejemplo**
+que la empresa debe reemplazar. En la base de datos están marcados y la tienda
+avisa en pantalla que son de ejemplo.
+
+| Dato | Estado hoy | Dónde se completa |
+|------|------------|-------------------|
+| **Rendimientos** (m² por litro) y **manos recomendadas** de cada producto | Ejemplo (`ficha_demo = 1`) | Panel → Productos → "Ficha técnica". Al corregir, desmarcar "Valores de ejemplo". |
+| **Resistencias** (humedad, sol directo, lavable), **uso** (interior/exterior) y **acabado** de cada producto | Ejemplo (`ficha_demo = 1`) | Panel → Productos → "Ficha técnica" |
+| **Carta de colores oficial**: nombres, códigos y tonos | 40 colores de ejemplo con nombres y códigos inventados para Ecocordi (`EC-…`, `es_demo = 1`) | Panel → Colores: editar o eliminar los de ejemplo y agregar los oficiales (desmarcar "Color de ejemplo") |
+| **Qué colores tiene cada producto** | Asignación de ejemplo por familia | Panel → Productos → "Colores", o Panel → Colores → "Productos que vienen en este color" |
+
+> Los tonos en pantalla son siempre referenciales (el sitio lo avisa). Si la
+> empresa tiene los valores de color de su carta (por ejemplo, en RGB o
+> hexadecimal), conviene usarlos tal cual.
+
+- [ ] **Correos:** el sitio todavía no envía correos (ver "Envío de correos" más arriba).
+  Cuando se agregue, el correo del pedido debe incluir el color de cada producto
+  (ya está guardado en `pedido_items`: `color_nombre`, `color_codigo`, `color_hex`).
+
 ## Revisión final
 
 - [ ] Revisión de un abogado de Términos, Privacidad y Devoluciones.

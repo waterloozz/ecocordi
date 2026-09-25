@@ -95,6 +95,8 @@ ecocordi/
 ├── index.html         → Página principal: portada, superficies y 3 destacados
 ├── catalogo.html      → Catálogo completo con filtro por superficie (?superficie=madera)
 ├── pedido.html        → Finalizar pedido: datos, entrega, boleta/factura y resumen final
+├── asistente.html     → Asistente "¿Qué pintura necesito?" (una pregunta por pantalla)
+├── visualizador.html  → Visualizador de color: ambientes de ejemplo o tu propia foto
 ├── admin.html         → Panel de administración
 ├── terminos.html, privacidad.html, cookies.html, devoluciones.html → Páginas legales
 ├── legales/generar.py → Genera las páginas legales
@@ -107,10 +109,13 @@ ecocordi/
 │   ├── ui.js          → Avisos (toasts) y diálogo de confirmación, compartidos
 │   ├── app.js         → Lógica de la tienda (catálogo, carrito, login)
 │   ├── pedido.js      → Lógica de "Finalizar pedido"
+│   ├── asistente.js   → Preguntas del asistente (la recomendación la calcula el servidor)
+│   ├── visualizador.js → Visualizador de color (la foto se procesa solo en el navegador)
 │   └── admin.js       → Lógica del panel de administración
 ├── fonts/             → Tipografías servidas desde el propio sitio (licencia OFL)
 ├── actualizar_catalogo.py → Actualiza fotos y descripciones de productos en una ecocordi.db antigua
 └── img/               → Fotos (WebP, de Unsplash; ver img/CREDITOS.md) y logo
+    └── ambientes/     → Ilustraciones SVG propias del visualizador (las genera generar.py)
 ```
 
 ---
@@ -136,6 +141,27 @@ ecocordi/
   combinación de formatos **más barata** que alcance, según el stock. El
   rendimiento (m² por litro) lo carga el admin en cada producto; si falta, la
   calculadora lo dice en vez de inventarlo.
+- **Asistente "¿Qué pintura necesito?"** (`asistente.html`): 5 preguntas
+  (superficie, interior/exterior, humedad o sol, acabado y m²) y el servidor
+  recomienda con reglas simples (`GET /api/asistente`): filtra por superficie,
+  uso y stock, y suma puntos (humedad +3, sol +3, acabado +2, interior lavable +1;
+  si empatan, gana la más barata por litro). Explica los motivos, calcula los
+  litros y la combinación de formatos, y agrega todo al carrito. Las respuestas
+  quedan en la dirección (se puede compartir o volver atrás). La calculadora del
+  catálogo usa la misma lógica (`GET /api/calcular`).
+- **Visualizador de color** (`visualizador.html`):
+  - *Ambientes*: living, dormitorio, fachada y terraza, dibujados en SVG. Cada
+    zona (muro, acento, puerta, reja…) se pinta con transición suave, y encima van
+    capas de sombra (`multiply`) y luz (`screen`) para que no se vea plano.
+    Botón "Comparar" con deslizador para ver dos colores.
+  - *Tu propia foto*: se abre y se pinta **solo en el navegador** (canvas); nunca
+    se sube. Relleno por inundación con tolerancia (se detiene en los bordes),
+    pincel, goma, deshacer y varias zonas. El recoloreado toma el tono del color
+    y conserva la luz y la textura de cada píxel.
+  - Paleta por familias, buscador, "Últimos usados", "Mis colores" (en el
+    navegador y, con sesión, en la cuenta), descarga en PNG, enlace para
+    compartir y compra en ese color (el color queda en el carrito, el pedido,
+    "Mis pedidos" y el panel).
 - **Stock** por formato: la tienda muestra "¡Quedan N!" cuando quedan 5 o
   menos y "Agotado" (botón deshabilitado) cuando no queda nada.
 - **Cuentas de usuario** reales: registro e inicio de sesión con contraseñas
@@ -246,6 +272,13 @@ Tablas principales:
 | `usuarios`, `sesiones` | cuentas y sesiones iniciadas |
 | `pedidos`, `pedido_items` | pedidos (contacto, entrega, documento, neto, IVA y total) y su detalle (con copia del nombre, formato y precio del momento) |
 | `tarifas_despacho` | costo del despacho por región (región sin fila = "coordinar despacho") |
+| `colores`, `producto_colores` | carta de colores (nombre, código, tono, familia) y qué colores tiene cada producto |
+| `colores_favoritos` | "Mis colores" de cada cuenta |
+
+`productos` también guarda la **ficha técnica** que usa el asistente: uso,
+acabado, resiste humedad/sol, lavable, rendimiento y manos. Los valores que
+vienen de fábrica son **de ejemplo** (`ficha_demo = 1`, `es_demo = 1` en los
+colores): ver `PENDIENTES.md`.
 
 Tiene índices para las búsquedas frecuentes (pedidos por usuario y por estado,
 detalle por pedido, sesiones por usuario y por fecha).
@@ -287,7 +320,20 @@ Cada prueba arranca su propio servidor con una **base de datos temporal**
 python3 pruebas/prueba_base_datos.py   # Fase 1: base de datos, formatos, migraciones, respaldos
 python3 pruebas/prueba_catalogo.py     # Fase 2: configuración, SEO, rendimiento
 python3 pruebas/prueba_checkout.py     # Fase 3: invitado, entrega, factura, IVA, tarifas
+python3 pruebas/prueba_asistente.py    # Asistente: reglas, validación, litros y formatos
+python3 pruebas/prueba_colores.py      # Colores: API, carrito y pedidos con color, favoritos, admin
 ```
+
+Pruebas en **Chrome sin interfaz** (necesitan Google Chrome o Chromium; dejan
+capturas de pantalla en `capturas/`):
+
+```bash
+python3 pruebas/prueba_navegador_asistente.py
+python3 pruebas/prueba_navegador_visualizador.py
+```
+
+Usan `pruebas/navegador.py`, un cliente mínimo del protocolo de depuración de
+Chrome escrito solo con la librería estándar de Python.
 
 ## ⚖️ Aspectos legales y de privacidad
 

@@ -94,3 +94,26 @@ dialogo.addEventListener("cancel", function (evento) {
   evento.preventDefault();
   responderDialogo(false);
 });
+
+/* -------- MUESTRAS DE COLOR --------
+   La CSP bloquea los estilos escritos en el HTML (style="background: ..."),
+   así que las muestras se dibujan con <span data-hex="#A3B09A"> y aquí les
+   ponemos el color desde JavaScript (eso sí está permitido).
+   Solo se aceptan colores "#RRGGBB": cualquier otra cosa se ignora. */
+function pintarMuestras(raiz) {
+  (raiz || document).querySelectorAll("[data-hex]").forEach(function (el) {
+    if (/^#[0-9A-F]{6}$/i.test(el.dataset.hex)) el.style.backgroundColor = el.dataset.hex;
+  });
+}
+
+/* "● Nieve del Llaima · EC-B01" (ya escapado). Para el carrito, los pedidos y el panel. */
+function htmlColorElegido(nombre, codigo, hex) {
+  if (!nombre) return "";
+  const escapar = function (t) {
+    const span = document.createElement("span");
+    span.textContent = t == null ? "" : String(t);
+    return span.innerHTML.replace(/"/g, "&quot;");
+  };
+  return `<span class="color-elegido"><span class="muestra-color" data-hex="${escapar(hex)}" aria-hidden="true"></span>` +
+    `Color ${escapar(nombre)}${codigo ? " · " + escapar(codigo) : ""}</span>`;
+}

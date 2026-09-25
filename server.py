@@ -117,6 +117,51 @@ FICHAS_DEMO = {
     "Impermeabilizante Techo": ("exterior", "mate", 1, 1, 0, 6, 2),
 }
 
+# ---- Colores (visualizador y carta de colores) ----
+FAMILIAS = {"blancos": "Blancos", "neutros": "Neutros", "calidos": "Cálidos", "frios": "Fríos",
+            "verdes": "Verdes", "tierra": "Tierra", "intensos": "Intensos"}
+MAX_NOMBRE_COLOR = 40
+MAX_CODIGO_COLOR = 12
+MAX_FAVORITOS = 60
+# Carta de colores de EJEMPLO (es_demo = 1): nombres y códigos propios de
+# Ecocordi, inventados para probar el visualizador. NO son la carta oficial:
+# la empresa debe reemplazarlos (PENDIENTES.md). Código: EC-<familia><número>.
+COLORES_DEMO = {
+    "blancos": [("Nieve del Llaima", "#F4F2EC"), ("Bruma de Temuco", "#ECE9E1"), ("Espuma de Lago", "#E9EEEA"),
+                ("Harina Tostada", "#EFE4D2"), ("Cal de Adobe", "#E6DDCB"), ("Pétalo Claro", "#F2E9E6")],
+    "neutros": [("Piedra Laja", "#CFC8BC"), ("Lino Crudo", "#D9CFBE"), ("Niebla Costera", "#BCC1BF"),
+                ("Ceniza Volcánica", "#A5A19A"), ("Canto Rodado", "#8C877E"), ("Grafito Andino", "#4F4E4B")],
+    "calidos": [("Mantequilla de Campo", "#F1DDA4"), ("Trigo Maulino", "#E2C48B"), ("Durazno de Huerto", "#EFB38D"),
+                ("Arcilla Rosa", "#D69E8A"), ("Miel de Ulmo", "#D6A13F"), ("Atardecer en Talca", "#DD8656")],
+    "frios": [("Cielo de Invierno", "#BACCD8"), ("Glaciar Austral", "#9CC2C8"), ("Lavanda de Cerro", "#A9A2C4"),
+              ("Lago Villarrica", "#6E98AE"), ("Tormenta del Sur", "#4E5C6C"), ("Azul Pacífico", "#2F5C7B")],
+    "verdes": [("Menta de Estero", "#BFD7C5"), ("Salvia Seca", "#A3AF99"), ("Oliva del Valle", "#8A8955"),
+               ("Helecho Nativo", "#5D8B60"), ("Musgo de Bosque", "#6A784A"), ("Araucaria", "#3D5A47")],
+    "tierra": [("Ocre de Quebrada", "#BF893E"), ("Terracota de Greda", "#B4654A"), ("Greda de Pomaire", "#9C563F"),
+               ("Adobe Tostado", "#8B5D45"), ("Café Raulí", "#6A4A37")],
+    "intensos": [("Amarillo Aromo", "#E6B425"), ("Rojo Copihue", "#B1263A"), ("Azul Añil", "#27408A"),
+                 ("Verde Selva Valdiviana", "#1F6E4A"), ("Carbón de Espino", "#2A2826")],
+}
+# Qué familias de colores tiene cada producto de ejemplo (también demo)
+FAMILIAS_DEMO = {
+    "Protección de Madera": ("tierra", "neutros"),
+    "Anticorrosivo Metal Pro": ("intensos", "neutros", "blancos"),
+    "Pinturas para Exterior": ("blancos", "neutros", "calidos", "frios", "verdes", "tierra"),
+    "Línea Constructoras": ("blancos", "neutros", "tierra"),
+    "Pinturas para Interior": ("blancos", "neutros", "calidos", "frios", "verdes", "intensos"),
+    "Chalk Paint Ecocordi": ("blancos", "neutros", "calidos", "frios", "verdes"),
+    "Productos Especiales": ("intensos", "neutros", "blancos"),
+    "Impermeabilizante Techo": ("tierra", "neutros"),
+}
+FAMILIAS_DE_SUPERFICIE = {  # para productos que no están en la lista anterior
+    "interior": ("blancos", "neutros", "calidos", "frios", "verdes", "intensos"),
+    "exterior": ("blancos", "neutros", "calidos", "frios", "verdes", "tierra"),
+    "madera": ("tierra", "neutros", "verdes"), "metal": ("intensos", "neutros", "blancos"),
+    "techo": ("tierra", "neutros", "intensos"),
+}
+LETRA_FAMILIA = {"blancos": "B", "neutros": "N", "calidos": "C", "frios": "F", "verdes": "V",
+                 "tierra": "T", "intensos": "I"}
+
 # ---- Checkout (entrega, documento e IVA) ----
 TASA_IVA = 19  # IVA en Chile: 19 % (fijado por ley, no es un dato de la empresa)
 
@@ -161,7 +206,7 @@ MAX_LITROS = 1000
 ESTADOS = ("pendiente", "pagado", "enviado", "entregado", "cancelado")
 # Versión de los Términos y la Política de privacidad. Si se cambian esos
 # textos, subir esta fecha: así queda registro de QUÉ versión aceptó cada persona.
-VERSION_TERMINOS = "2026-09-25"  # 2026-09-24.2: login con Google · 2026-09-25: checkout (invitado, entrega, factura, IVA)
+VERSION_TERMINOS = "2026-09-25.2"  # 2026-09-24.2: login con Google · 2026-09-25: checkout · .2: asistente y visualizador
 MAX_NOMBRE = 80           # solo pedimos lo necesario, y con un largo razonable
 MAX_CORREO = 254
 # En producción con HTTPS: COOKIE_SEGURA=1 python3 server.py
@@ -382,6 +427,12 @@ def init_db():
         nombre, tipo = columna.split()
         if _agregar_columna(c, "pedido_items", nombre, tipo):
             print(f"  Migración: columna '{nombre}' agregada a pedido_items")
+    # Color elegido en cada ítem (opcional). Igual que el nombre y el formato,
+    # se guarda una COPIA del nombre, código y tono: si el color cambia o se
+    # borra, el pedido sigue mostrando el que se compró.
+    for columna, tipo in (("color_id", "INTEGER"), ("color_nombre", "TEXT"),
+                          ("color_codigo", "TEXT"), ("color_hex", "TEXT")):
+        _agregar_columna(c, "pedido_items", columna, tipo)
     con.commit()
     _migrar_productos(con)
 
@@ -394,6 +445,43 @@ def init_db():
         n = _rellenar_fichas_demo(con)
         if n:
             print(f"  Migración: ficha técnica de EJEMPLO para {n} productos (ver PENDIENTES.md)")
+
+    # Carta de colores y qué colores tiene cada producto (relación "N a N")
+    colores_nuevos = not c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='colores'").fetchone()
+    _familias = ", ".join(f"'{f}'" for f in FAMILIAS)
+    c.execute(f"""
+        CREATE TABLE IF NOT EXISTS colores (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre  TEXT NOT NULL UNIQUE,
+            codigo  TEXT NOT NULL UNIQUE,
+            -- "#RRGGBB" en mayúsculas
+            hex     TEXT NOT NULL CHECK (length(hex) = 7 AND hex GLOB '#[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]'),
+            familia TEXT NOT NULL CHECK (familia IN ({_familias})),
+            activo  INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1)),
+            es_demo INTEGER NOT NULL DEFAULT 0 CHECK (es_demo IN (0, 1))  -- 1 = color de EJEMPLO
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS producto_colores (
+            producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+            color_id    INTEGER NOT NULL REFERENCES colores(id) ON DELETE CASCADE,
+            PRIMARY KEY (producto_id, color_id)
+        )
+    """)
+    # "Mis colores": favoritos de cada cuenta (se borran si se elimina la cuenta)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS colores_favoritos (
+            usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+            color_id   INTEGER NOT NULL REFERENCES colores(id) ON DELETE CASCADE,
+            agregado   TEXT DEFAULT (datetime('now','localtime')),
+            PRIMARY KEY (usuario_id, color_id)
+        )
+    """)
+    con.commit()
+    if colores_nuevos:
+        n = _seed_colores(con)
+        if n:
+            print(f"  Carta de colores de EJEMPLO: {n} colores (ver PENDIENTES.md)")
 
     con.commit()
 
@@ -408,6 +496,8 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones(usuario_id)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_sesiones_creada ON sesiones(creada)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_superficies_superficie ON producto_superficies(superficie)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_producto_colores_color ON producto_colores(color_id)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_colores_familia ON colores(familia)")
 
     # Limpieza: borramos las sesiones que ya vencieron
     borradas = c.execute(
@@ -515,6 +605,36 @@ def _seed_productos(con):
                   (pid, FORMATO_MIGRACION, LITROS_GALON, precio, STOCK_INICIAL))
     con.commit()
     _rellenar_fichas_demo(con)
+    if con.execute("SELECT COUNT(*) FROM colores").fetchone()[0]:
+        _asignar_colores_demo(con)  # base nueva: los colores se crearon antes que los productos
+
+
+def _seed_colores(con):
+    """Carga la carta de colores de EJEMPLO (es_demo = 1) y se la asigna a los
+    productos que ya existan. Solo se usa cuando se crea la tabla colores."""
+    for familia, lista in COLORES_DEMO.items():
+        for i, (nombre, hex_) in enumerate(lista, 1):
+            con.execute("INSERT OR IGNORE INTO colores (nombre, codigo, hex, familia, es_demo) VALUES (?,?,?,?,1)",
+                        (nombre, f"EC-{LETRA_FAMILIA[familia]}{i:02d}", hex_, familia))
+    con.commit()
+    _asignar_colores_demo(con)
+    return con.execute("SELECT COUNT(*) FROM colores").fetchone()[0]
+
+
+def _asignar_colores_demo(con):
+    """Asigna colores de EJEMPLO a los productos que todavía no tienen ninguno."""
+    productos = con.execute("""SELECT id, nombre FROM productos
+                               WHERE id NOT IN (SELECT producto_id FROM producto_colores)""").fetchall()
+    for p in productos:
+        familias = FAMILIAS_DEMO.get(p["nombre"])
+        if not familias:
+            fila = con.execute("SELECT superficie FROM producto_superficies WHERE producto_id=? ORDER BY rowid",
+                               (p["id"],)).fetchone()
+            familias = FAMILIAS_DE_SUPERFICIE.get(fila["superficie"] if fila else "", ())
+        for familia in familias:
+            con.execute("""INSERT OR IGNORE INTO producto_colores (producto_id, color_id)
+                           SELECT ?, id FROM colores WHERE familia=? AND es_demo=1""", (p["id"], familia))
+    con.commit()
 
 
 def _ficha_de_ejemplo(nombre, superficies):
@@ -666,12 +786,75 @@ def listar_productos(con):
                             FROM producto_formatos ORDER BY litros, id"""):
         formatos.setdefault(f["producto_id"], []).append(
             {"id": f["id"], "nombre": f["nombre"], "litros": f["litros"], "precio": f["precio"], "stock": f["stock"]})
+    colores = {}
+    for f in con.execute("""SELECT pc.producto_id, pc.color_id FROM producto_colores pc
+                            JOIN colores c ON c.id = pc.color_id WHERE c.activo = 1 ORDER BY c.id"""):
+        colores.setdefault(f["producto_id"], []).append(f["color_id"])
     for p in productos:
         p["superficies"] = superficies.get(p["id"], [])
         p["formatos"] = formatos.get(p["id"], [])
+        p["colores"] = colores.get(p["id"], [])  # ids de los colores activos de este producto
         p["precio"] = min((f["precio"] for f in p["formatos"]), default=None)
         p["stock"] = sum(f["stock"] for f in p["formatos"])
     return productos
+
+
+def listar_colores(con, familia=None, producto_id=None, incluir_inactivos=False):
+    """Colores de la carta: {id, nombre, codigo, hex, familia, activo, es_demo, productos: [ids]}."""
+    condiciones, params = [], []
+    if not incluir_inactivos:
+        condiciones.append("c.activo = 1")
+    if familia:
+        condiciones.append("c.familia = ?")
+        params.append(familia)
+    if producto_id is not None:
+        condiciones.append("c.id IN (SELECT color_id FROM producto_colores WHERE producto_id = ?)")
+        params.append(producto_id)
+    donde = ("WHERE " + " AND ".join(condiciones)) if condiciones else ""
+    colores = [dict(f) for f in con.execute(
+        f"SELECT c.id, c.nombre, c.codigo, c.hex, c.familia, c.activo, c.es_demo FROM colores c {donde} ORDER BY c.id",
+        params)]
+    productos = {}
+    for f in con.execute("SELECT color_id, producto_id FROM producto_colores ORDER BY producto_id"):
+        productos.setdefault(f["color_id"], []).append(f["producto_id"])
+    for c in colores:
+        c["productos"] = productos.get(c["id"], [])
+    return colores
+
+
+def _leer_color(datos, parcial=False):
+    """Valida los datos de un color que manda el admin. Devuelve (campos, error)."""
+    campos = {}
+    for campo, maximo in (("nombre", MAX_NOMBRE_COLOR), ("codigo", MAX_CODIGO_COLOR)):
+        if campo in datos or not parcial:
+            valor = _texto(datos, campo).strip()
+            if not valor or len(valor) > maximo:
+                return None, f"El color necesita {campo} (máximo {maximo} caracteres)"
+            campos[campo] = valor.upper() if campo == "codigo" else valor
+    if "hex" in datos or not parcial:
+        valor = _texto(datos, "hex").strip().upper()
+        if not re.fullmatch(r"#[0-9A-F]{6}", valor):
+            return None, "El tono debe ser un color hexadecimal como #A3B09A"
+        campos["hex"] = valor
+    if "familia" in datos or not parcial:
+        if datos.get("familia") not in FAMILIAS:
+            return None, "Familia inválida. Usa: " + ", ".join(FAMILIAS)
+        campos["familia"] = datos["familia"]
+    for campo in ("activo", "es_demo"):
+        if campo in datos:
+            if not isinstance(datos[campo], bool):
+                return None, f"{campo} debe ser true o false"
+            campos[campo] = int(datos[campo])
+    return campos, None
+
+
+def color_de_producto(con, color_id, producto_id):
+    """El color, solo si está activo y lo tiene ese producto (si no, None)."""
+    fila = con.execute("""
+        SELECT c.id, c.nombre, c.codigo, c.hex FROM colores c
+        JOIN producto_colores pc ON pc.color_id = c.id AND pc.producto_id = ?
+        WHERE c.id = ? AND c.activo = 1""", (producto_id, color_id)).fetchone()
+    return dict(fila) if fila else None
 
 
 def _leer_formato(datos, parcial=False):
@@ -1125,7 +1308,7 @@ def _volver_seguro(volver):
     para redirigir a otra web (open redirect). La dirección se ARMA de nuevo
     solo con lo permitido: la página y los filtros del catálogo."""
     pagina, _, consulta = (volver or "").partition("?")
-    if pagina not in ("index.html", "catalogo.html", "pedido.html", "asistente.html"):
+    if pagina not in ("index.html", "catalogo.html", "pedido.html", "asistente.html", "visualizador.html"):
         return "/"
     params = parse_qs(consulta)
     seguros = {}
@@ -1141,7 +1324,15 @@ def _volver_seguro(volver):
                                ("acabado", ACABADOS + ("no_se",))):
             if params.get(clave, [""])[0] in validos:
                 seguros[clave] = params[clave][0]
-        for clave, patron in (("m2", r"\d{1,5}([.,]\d{1,2})?|no"), ("manos", r"[1-5]"), ("producto", r"\d{1,9}")):
+        for clave, patron in (("m2", r"\d{1,5}([.,]\d{1,2})?|no"), ("manos", r"[1-5]"), ("producto", r"\d{1,9}"),
+                              ("color", r"\d{1,9}")):
+            if re.fullmatch(patron, params.get(clave, [""])[0]):
+                seguros[clave] = params[clave][0]
+    if pagina == "visualizador.html":
+        # Ambiente y colores del visualizador (la foto nunca viaja en la dirección)
+        for clave, patron in (("modo", r"ambiente|foto"), ("ambiente", r"[a-z]{3,12}"),
+                              ("zonas", r"([a-z]{3,12}:\d{1,9},?){1,8}"), ("colores", r"(\d{1,9},?){1,12}"),
+                              ("producto", r"\d{1,9}")):
             if re.fullmatch(patron, params.get(clave, [""])[0]):
                 seguros[clave] = params[clave][0]
     return "/" + pagina + ("?" + urlencode(seguros) if seguros else "")
@@ -1209,7 +1400,7 @@ RAIZ_PUBLICA = {"favicon.ico"}  # además de las páginas .html (robots.txt y si
 
 # Páginas que aparecen en el sitemap (las que Google debería mostrar).
 # El panel de administración NO va: es privado.
-PAGINAS_SITEMAP = ["index.html", "catalogo.html", "asistente.html"] + [f"catalogo.html?superficie={s}" for s in SUPERFICIES] + [
+PAGINAS_SITEMAP = ["index.html", "catalogo.html", "asistente.html", "visualizador.html"] + [f"catalogo.html?superficie={s}" for s in SUPERFICIES] + [
     "terminos.html", "privacidad.html", "cookies.html", "devoluciones.html", "creditos.html"]
 
 
@@ -1359,6 +1550,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._json(productos)
         if ruta.path == "/api/asistente":
             return self._asistente(ruta.query)
+        if ruta.path == "/api/colores":
+            return self._colores(ruta.query)
+        if ruta.path == "/api/mis-colores":
+            # Sin sesión no es un error: los favoritos quedan solo en el navegador
+            u = self._usuario_actual()
+            return self._json({"sesion": bool(u), "colores": self._favoritos(u["id"]) if u else []})
         if ruta.path == "/api/calcular":
             return self._calcular(ruta.query)
 
@@ -1377,6 +1574,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not u or not u["es_admin"]:
                 return self._json({"error": "Solo administradores"}, 403)
             return self._json(self._obtener_pedidos(None))
+
+        if ruta.path == "/api/admin/colores":
+            u = self._usuario_actual()
+            if not u or not u["es_admin"]:
+                return self._json({"error": "Solo administradores"}, 403)
+            con = get_db()
+            try:
+                return self._json(listar_colores(con, incluir_inactivos=True))
+            finally:
+                con.close()
 
         return self._json({"error": "Ruta no encontrada"}, 404)
 
@@ -1397,6 +1604,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._cotizar_pedido(datos)
         if ruta.path == "/api/admin/productos":
             return self._crear_producto(datos)
+        if ruta.path == "/api/carrito/item":
+            return self._validar_item(datos)
+        if ruta.path == "/api/mis-colores":
+            return self._guardar_favoritos(datos)
+        if ruta.path == "/api/admin/colores":
+            return self._crear_color(datos)
         if ruta.path.startswith("/api/admin/productos/") and ruta.path.endswith("/formatos"):
             return self._agregar_formato(_id_de_ruta(ruta.path[:-len("/formatos")], "/api/admin/productos/"), datos)
 
@@ -1419,6 +1632,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             formato_id = _id_de_ruta(ruta.path, "/api/admin/formatos/")
             if formato_id is not None:
                 return self._editar_formato(formato_id, datos)
+            color_id = _id_de_ruta(ruta.path, "/api/admin/colores/")
+            if color_id is not None:
+                return self._editar_color(color_id, datos)
             if ruta.path.startswith("/api/admin/tarifas/"):
                 return self._editar_tarifa(ruta.path[len("/api/admin/tarifas/"):], datos)
         return self._json({"error": "Ruta no encontrada"}, 404)
@@ -1426,6 +1642,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
     # ---- DELETE ----
     def do_DELETE(self):
         ruta = urlparse(self.path)
+        color_id = _id_de_ruta(ruta.path, "/api/mis-colores/")
+        if color_id is not None:
+            u = self._usuario_actual()
+            if not u:
+                return self._json({"error": "No has iniciado sesión"}, 401)
+            con = get_db()
+            with con:
+                con.execute("DELETE FROM colores_favoritos WHERE usuario_id=? AND color_id=?", (u["id"], color_id))
+            con.close()
+            return self._json({"ok": True, "sesion": True, "colores": self._favoritos(u["id"])})
         if ruta.path.startswith("/api/admin/"):
             u = self._usuario_actual()
             if not u or not u["es_admin"]:
@@ -1433,7 +1659,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # Al borrar un producto, sus formatos y superficies se borran con él
             # (ON DELETE CASCADE). Los pedidos antiguos conservan su copia de
             # nombre, formato y precio.
-            for prefijo, tabla in (("/api/admin/productos/", "productos"), ("/api/admin/formatos/", "producto_formatos")):
+            # Al borrar un color, sale de los productos y de los favoritos (los pedidos guardan su copia)
+            for prefijo, tabla in (("/api/admin/productos/", "productos"), ("/api/admin/formatos/", "producto_formatos"),
+                                   ("/api/admin/colores/", "colores")):
                 id_ = _id_de_ruta(ruta.path, prefijo)
                 if id_ is not None:
                     con = get_db()
@@ -1466,6 +1694,145 @@ class Handler(http.server.BaseHTTPRequestHandler):
             respuesta["whatsapp"] = WHATSAPP_NUMERO or None
             respuesta["sucursales"] = list(SUCURSALES.values())
         return self._json(respuesta)
+
+    def _colores(self, consulta):
+        """GET /api/colores?familia=verdes&producto=5 — carta de colores (solo activos)."""
+        params, error = leer_params(consulta, ("familia", "producto"))
+        if error:
+            return self._json({"error": error}, 400)
+        familia = params.get("familia") or None
+        if familia is not None and familia not in FAMILIAS:
+            return self._json({"error": "Familia inválida. Usa: " + ", ".join(FAMILIAS)}, 400)
+        producto_id = None
+        if params.get("producto"):
+            producto_id = _numero(params["producto"], entero=True)
+            if producto_id is None:
+                return self._json({"error": "Producto inválido"}, 400)
+        con = get_db()
+        try:
+            return self._json({"familias": FAMILIAS, "colores": listar_colores(con, familia, producto_id)})
+        finally:
+            con.close()
+
+    def _validar_item(self, datos):
+        """POST /api/carrito/item  {"formato_id", "color_id" (opcional), "cantidad"}
+        Revisa ANTES de agregar al carrito que el formato exista y que el color
+        corresponda a ese producto. Devuelve los datos actuales del ítem."""
+        fid, color_id, cantidad = datos.get("formato_id"), datos.get("color_id"), datos.get("cantidad", 1)
+        if type(fid) is not int or (color_id is not None and type(color_id) is not int):
+            return self._json({"error": "Ítem inválido"}, 400)
+        if type(cantidad) is not int or not 1 <= cantidad <= MAX_CANTIDAD:
+            return self._json({"error": f"Cantidad inválida (entre 1 y {MAX_CANTIDAD})"}, 400)
+        con = get_db()
+        try:
+            fmt = con.execute("""
+                SELECT f.id, f.producto_id, f.nombre AS formato, f.precio, f.stock, p.nombre, p.imagen
+                FROM producto_formatos f JOIN productos p ON p.id = f.producto_id WHERE f.id = ?""", (fid,)).fetchone()
+            if not fmt:
+                return self._json({"error": "Ese formato ya no existe"}, 404)
+            color = None
+            if color_id is not None:
+                color = color_de_producto(con, color_id, fmt["producto_id"])
+                if not color:
+                    return self._json({"error": f"Ese color no está disponible para «{fmt['nombre']}»"}, 400)
+            if fmt["stock"] < cantidad:
+                return self._json({"error": f"Solo quedan {fmt['stock']} de «{fmt['nombre']}» ({fmt['formato']})",
+                                   "disponible": fmt["stock"]}, 409)
+        finally:
+            con.close()
+        return self._json({"ok": True, "formato_id": fid, "producto_id": fmt["producto_id"], "nombre": fmt["nombre"],
+                           "formato": fmt["formato"], "precio": fmt["precio"], "stock": fmt["stock"],
+                           "imagen": fmt["imagen"], "color": color})
+
+    def _favoritos(self, usuario_id):
+        con = get_db()
+        try:
+            return [f["color_id"] for f in con.execute("""
+                SELECT f.color_id FROM colores_favoritos f JOIN colores c ON c.id = f.color_id
+                WHERE f.usuario_id = ? AND c.activo = 1 ORDER BY f.agregado, f.rowid""", (usuario_id,))]
+        finally:
+            con.close()
+
+    def _guardar_favoritos(self, datos):
+        """POST /api/mis-colores  {"colores": [ids]} — agrega (sin repetir) a "Mis colores".
+        Sirve también para subir los favoritos que la persona guardó antes de entrar."""
+        u = self._usuario_actual()
+        if not u:
+            return self._json({"error": "No has iniciado sesión"}, 401)
+        ids = datos.get("colores")
+        if not isinstance(ids, list) or not ids or len(ids) > MAX_FAVORITOS or any(type(i) is not int for i in ids):
+            return self._json({"error": "Envía una lista de colores"}, 400)
+        con = get_db()
+        try:
+            con.execute("BEGIN IMMEDIATE")
+            actuales = con.execute("SELECT COUNT(*) FROM colores_favoritos WHERE usuario_id=?", (u["id"],)).fetchone()[0]
+            for color_id in dict.fromkeys(ids):
+                if actuales >= MAX_FAVORITOS:
+                    break
+                actuales += con.execute("""INSERT OR IGNORE INTO colores_favoritos (usuario_id, color_id)
+                                           SELECT ?, id FROM colores WHERE id=? AND activo=1""",
+                                        (u["id"], color_id)).rowcount
+            con.commit()
+        finally:
+            con.close()
+        return self._json({"ok": True, "sesion": True, "colores": self._favoritos(u["id"])})
+
+    def _crear_color(self, datos):
+        """POST /api/admin/colores  {"nombre", "codigo", "hex", "familia", "activo", "es_demo", "productos": [ids]}"""
+        u = self._usuario_actual()
+        if not u or not u["es_admin"]:
+            return self._json({"error": "Solo administradores"}, 403)
+        campos, error = _leer_color(datos)
+        if error:
+            return self._json({"error": error}, 400)
+        productos = datos.get("productos", [])
+        if not isinstance(productos, list) or any(type(i) is not int for i in productos):
+            return self._json({"error": "Productos inválidos"}, 400)
+        con = get_db()
+        try:
+            con.execute("BEGIN IMMEDIATE")
+            cur = con.execute(f"INSERT INTO colores ({', '.join(campos)}) VALUES ({', '.join('?' for _ in campos)})",
+                              tuple(campos.values()))
+            con.executemany("INSERT OR IGNORE INTO producto_colores (producto_id, color_id) "
+                            "SELECT id, ? FROM productos WHERE id=?", [(cur.lastrowid, pid) for pid in productos])
+            con.commit()
+            return self._json({"ok": True, "id": cur.lastrowid})
+        except sqlite3.IntegrityError:
+            con.rollback()
+            return self._json({"error": "Ya existe un color con ese nombre o código"}, 409)
+        finally:
+            con.close()
+
+    def _editar_color(self, color_id, datos):
+        """PATCH /api/admin/colores/<id> — solo lo que cambia; "productos": [ids] reemplaza la asignación."""
+        campos, error = _leer_color(datos, parcial=True)
+        if error:
+            return self._json({"error": error}, 400)
+        productos = datos.get("productos")
+        if productos is not None and (not isinstance(productos, list) or any(type(i) is not int for i in productos)):
+            return self._json({"error": "Productos inválidos"}, 400)
+        if not campos and productos is None:
+            return self._json({"error": "No hay nada que cambiar"}, 400)
+        con = get_db()
+        try:
+            con.execute("BEGIN IMMEDIATE")
+            if not con.execute("SELECT 1 FROM colores WHERE id=?", (color_id,)).fetchone():
+                con.rollback()
+                return self._json({"error": "El color no existe"}, 404)
+            if campos:
+                asignaciones = ", ".join(f"{campo}=?" for campo in campos)  # nombres de nuestra lista fija
+                con.execute(f"UPDATE colores SET {asignaciones} WHERE id=?", (*campos.values(), color_id))
+            if productos is not None:
+                con.execute("DELETE FROM producto_colores WHERE color_id=?", (color_id,))
+                con.executemany("INSERT OR IGNORE INTO producto_colores (producto_id, color_id) "
+                                "SELECT id, ? FROM productos WHERE id=?", [(color_id, pid) for pid in productos])
+            con.commit()
+        except sqlite3.IntegrityError:
+            con.rollback()
+            return self._json({"error": "Ya existe un color con ese nombre o código"}, 409)
+        finally:
+            con.close()
+        return self._json({"ok": True, "id": color_id})
 
     def _calcular(self, consulta):
         """GET /api/calcular?producto=5&m2=40&manos=2 — la calculadora del catálogo.
@@ -1709,6 +2076,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         con = get_db()
         with con:  # una sola transacción
             con.execute("DELETE FROM sesiones WHERE usuario_id=?", (u["id"],))
+            con.execute("DELETE FROM colores_favoritos WHERE usuario_id=?", (u["id"],))
             con.execute(
                 "UPDATE usuarios SET nombre=?, correo=?, clave=?, terminos_aceptados=NULL, google_sub=NULL WHERE id=?",
                 ("Cuenta eliminada", f"eliminada-{u['id']}@invalid", "eliminada$" + secrets.token_hex(32), u["id"]),
@@ -1731,20 +2099,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not items:
             return None, ("El carrito está vacío", 400)
 
-        # Cada ítem es un FORMATO de venta (formato_id) y una cantidad. No
-        # confiamos en ninguno de los dos: si algo está mal se rechaza todo.
-        pedido = {}  # {formato_id: cantidad}; junta ids repetidos en uno
+        # Cada ítem es un FORMATO de venta (formato_id), un color opcional
+        # (color_id) y una cantidad. No confiamos en ninguno: si algo está mal
+        # se rechaza todo.
+        pedido = {}  # {(formato_id, color_id): cantidad}; junta ítems repetidos en uno
         for it in items:
             if not isinstance(it, dict):
                 return None, ("Pedido con formato inválido", 400)
             fid = it.get("formato_id")
             cant = it.get("cantidad")
+            color = it.get("color_id")
             # type(...) is int deja fuera textos ("abc"), decimales (1.5) y True/False
-            if type(fid) is not int:
+            if type(fid) is not int or (color is not None and type(color) is not int):
                 return None, ("Pedido con formato inválido", 400)
             if type(cant) is not int or not 1 <= cant <= MAX_CANTIDAD:
                 return None, (f"Cantidad inválida (debe ser un número entre 1 y {MAX_CANTIDAD})", 400)
-            pedido[fid] = pedido.get(fid, 0) + cant
+            pedido[(fid, color)] = pedido.get((fid, color), 0) + cant
 
         # Quién compra. Con cuenta, el correo es el de la cuenta.
         cliente = datos.get("cliente") if isinstance(datos.get("cliente"), dict) else {}
@@ -1810,24 +2180,38 @@ class Handler(http.server.BaseHTTPRequestHandler):
         o (None, (datos_de_error, código_http))."""
         subtotal = 0
         detalle = []
-        for fid, cant in checkout["items"].items():
+        # El stock es del FORMATO: 2 galones blancos y 1 azul son 3 galones
+        por_formato = {}
+        for (fid, _), cant in checkout["items"].items():
+            por_formato[fid] = por_formato.get(fid, 0) + cant
+        for (fid, color_id), cant in checkout["items"].items():
             fmt = con.execute("""
                 SELECT f.id, f.producto_id, f.nombre AS formato, f.precio, f.stock, p.nombre
                 FROM producto_formatos f JOIN productos p ON p.id = f.producto_id
                 WHERE f.id = ?""", (fid,)).fetchone()
             if not fmt:
                 return None, ({"error": "Uno de los productos ya no existe. Revisa tu carrito."}, 400)
-            if fmt["stock"] < cant:
+            color = None
+            if color_id is not None:
+                color = color_de_producto(con, color_id, fmt["producto_id"])
+                if not color:
+                    return None, ({"error": f"Uno de los colores no está disponible para «{fmt['nombre']}». "
+                                            "Revisa tu carrito.", "formato_id": fid, "color_id": color_id}, 400)
+            if fmt["stock"] < por_formato[fid]:
                 return None, ({
                     "error": f"No hay stock suficiente de «{fmt['nombre']}» ({fmt['formato']}): "
-                             f"pediste {cant} y quedan {fmt['stock']}.",
+                             f"pediste {por_formato[fid]} y quedan {fmt['stock']}.",
                     "formato_id": fid,
                     "nombre": fmt["nombre"],
                     "disponible": fmt["stock"],
                 }, 409)
             subtotal += fmt["precio"] * cant
             detalle.append({"producto_id": fmt["producto_id"], "formato_id": fid, "nombre": fmt["nombre"],
-                            "formato": fmt["formato"], "precio": fmt["precio"], "cantidad": cant})
+                            "formato": fmt["formato"], "precio": fmt["precio"], "cantidad": cant,
+                            "color_id": color["id"] if color else None,
+                            "color_nombre": color["nombre"] if color else None,
+                            "color_codigo": color["codigo"] if color else None,
+                            "color_hex": color["hex"] if color else None})
         despacho = 0  # retiro en sucursal: sin costo
         if checkout["entrega"] == "despacho":
             fila = con.execute("SELECT costo FROM tarifas_despacho WHERE region=?", (checkout["region"],)).fetchone()
@@ -1894,9 +2278,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 tuple(columnas.values()))
             pedido_id = cur.lastrowid
             con.executemany(
-                """INSERT INTO pedido_items (pedido_id, producto_id, formato_id, nombre, formato, precio, cantidad)
-                   VALUES (?,?,?,?,?,?,?)""",
-                [(pedido_id, i["producto_id"], i["formato_id"], i["nombre"], i["formato"], i["precio"], i["cantidad"])
+                """INSERT INTO pedido_items (pedido_id, producto_id, formato_id, nombre, formato, precio, cantidad,
+                                            color_id, color_nombre, color_codigo, color_hex)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                [(pedido_id, i["producto_id"], i["formato_id"], i["nombre"], i["formato"], i["precio"], i["cantidad"],
+                  i["color_id"], i["color_nombre"], i["color_codigo"], i["color_hex"])
                  for i in resumen["items"]],
             )
             con.commit()  # recién aquí los cambios quedan guardados de verdad
@@ -1973,7 +2359,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             superficies = _leer_superficies(datos["superficies"])
             if superficies is None:
                 return self._json({"error": "Superficies inválidas. Usa: " + ", ".join(SUPERFICIES)}, 400)
-        if not cambios and superficies is None:
+        colores = None
+        if "colores" in datos:
+            colores = datos["colores"]
+            if not isinstance(colores, list) or any(type(i) is not int for i in colores):
+                return self._json({"error": "Colores inválidos (lista de ids)"}, 400)
+        if not cambios and superficies is None and colores is None:
             return self._json({"error": "No hay nada que cambiar"}, 400)
         con = get_db()
         try:
@@ -1989,6 +2380,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 con.execute("DELETE FROM producto_superficies WHERE producto_id=?", (producto_id,))
                 con.executemany("INSERT INTO producto_superficies (producto_id, superficie) VALUES (?,?)",
                                 [(producto_id, sup) for sup in superficies])
+            if colores is not None:
+                con.execute("DELETE FROM producto_colores WHERE producto_id=?", (producto_id,))
+                con.executemany("INSERT OR IGNORE INTO producto_colores (producto_id, color_id) "
+                                "SELECT ?, id FROM colores WHERE id=?", [(producto_id, cid) for cid in colores])
             con.commit()
         finally:
             con.close()
@@ -2069,7 +2464,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             p["sucursal_nombre"] = SUCURSALES.get(p["sucursal"])
             p["region_nombre"] = REGIONES.get(p["region"])
             items = con.execute(
-                "SELECT nombre, formato, precio, cantidad FROM pedido_items WHERE pedido_id=?", (p["id"],)
+                """SELECT nombre, formato, precio, cantidad, color_nombre, color_codigo, color_hex
+                   FROM pedido_items WHERE pedido_id=?""", (p["id"],)
             ).fetchall()
             p["items"] = [dict(i) for i in items]
             pedidos.append(p)

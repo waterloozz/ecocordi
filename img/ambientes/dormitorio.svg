@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" data-prefijo="dm">
+  <!-- Ilustración propia de Pinturas Ecocordi, generada por img/ambientes/generar.py -->
+  <title>Dormitorio con muro de acento detrás de la cama, muros laterales y puerta</title>
+  <defs>
+    <filter id="dm-difuso" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="dm-muy-difuso" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="26"/></filter>
+    <linearGradient id="dm-cielo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C6D9E6"/><stop offset="1" stop-color="#F4EEE2"/></linearGradient>
+    <linearGradient id="dm-sombra-fondo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BDBDBD"/><stop offset="0.25" stop-color="#EDEDED"/><stop offset="0.85" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D8D8D8"/></linearGradient>
+    <linearGradient id="dm-sombra-izq" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E2E2E2"/><stop offset="1" stop-color="#C4C4C4"/></linearGradient>
+    <linearGradient id="dm-sombra-der" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#D4D4D4"/><stop offset="1" stop-color="#A8A8A8"/></linearGradient>
+    <linearGradient id="dm-sombra-piso" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A0A0A0"/><stop offset="1" stop-color="#E8E8E8"/></linearGradient>
+    <radialGradient id="dm-velador"><stop offset="0" stop-color="#6E5B3C"/><stop offset="1" stop-color="#000000"/></radialGradient>
+    <linearGradient id="dm-plumon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F2EEE7"/><stop offset="1" stop-color="#DCD5CA"/></linearGradient>
+    <clipPath id="dm-recorte-piso"><path d="M0.0 763.5 L330.0 540.0 L950.0 540.0 L1200.0 709.4 L1200.0 800.0 L0.0 800.0 Z"/></clipPath>
+  </defs>
+  <g class="capa-base">
+    <polygon points="152.9,0.0 1127.1,0.0 950.0,120.0 330.0,120.0" fill="#F3F1EC"/>
+    <path data-zona="muro" d="M0.0 0.0 L152.9 0.0 L330.0 120.0 L330.0 540.0 L0.0 763.5 Z" fill="#E6E1D8"/>
+    <path data-zona="acento" d="M330.0 120.0 L950.0 120.0 L950.0 540.0 L330.0 540.0 Z" fill="#C9BFB1"/>
+    <path data-zona="muro" d="M1127.1 0.0 L1200.0 0.0 L1200.0 709.4 L950.0 540.0 L950.0 120.0 Z" fill="#E6E1D8"/>
+    <polygon points="0.0,763.5 330.0,540.0 950.0,540.0 1200.0,709.4 1200.0,800.0 0.0,800.0" fill="#C29C75"/>
+    <polygon points="66.0,120.0 205.0,170.9 205.0,624.7 66.0,718.8" fill="#F6F4EF"/>
+    <path data-zona="puerta" d="M75.0 146.3 L195.0 185.3 L195.0 631.5 L75.0 712.7 Z" fill="#EDE8DF"/>
+    <polygon points="1005.0,142.1 1140.0,72.6 1140.0,438.4 1005.0,409.1" fill="#F6F4EF"/>
+    <polygon points="1015.0,147.1 1130.0,91.0 1130.0,422.9 1015.0,401.1" fill="url(#dm-cielo)"/>
+    <polygon points="330,528 950,528 950,540 330,540" fill="#F4F2ED"/>
+    <polygon points="0.0,737.5 330.0,527.4 330.0,540.0 0.0,763.5" fill="#F4F2ED"/>
+    <polygon points="950.0,527.4 1200.0,686.6 1200.0,709.4 950.0,540.0" fill="#F4F2ED"/>
+    <ellipse cx="640" cy="690" rx="360" ry="70" fill="#D9CDB9"/>
+  </g>
+  <g class="capa-sombra">
+    <path d="M330.0 120.0 L950.0 120.0 L950.0 540.0 L330.0 540.0 Z" fill="url(#dm-sombra-fondo)"/>
+    <path d="M0.0 0.0 L152.9 0.0 L330.0 120.0 L330.0 540.0 L0.0 763.5 Z" fill="url(#dm-sombra-izq)"/>
+    <path d="M1127.1 0.0 L1200.0 0.0 L1200.0 709.4 L950.0 540.0 L950.0 120.0 Z" fill="url(#dm-sombra-der)"/>
+    <polygon points="0.0,763.5 330.0,540.0 950.0,540.0 1200.0,709.4 1200.0,800.0 0.0,800.0" fill="url(#dm-sombra-piso)"/>
+    <g stroke="#8E8E8E" stroke-width="3" clip-path="url(#dm-recorte-piso)" opacity="0.45"><line x1="-500.0" y1="800" x2="130.6" y2="540"/><line x1="-375.0" y1="800" x2="186.5" y2="540"/><line x1="-250.0" y1="800" x2="242.3" y2="540"/><line x1="-125.0" y1="800" x2="298.2" y2="540"/><line x1="0.0" y1="800" x2="354.0" y2="540"/><line x1="125.0" y1="800" x2="409.9" y2="540"/><line x1="250.0" y1="800" x2="465.7" y2="540"/><line x1="375.0" y1="800" x2="521.6" y2="540"/><line x1="500.0" y1="800" x2="577.4" y2="540"/><line x1="625.0" y1="800" x2="633.3" y2="540"/><line x1="750.0" y1="800" x2="689.1" y2="540"/><line x1="875.0" y1="800" x2="745.0" y2="540"/><line x1="1000.0" y1="800" x2="800.9" y2="540"/><line x1="1125.0" y1="800" x2="856.7" y2="540"/><line x1="1250.0" y1="800" x2="912.6" y2="540"/><line x1="1375.0" y1="800" x2="968.4" y2="540"/><line x1="1500.0" y1="800" x2="1024.3" y2="540"/><line x1="1625.0" y1="800" x2="1080.1" y2="540"/><line x1="1750.0" y1="800" x2="1136.0" y2="540"/><line x1="1875.0" y1="800" x2="1191.8" y2="540"/></g>
+    <g stroke="#8A8A8A" stroke-width="14" filter="url(#dm-difuso)" opacity="0.8">
+      <line x1="330" y1="120" x2="330" y2="540"/><line x1="950" y1="120" x2="950" y2="540"/>
+      <line x1="330" y1="120" x2="950" y2="120"/><line x1="330" y1="540" x2="950" y2="540"/>
+    </g>
+    <polygon points="95.0,226.6 175.0,241.8 175.0,582.0 95.0,625.4" fill="#DADADA" stroke="#A5A5A5" stroke-width="2"/>
+    <polygon points="195.0,185.3 195.0,631.5 187.0,631.5 187.0,185.3" fill="#A0A0A0"/>
+    <rect x="455" y="300" width="370" height="190" rx="30" fill="#A2A2A2" filter="url(#dm-muy-difuso)"/>
+    <polygon points="287.6,640.0 992.4,640.0 1022.4,700.0 257.6,700.0" fill="#7A7A7A" filter="url(#dm-muy-difuso)"/>
+  </g>
+  <g class="capa-luz">
+    <polygon points="760,650 960,630 1040,790 800,800" fill="#4A4031" filter="url(#dm-muy-difuso)"/>
+    <circle cx="400" cy="400" r="150" fill="url(#dm-velador)"/>
+    <circle cx="880" cy="400" r="150" fill="url(#dm-velador)"/>
+  </g>
+  <g class="capa-frente">
+    <!-- Cortinas -->
+    <polygon points="985.0,133.7 1022.0,112.6 1022.0,526.7 985.0,507.6" fill="#E8DCCB"/>
+    <polygon points="1122.0,55.7 1165.0,31.3 1165.0,600.3 1122.0,578.2" fill="#E8DCCB"/>
+    <!-- Cama -->
+    <rect x="455" y="318" width="370" height="160" rx="18" fill="#6E5A48"/>
+    <rect x="472" y="334" width="336" height="126" rx="12" fill="#7E6955"/>
+    <polygon points="470.0,470.0 810.0,470.0 982.4,612.0 297.6,612.0" fill="url(#dm-plumon)"/>
+    <rect x="297.6" y="612" width="684.9" height="44" fill="#CFC6B8"/>
+    <polygon points="464.0,520.0 816.0,520.0 986.4,600.0 293.6,600.0" fill="#B9C7BD"/>
+    <rect x="293.6" y="600" width="692.9" height="28" fill="#A7B6AB"/>
+    <rect x="495" y="440" width="135" height="48" rx="18" fill="#FAF8F4"/>
+    <rect x="650" y="440" width="135" height="48" rx="18" fill="#F6F3EE"/>
+    <line x1="305.6" y1="660" x2="305.6" y2="680" stroke="#4A3A2E" stroke-width="8"/>
+    <line x1="974.4" y1="660" x2="974.4" y2="680" stroke="#4A3A2E" stroke-width="8"/>
+    <!-- Veladores y lámparas -->
+    <rect x="360" y="470" width="82" height="80" rx="4" fill="#8A6C50"/>
+    <rect x="838" y="470" width="82" height="80" rx="4" fill="#8A6C50"/>
+    <line x1="366" y1="505" x2="436" y2="505" stroke="#6F563F" stroke-width="3"/>
+    <line x1="844" y1="505" x2="914" y2="505" stroke="#6F563F" stroke-width="3"/>
+    <polygon points="382,418 420,418 430,452 372,452" fill="#F0E6D3"/>
+    <rect x="397" y="452" width="8" height="18" fill="#3B3833"/>
+    <polygon points="860,418 898,418 908,452 850,452" fill="#F0E6D3"/>
+    <rect x="875" y="452" width="8" height="18" fill="#3B3833"/>
+  </g>
+</svg>

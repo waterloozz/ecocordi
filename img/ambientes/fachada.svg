@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" data-prefijo="fc">
+  <!-- Ilustración propia de Pinturas Ecocordi, generada por img/ambientes/generar.py -->
+  <title>Fachada de una casa con muro principal, volumen de acento, puerta y reja</title>
+  <defs>
+    <filter id="fc-difuso" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="fc-muy-difuso" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="26"/></filter>
+    <linearGradient id="fc-cielo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BCD7E9"/><stop offset="1" stop-color="#F2EBDD"/></linearGradient>
+    <linearGradient id="fc-sombra-muro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#CFCFCF"/></linearGradient>
+    <linearGradient id="fc-sombra-alero" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8C8C8C"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>
+    <linearGradient id="fc-sombra-reja" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F2F2F2"/><stop offset="1" stop-color="#9C9C9C"/></linearGradient>
+    <linearGradient id="fc-vidrio" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9DB9C9"/><stop offset="0.55" stop-color="#6F8C9D"/><stop offset="1" stop-color="#58707F"/></linearGradient>
+    <radialGradient id="fc-sol" cx="0.15" cy="0.1" r="0.8"><stop offset="0" stop-color="#5C4A2C"/><stop offset="1" stop-color="#000000"/></radialGradient>
+  </defs>
+  <g class="capa-base">
+    <rect width="1200" height="600" fill="url(#fc-cielo)"/>
+    <path d="M0 470 C 180 400, 330 450, 520 410 S 900 380, 1200 440 V600 H0 Z" fill="#B8C3A9"/>
+    <rect y="590" width="1200" height="210" fill="#8EA06A"/>
+    <rect y="704" width="1200" height="56" fill="#D2CABB"/>
+    <rect y="760" width="1200" height="40" fill="#96918A"/>
+    <path data-zona="fachada" d="M180 300 H800 V640 H180 Z" fill="#EDE7DC"/>
+    <path data-zona="acento" d="M800 232 H1060 V640 H800 Z" fill="#9FA89A"/>
+    <rect x="788" y="218" width="284" height="16" fill="#F3F1EC"/>
+    <polygon points="140,305 490,125 840,305" fill="#9C5540"/>
+    <polygon points="140,305 490,125 840,305 822,305 490,142 158,305" fill="#7C4232"/>
+    <rect x="410" y="428" width="120" height="212" fill="#F6F4EF"/>
+    <path data-zona="puerta" d="M422 440 H518 V640 H422 Z" fill="#7A5A40"/>
+    <rect x="220" y="384" width="158" height="134" fill="#F6F4EF"/><rect x="228" y="392" width="142" height="118" fill="url(#fc-vidrio)"/><rect x="296.0" y="392" width="6" height="118" fill="#F6F4EF"/><polygon points="240,500 287.64,404 313.64,404 266,500" fill="#FFFFFF" opacity="0.25"/>
+    <rect x="588" y="384" width="166" height="134" fill="#F6F4EF"/><rect x="596" y="392" width="150" height="118" fill="url(#fc-vidrio)"/><rect x="668.0" y="392" width="6" height="118" fill="#F6F4EF"/><polygon points="608,500 659.0,404 685.0,404 634,500" fill="#FFFFFF" opacity="0.25"/>
+    <rect x="854" y="292" width="152" height="206" fill="#F6F4EF"/><rect x="862" y="300" width="136" height="190" fill="url(#fc-vidrio)"/><rect x="927.0" y="300" width="6" height="190" fill="#F6F4EF"/><polygon points="874,480 919.12,312 945.12,312 900,480" fill="#FFFFFF" opacity="0.25"/>
+    <rect x="160" y="636" width="660" height="10" fill="#CFC8BB"/>
+  </g>
+  <g class="capa-sombra">
+    <path d="M180 300 H800 V640 H180 Z" fill="url(#fc-sombra-muro)"/>
+    <path d="M800 232 H1060 V640 H800 Z" fill="url(#fc-sombra-muro)"/>
+    <polygon points="180,300 800,300 800,338 180,338" fill="url(#fc-sombra-alero)"/>
+    <rect x="800" y="234" width="260" height="24" fill="url(#fc-sombra-alero)"/>
+    <rect x="800" y="232" width="22" height="408" fill="#C6C6C6" filter="url(#fc-difuso)"/>
+    <polygon points="422,440 518,440 518,452 422,452" fill="#8F8F8F"/>
+    <polygon points="422,440 432,440 432,640 422,640" fill="#9A9A9A"/>
+    <rect x="436" y="460" width="68" height="70" fill="none" stroke="#9B9B9B" stroke-width="3"/>
+    <rect x="436" y="548" width="68" height="76" fill="none" stroke="#9B9B9B" stroke-width="3"/>
+    <rect x="160" y="628" width="920" height="22" fill="#9C9C9C" filter="url(#fc-difuso)"/>
+    <path d="M96 574 h8 v124 h-8 Z M126 574 h8 v124 h-8 Z M156 574 h8 v124 h-8 Z M186 574 h8 v124 h-8 Z M216 574 h8 v124 h-8 Z M246 574 h8 v124 h-8 Z M276 574 h8 v124 h-8 Z M306 574 h8 v124 h-8 Z M336 574 h8 v124 h-8 Z M366 574 h8 v124 h-8 Z M396 574 h8 v124 h-8 Z M426 574 h8 v124 h-8 Z M456 574 h8 v124 h-8 Z M486 574 h8 v124 h-8 Z M516 574 h8 v124 h-8 Z M546 574 h8 v124 h-8 Z M576 574 h8 v124 h-8 Z M606 574 h8 v124 h-8 Z M636 574 h8 v124 h-8 Z M666 574 h8 v124 h-8 Z M696 574 h8 v124 h-8 Z M726 574 h8 v124 h-8 Z M756 574 h8 v124 h-8 Z M786 574 h8 v124 h-8 Z M816 574 h8 v124 h-8 Z M846 574 h8 v124 h-8 Z M876 574 h8 v124 h-8 Z M906 574 h8 v124 h-8 Z M936 574 h8 v124 h-8 Z M966 574 h8 v124 h-8 Z M996 574 h8 v124 h-8 Z M1026 574 h8 v124 h-8 Z M1056 574 h8 v124 h-8 Z M1086 574 h8 v124 h-8 Z M70 552 h26 v150 h-26 Z M590 552 h26 v150 h-26 Z M1112 552 h26 v150 h-26 Z M70 580 H1138 v9 H70 Z M70 668 H1138 v9 H70 Z" fill="url(#fc-sombra-reja)"/>
+    <path d="M96 704 l-40 60 h8 l40 -60 Z M126 704 l-40 60 h8 l40 -60 Z M156 704 l-40 60 h8 l40 -60 Z M186 704 l-40 60 h8 l40 -60 Z M216 704 l-40 60 h8 l40 -60 Z M246 704 l-40 60 h8 l40 -60 Z M276 704 l-40 60 h8 l40 -60 Z M306 704 l-40 60 h8 l40 -60 Z M336 704 l-40 60 h8 l40 -60 Z M366 704 l-40 60 h8 l40 -60 Z M396 704 l-40 60 h8 l40 -60 Z M426 704 l-40 60 h8 l40 -60 Z M456 704 l-40 60 h8 l40 -60 Z M486 704 l-40 60 h8 l40 -60 Z M516 704 l-40 60 h8 l40 -60 Z M546 704 l-40 60 h8 l40 -60 Z M576 704 l-40 60 h8 l40 -60 Z M606 704 l-40 60 h8 l40 -60 Z M636 704 l-40 60 h8 l40 -60 Z M666 704 l-40 60 h8 l40 -60 Z M696 704 l-40 60 h8 l40 -60 Z M726 704 l-40 60 h8 l40 -60 Z M756 704 l-40 60 h8 l40 -60 Z M786 704 l-40 60 h8 l40 -60 Z M816 704 l-40 60 h8 l40 -60 Z M846 704 l-40 60 h8 l40 -60 Z M876 704 l-40 60 h8 l40 -60 Z M906 704 l-40 60 h8 l40 -60 Z M936 704 l-40 60 h8 l40 -60 Z M966 704 l-40 60 h8 l40 -60 Z M996 704 l-40 60 h8 l40 -60 Z M1026 704 l-40 60 h8 l40 -60 Z M1056 704 l-40 60 h8 l40 -60 Z M1086 704 l-40 60 h8 l40 -60 Z " fill="#8E8E8E" filter="url(#fc-difuso)" opacity="0.7"/>
+  </g>
+  <g class="capa-luz">
+    <rect width="1200" height="700" fill="url(#fc-sol)"/>
+  </g>
+  <g class="capa-frente">
+    <!-- Árbol -->
+    <rect x="62" y="380" width="22" height="220" fill="#6A4E38"/>
+    <circle cx="70" cy="330" r="78" fill="#6E8F5C"/>
+    <circle cx="120" cy="370" r="56" fill="#5F8150"/>
+    <circle cx="30" cy="378" r="50" fill="#7A9A66"/>
+    <!-- Arbustos -->
+    <ellipse cx="300" cy="610" rx="90" ry="40" fill="#5E8150"/>
+    <ellipse cx="680" cy="612" rx="100" ry="38" fill="#688B58"/>
+    <ellipse cx="960" cy="614" rx="92" ry="36" fill="#5E8150"/>
+    <!-- Reja (zona pintable, va delante de la casa) -->
+    <path data-zona="reja" d="M96 574 h8 v124 h-8 Z M126 574 h8 v124 h-8 Z M156 574 h8 v124 h-8 Z M186 574 h8 v124 h-8 Z M216 574 h8 v124 h-8 Z M246 574 h8 v124 h-8 Z M276 574 h8 v124 h-8 Z M306 574 h8 v124 h-8 Z M336 574 h8 v124 h-8 Z M366 574 h8 v124 h-8 Z M396 574 h8 v124 h-8 Z M426 574 h8 v124 h-8 Z M456 574 h8 v124 h-8 Z M486 574 h8 v124 h-8 Z M516 574 h8 v124 h-8 Z M546 574 h8 v124 h-8 Z M576 574 h8 v124 h-8 Z M606 574 h8 v124 h-8 Z M636 574 h8 v124 h-8 Z M666 574 h8 v124 h-8 Z M696 574 h8 v124 h-8 Z M726 574 h8 v124 h-8 Z M756 574 h8 v124 h-8 Z M786 574 h8 v124 h-8 Z M816 574 h8 v124 h-8 Z M846 574 h8 v124 h-8 Z M876 574 h8 v124 h-8 Z M906 574 h8 v124 h-8 Z M936 574 h8 v124 h-8 Z M966 574 h8 v124 h-8 Z M996 574 h8 v124 h-8 Z M1026 574 h8 v124 h-8 Z M1056 574 h8 v124 h-8 Z M1086 574 h8 v124 h-8 Z M70 552 h26 v150 h-26 Z M590 552 h26 v150 h-26 Z M1112 552 h26 v150 h-26 Z M70 580 H1138 v9 H70 Z M70 668 H1138 v9 H70 Z" fill="#3C3F41"/>
+  </g>
+</svg>

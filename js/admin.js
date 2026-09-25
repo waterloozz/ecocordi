@@ -45,6 +45,8 @@ async function verificarAdmin() {
   document.getElementById("panel").style.display = "block";
   document.getElementById("adminNombre").textContent = "Hola, " + usuario.nombre;
   cargarPedidos();
+  await cargarColores(); // los productos muestran sus colores
+  actualizarVistaColor();
   cargarProductos();
   cargarTarifas();
 }
@@ -62,6 +64,7 @@ document.querySelectorAll(".admin__tab").forEach(function (tab) {
     const cual = tab.dataset.tab;
     document.getElementById("tabPedidos").style.display = cual === "pedidos" ? "block" : "none";
     document.getElementById("tabProductos").style.display = cual === "productos" ? "block" : "none";
+    document.getElementById("tabColores").style.display = cual === "colores" ? "block" : "none";
     document.getElementById("tabDespacho").style.display = cual === "despacho" ? "block" : "none";
   });
 });
@@ -92,7 +95,8 @@ async function cargarPedidos() {
   contenedor.innerHTML = pedidos.map(function (p) {
     const items = p.items.map(function (it) {
       const formato = it.formato ? " (" + escaparHTML(it.formato) + ")" : "";
-      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}${formato} <span class="tabla__secundario">${formatearPrecio(it.precio)} c/u</span></li>`;
+      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}${formato} <span class="tabla__secundario">${formatearPrecio(it.precio)} c/u</span>
+        ${htmlColorElegido(it.color_nombre, it.color_codigo, it.color_hex)}</li>`;
     }).join("");
 
     // Solo usamos estados conocidos para armar clases CSS
@@ -126,6 +130,7 @@ async function cargarPedidos() {
       </tr>
     `;
   }).join("");
+  pintarMuestras(contenedor);
 }
 
 /* Entrega (retiro/despacho) y documento (boleta/factura) de un pedido. Ya escapado. */
@@ -237,6 +242,7 @@ async function cargarProductos() {
             </div>
           </div>
           ${htmlFicha(p, nombre)}
+          ${htmlColoresProducto(p, nombre)}
         </td>
         <td data-etiqueta="Formatos">
           <ul class="admin-formatos">${formatos}</ul>
@@ -271,6 +277,9 @@ async function cargarProductos() {
   document.querySelectorAll(".admin-formato-nuevo__form").forEach(function (form) {
     completarLitros(form.elements.nombre, form.elements.litros);
   });
+  pintarMuestras(contenedor);
+  productosAdmin = productos;
+  pintarProductosDelColor();
 }
 
 /* -------- 5b. FICHA TÉCNICA (asistente y calculadora) --------
@@ -442,6 +451,16 @@ document.getElementById("listaProductos").addEventListener("submit", async funct
     return;
   }
 
+  if (form.matches(".admin-colores-prod")) {
+    const ids = [...form.querySelectorAll("input:checked")].map(function (c) { return Number(c.value); });
+    if (await enviar("PATCH", "/api/admin/productos/" + fila.dataset.id, { colores: ids },
+                     "Colores guardados: " + nombre + " (" + ids.length + ")")) {
+      await cargarColores();
+      cargarProductos();
+    }
+    return;
+  }
+
   if (form.matches(".admin-ficha__form")) {
     const e = form.elements;
     if (await enviar("PATCH", "/api/admin/productos/" + fila.dataset.id, {
@@ -462,6 +481,177 @@ document.getElementById("listaProductos").addEventListener("submit", async funct
       precio: Number(form.elements.precio.value),
       stock: Number(form.elements.stock.value),
     }, "Formato agregado: " + nombre + " (" + formato + ")")) {
+      cargarProductos();
+    }
+  }
+});
+
+/* -------- 7b2. CARTA DE COLORES --------
+   Cada color tiene nombre, código, tono (#RRGGBB) y familia. "es_demo" marca
+   los colores de EJEMPLO (la carta oficial la entrega la empresa). */
+let coloresAdmin = [];      // todos los colores (también los inactivos)
+let productosAdmin = [];    // para las casillas "Productos que vienen en este color"
+let familiasColor = {};
+let colorEditando = null;   // id del color que se está editando (null = nuevo)
+
+async function cargarColores() {
+  const [colores, publicos] = await Promise.all([
+    fetch("/api/admin/colores").then(function (r) { return r.json(); }),
+    fetch("/api/colores").then(function (r) { return r.json(); }),
+  ]);
+  coloresAdmin = colores;
+  familiasColor = publicos.familias;
+  const selector = document.getElementById("cFamilia");
+  if (!selector.options.length) {
+    selector.innerHTML = Object.entries(familiasColor).map(function (f) {
+      return `<option value="${f[0]}">${escaparHTML(f[1])}</option>`;
+    }).join("");
+  }
+  document.getElementById("contadorColores").textContent = colores.length;
+  const lista = document.getElementById("listaColores");
+  if (colores.length === 0) {
+    lista.innerHTML = "<tr><td colspan='4' class='admin__vacio tabla__sin-etiqueta'>No hay colores. Agrega el primero con el formulario.</td></tr>";
+    return;
+  }
+  lista.innerHTML = colores.map(function (c) {
+    const nombre = escaparHTML(c.nombre);
+    return `
+      <tr class="admin-color ${c.activo ? "" : "admin-color--inactivo"}" data-id="${c.id}">
+        <td class="tabla__sin-etiqueta">
+          <div class="admin-prod__celda">
+            <span class="admin-color__punto" data-hex="${escaparHTML(c.hex)}" aria-hidden="true"></span>
+            <div>
+              <span class="admin-prod__nombre">${nombre}</span>
+              <span class="tabla__secundario">${escaparHTML(c.codigo)} · ${escaparHTML(c.hex)}
+                ${c.es_demo ? '<span class="etiqueta-demo">Ejemplo</span>' : ""}
+                ${c.activo ? "" : '<span class="etiqueta-invitado">Inactivo</span>'}</span>
+            </div>
+          </div>
+        </td>
+        <td data-etiqueta="Familia">${escaparHTML(familiasColor[c.familia] || c.familia)}</td>
+        <td data-etiqueta="Productos">${c.productos.length}</td>
+        <td data-etiqueta="Acciones">
+          <div class="admin-prod__acciones">
+            <button type="button" class="admin-prod__guardar" data-editar-color>Editar</button>
+            <button type="button" class="admin-prod__borrar" data-borrar-color aria-label="Eliminar el color ${nombre}">
+              <svg class="icono" aria-hidden="true"><use href="#i-basura"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
+  pintarMuestras(lista);
+}
+
+/* Casillas de colores dentro de cada producto (se despliegan) */
+function htmlColoresProducto(p, nombre) {
+  const casillas = coloresAdmin.map(function (c) {
+    return `<label class="casilla casilla--color ${c.activo ? "" : "casilla--inactiva"}">
+      <input type="checkbox" value="${c.id}" ${p.colores.includes(c.id) || (!c.activo && c.productos.includes(p.id)) ? "checked" : ""} />
+      <span class="admin-color__punto admin-color__punto--chico" data-hex="${escaparHTML(c.hex)}"></span>${escaparHTML(c.nombre)}</label>`;
+  }).join("");
+  return `
+    <details class="admin-ficha">
+      <summary>Colores <span class="tabla__secundario">${p.colores.length} disponibles</span></summary>
+      <form class="admin-colores-prod" aria-label="Colores de ${nombre}">
+        <div class="admin-colores-prod__lista">${casillas || '<span class="tabla__secundario">No hay colores en la carta.</span>'}</div>
+        <button type="submit" class="admin-prod__guardar">Guardar colores</button>
+      </form>
+    </details>`;
+}
+
+/* Casillas "Productos que vienen en este color" del formulario */
+function pintarProductosDelColor() {
+  const color = coloresAdmin.find(function (c) { return c.id === colorEditando; });
+  const marcados = color ? color.productos : [];
+  document.getElementById("cProductos").innerHTML = "<legend>Productos que vienen en este color</legend>" +
+    productosAdmin.map(function (p) {
+      return `<label class="casilla"><input type="checkbox" value="${p.id}" ${marcados.includes(p.id) ? "checked" : ""} />${escaparHTML(p.nombre)}</label>`;
+    }).join("");
+}
+
+/* Vista previa del color: fondo del tono y texto que se lee encima */
+function actualizarVistaColor() {
+  const hex = document.getElementById("cHexTexto").value.trim().toUpperCase();
+  const vista = document.getElementById("colorVista");
+  if (!/^#[0-9A-F]{6}$/.test(hex)) return;
+  vista.style.backgroundColor = hex;
+  const [r, g, b] = [1, 3, 5].map(function (i) { return parseInt(hex.slice(i, i + 2), 16); });
+  vista.classList.toggle("admin-color__muestra--oscura", 0.299 * r + 0.587 * g + 0.114 * b < 140);
+  document.getElementById("colorVistaTexto").textContent =
+    (document.getElementById("cNombre").value.trim() || "Nuevo color") + " · " + hex;
+}
+
+document.getElementById("cHex").addEventListener("input", function (e) {
+  document.getElementById("cHexTexto").value = e.target.value.toUpperCase();
+  actualizarVistaColor();
+});
+document.getElementById("cHexTexto").addEventListener("input", function (e) {
+  const hex = e.target.value.trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(hex)) document.getElementById("cHex").value = hex.toLowerCase();
+  actualizarVistaColor();
+});
+document.getElementById("cNombre").addEventListener("input", actualizarVistaColor);
+
+function formularioColor(color) {
+  colorEditando = color ? color.id : null;
+  document.getElementById("colorFormTitulo").textContent = color ? "Editar color" : "Agregar color";
+  document.getElementById("cNombre").value = color ? color.nombre : "";
+  document.getElementById("cCodigo").value = color ? color.codigo : "";
+  document.getElementById("cHexTexto").value = color ? color.hex : "#A3B09A";
+  document.getElementById("cHex").value = (color ? color.hex : "#A3B09A").toLowerCase();
+  document.getElementById("cFamilia").value = color ? color.familia : "blancos";
+  document.getElementById("cActivo").checked = color ? !!color.activo : true;
+  document.getElementById("cDemo").checked = color ? !!color.es_demo : false;
+  document.getElementById("cCancelar").classList.toggle("oculto", !color);
+  pintarProductosDelColor();
+  actualizarVistaColor();
+}
+
+document.getElementById("cCancelar").addEventListener("click", function () { formularioColor(null); });
+
+document.getElementById("formColor").addEventListener("submit", async function (e) {
+  e.preventDefault();
+  const datos = {
+    nombre: document.getElementById("cNombre").value.trim(),
+    codigo: document.getElementById("cCodigo").value.trim(),
+    hex: document.getElementById("cHexTexto").value.trim().toUpperCase(),
+    familia: document.getElementById("cFamilia").value,
+    activo: document.getElementById("cActivo").checked,
+    es_demo: document.getElementById("cDemo").checked,
+    productos: [...document.querySelectorAll("#cProductos input:checked")].map(function (c) { return Number(c.value); }),
+  };
+  const ok = colorEditando
+    ? await enviar("PATCH", "/api/admin/colores/" + colorEditando, datos, "Color guardado: " + datos.nombre)
+    : await enviar("POST", "/api/admin/colores", datos, "Color agregado: " + datos.nombre);
+  if (ok) {
+    formularioColor(null);
+    await cargarColores();
+    cargarProductos();
+  }
+});
+
+document.getElementById("listaColores").addEventListener("click", async function (evento) {
+  const fila = evento.target.closest(".admin-color");
+  if (!fila) return;
+  const color = coloresAdmin.find(function (c) { return c.id === Number(fila.dataset.id); });
+  if (evento.target.closest("[data-editar-color]")) {
+    formularioColor(color);
+    document.getElementById("cNombre").focus();
+    document.getElementById("formColor").scrollIntoView({ block: "start" });
+    return;
+  }
+  if (evento.target.closest("[data-borrar-color]")) {
+    const seguro = await confirmar({
+      titulo: "Eliminar color",
+      mensaje: "¿Eliminar «" + color.nombre + "»? Sale de los productos y de los favoritos de los clientes. " +
+               "Los pedidos ya hechos conservan el color. Si solo quieres ocultarlo, desmarca «Activo».",
+      textoConfirmar: "Eliminar",
+      peligro: true,
+    });
+    if (seguro && await enviar("DELETE", "/api/admin/colores/" + color.id, null, "Color eliminado: " + color.nombre)) {
+      if (colorEditando === color.id) formularioColor(null);
+      await cargarColores();
       cargarProductos();
     }
   }

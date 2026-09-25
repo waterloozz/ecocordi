@@ -56,6 +56,10 @@
                 role="tab" id="tabBtnProductos" aria-selected="false" aria-controls="tabProductos">
           Productos <span class="admin__contador" id="contadorProductos"></span>
         </button>
+        <button type="button" class="admin__tab" data-tab="colores"
+                role="tab" id="tabBtnColores" aria-selected="false" aria-controls="tabColores">
+          Colores <span class="admin__contador" id="contadorColores"></span>
+        </button>
         <button type="button" class="admin__tab" data-tab="despacho"
                 role="tab" id="tabBtnDespacho" aria-selected="false" aria-controls="tabDespacho">
           Despacho
@@ -193,6 +197,66 @@
           <option value="galón"></option>
           <option value="tineta"></option>
         </datalist>
+      </section>
+
+      <!-- SECCIÓN COLORES: carta de colores del visualizador -->
+      <section id="tabColores" class="admin__seccion oculto" role="tabpanel" aria-labelledby="tabBtnColores">
+        <div class="admin__tarjeta admin__tarjeta--form">
+          <h2 class="admin__subtitulo" id="colorFormTitulo">Agregar color</h2>
+          <form id="formColor" class="admin__form">
+            <!-- Vista previa: cómo se ve el color en un muro -->
+            <div class="admin-color__vista campo--ancho" aria-hidden="true">
+              <span class="admin-color__muestra" id="colorVista"><span id="colorVistaTexto">Nuevo color</span></span>
+            </div>
+            <label class="campo">
+              <span class="campo__etiqueta">Nombre</span>
+              <input class="campo__control" type="text" id="cNombre" maxlength="40" placeholder="Ej: Niebla del Llaima" required />
+            </label>
+            <label class="campo">
+              <span class="campo__etiqueta">Código</span>
+              <input class="campo__control" type="text" id="cCodigo" maxlength="12" placeholder="Ej: EC-B07" required />
+            </label>
+            <div class="campo">
+              <label class="campo__etiqueta" for="cHexTexto">Tono (hexadecimal)</label>
+              <div class="admin-color__tono">
+                <input type="color" id="cHex" value="#A3B09A" aria-label="Elegir el tono con el selector de color" />
+                <input class="campo__control" type="text" id="cHexTexto" value="#A3B09A" maxlength="7"
+                       pattern="#[0-9A-Fa-f]{6}" placeholder="#A3B09A" required />
+              </div>
+            </div>
+            <label class="campo">
+              <span class="campo__etiqueta">Familia</span>
+              <select class="campo__control" id="cFamilia" required></select>
+            </label>
+            <div class="admin__casillas">
+              <label class="casilla"><input type="checkbox" id="cActivo" checked />Activo (se ve en la tienda)</label>
+              <label class="casilla"><input type="checkbox" id="cDemo" />Color de ejemplo (por confirmar)</label>
+            </div>
+            <fieldset class="admin__superficies" id="cProductos">
+              <legend>Productos que vienen en este color</legend>
+            </fieldset>
+            <div class="admin__form-acciones">
+              <button type="button" class="boton boton--secundario oculto" id="cCancelar">Cancelar edición</button>
+              <button type="submit" class="boton boton--principal" id="cGuardar">Guardar color</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="tabla-marco">
+          <table class="tabla">
+            <caption>Carta de colores</caption>
+            <thead>
+              <tr>
+                <th scope="col">Color</th>
+                <th scope="col">Familia</th>
+                <th scope="col">Productos</th>
+                <th scope="col"><span class="solo-lector">Acciones</span></th>
+              </tr>
+            </thead>
+            <!-- admin.js pinta aquí una fila por color -->
+            <tbody id="listaColores"></tbody>
+          </table>
+        </div>
       </section>
 
       <!-- SECCIÓN DESPACHO: tarifa por región -->

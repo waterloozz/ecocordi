@@ -64,8 +64,8 @@ raiz = ET.fromstring(cuerpo)
 ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 urls = [u.find("s:loc", ns).text for u in raiz.findall("s:url", ns)]
 fechas = [u.find("s:lastmod", ns).text for u in raiz.findall("s:url", ns)]
-ok(len(urls) == 13 and all(u.startswith(SITIO + "/") for u in urls), "13 páginas, todas con el dominio de SITIO_URL", urls)
-ok(SITIO + "/asistente.html" in urls, "El asistente está en el sitemap")
+ok(len(urls) == 14 and all(u.startswith(SITIO + "/") for u in urls), "14 páginas, todas con el dominio de SITIO_URL", urls)
+ok(SITIO + "/asistente.html" in urls and SITIO + "/visualizador.html" in urls, "El asistente y el visualizador están en el sitemap")
 ok(SITIO + "/catalogo.html?superficie=madera" in urls and SITIO + "/" in urls, "Incluye la portada y el catálogo por superficie")
 ok(not any("admin" in u for u in urls), "El panel de administración NO está en el sitemap")
 ok(all(len(f) == 10 and f[4] == "-" for f in fechas), "Cada página tiene su fecha (lastmod)")

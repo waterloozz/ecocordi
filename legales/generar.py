@@ -137,7 +137,8 @@ TERMINOS = f'''
       <li>Las fotografías son <strong>imágenes referenciales</strong> de superficies y ambientes: no muestran el envase ni el color exacto del producto.</li>
       <li>Los precios están en pesos chilenos. El sitio indica junto a los precios si incluyen IVA, y el resumen de tu pedido muestra por separado el neto, el IVA (19 %) y el total. El precio que se aplica es el vigente al momento de enviar tu pedido.</li>
       <li>Cada producto puede venderse en distintos formatos (por ejemplo, 1/4 galón, galón o tineta), cada uno con su precio y su stock.</li>
-      <li>La calculadora de pintura entrega una <strong>estimación</strong>: el consumo real depende de la superficie y de cómo se aplique.</li>
+      <li>La calculadora y el asistente “¿Qué pintura necesito?” entregan una <strong>estimación y una sugerencia</strong>: el consumo real depende de la superficie y de cómo se aplique, y puedes consultarnos antes de comprar.</li>
+      <li>El <strong>visualizador de color</strong> muestra colores <strong>referenciales</strong>: la pantalla, la luz y la foto cambian cómo se ven. Pide una muestra en sucursal antes de decidir.</li>
     </ul>
 {pendiente("confirmar si los precios incluyen IVA (configuración PRECIOS_INCLUYEN_IVA), las tarifas de despacho por región, los plazos de entrega o retiro y los medios de pago aceptados.")}
 
@@ -200,6 +201,8 @@ PRIVACIDAD = f'''
       <li><strong>Entrega:</strong> la sucursal de retiro o, si eliges despacho, la dirección, comuna y región.</li>
       <li><strong>Facturación (solo si pides factura):</strong> RUT, razón social, giro y dirección comercial de la empresa.</li>
       <li><strong>Consentimiento:</strong> la fecha y la versión de los términos que aceptaste.</li>
+      <li><strong>Mis colores:</strong> si inicias sesión y guardas colores favoritos en el visualizador, guardamos en tu cuenta qué colores elegiste. Sin sesión, quedan solo en tu navegador.</li>
+      <li><strong>Pedidos con color:</strong> si eliges un color en el visualizador, el pedido guarda su nombre y código.</li>
       <li><strong>Sesión:</strong> una cookie técnica que te mantiene conectado (ver la <a href="cookies.html">Política de cookies</a>).</li>
       <li><strong>Seguridad:</strong> si un intento de iniciar sesión o registrarse falla, la dirección IP se usa solo en la memoria del servidor para bloquear intentos repetidos, y se descarta a los pocos minutos (el bloqueo dura 10). Al enviar un pedido, la IP se anota en memoria durante una hora para limitar pedidos repetidos. No se guarda en la base de datos ni en registros.</li>
     </ul>
@@ -238,6 +241,7 @@ PRIVACIDAD = f'''
       <li><strong>Pedidos:</strong> el tiempo que exijan las normas tributarias y de protección al consumidor. Si eliminas tu cuenta, tus pedidos quedan registrados sin tu nombre, correo, teléfono ni dirección de despacho; se conservan la comuna, la región y los datos de la factura, porque la empresa debe guardar sus documentos tributarios.</li>
       <li><strong>Compras como invitado:</strong> igual que los pedidos. Para pedir que borremos tus datos de contacto, escríbenos desde el correo que usaste en la compra.</li>
       <li><strong>IP de intentos fallidos:</strong> unos 10 minutos, solo en memoria.</li>
+      <li><strong>Mis colores:</strong> hasta que los quites o elimines tu cuenta.</li>
     </ul>
 
     <h2>7. Tus derechos</h2>
@@ -257,7 +261,13 @@ PRIVACIDAD = f'''
     de administración solo para administradores. Ningún sistema es infalible: si ocurriera un incidente
     que afecte tus datos, te informaremos según lo exija la ley.</p>
 
-    <h2>9. Cambios en esta política</h2>
+    <h2 id="visualizador">9. Visualizador de color: tu foto no sale de tu dispositivo</h2>
+    <p>Si usas “Tu propia foto”, la foto se abre y se pinta <strong>solo dentro de tu navegador</strong>
+    (con la tecnología <em>canvas</em>). <strong>No se sube a nuestro servidor</strong>, no la guardamos
+    y nadie más la ve. Al cerrar o recargar la página, desaparece. La imagen que descargas se arma en tu
+    propio equipo, y el enlace para compartir incluye solo el ambiente y los colores, nunca la foto.</p>
+
+    <h2>10. Cambios en esta política</h2>
     <p>Si la cambiamos, publicaremos la nueva versión con su fecha. Si un cambio implica usar tus datos
     para algo nuevo, te pediremos tu consentimiento otra vez.</p>
 '''
@@ -278,6 +288,8 @@ COOKIES = f'''
           <tr><td><code>google_estado</code></td><td>Cookie propia, necesaria</td><td>Solo si usas “Continuar con Google”: protege ese inicio de sesión para que otro sitio no pueda completarlo a tu nombre.</td><td>Máximo 10 minutos; se borra al terminar</td></tr>
           <tr><td><code>carrito_ecocordi</code></td><td>Almacenamiento local del navegador</td><td>Recordar los productos de tu carrito aunque cierres la página. Queda solo en tu equipo.</td><td>Hasta que vacíes el carrito o borres los datos del navegador</td></tr>
           <tr><td><code>luz_ecocordi</code></td><td>Almacenamiento local del navegador</td><td>Recordar si elegiste ver la página con luz de mañana, tarde o noche.</td><td>Hasta que borres los datos del navegador</td></tr>
+          <tr><td><code>colores_recientes_ecocordi</code></td><td>Almacenamiento local del navegador</td><td>Mostrar los últimos colores que usaste en el visualizador.</td><td>Hasta que borres los datos del navegador</td></tr>
+          <tr><td><code>colores_favoritos_ecocordi</code></td><td>Almacenamiento local del navegador</td><td>Guardar tus colores favoritos (“Mis colores”). Si inicias sesión, también se guardan en tu cuenta.</td><td>Hasta que los quites o borres los datos del navegador</td></tr>
         </tbody>
       </table>
     </div>
