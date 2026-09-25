@@ -72,19 +72,23 @@ gestionar productos.
 ecocordi/
 ├── server.py          → Backend: servidor + base de datos (API)
 ├── ecocordi.db        → Base de datos SQLite (se crea sola al arrancar)
-├── index.html         → Página principal de la tienda
+├── index.html         → Página principal: portada, superficies y 3 destacados
+├── catalogo.html      → Catálogo completo con filtro por superficie (?superficie=madera)
 ├── admin.html         → Panel de administración
-├── terminos.html      → Términos y condiciones (en preparación)
-├── privacidad.html    → Política de privacidad (en preparación)
+├── terminos.html, privacidad.html, cookies.html, devoluciones.html → Páginas legales
+├── legales/generar.py → Genera las páginas legales
+├── creditos.html      → Créditos de las fotografías
 ├── iniciar.sh         → Atajo para arrancar el servidor
 ├── css/
 │   └── estilos.css    → Todo el diseño (variables de color, espacios y tipografía en :root)
 ├── js/
+│   ├── luz.js         → Elige la luz (mañana/tarde/noche) antes de dibujar la página
 │   ├── ui.js          → Avisos (toasts) y diálogo de confirmación, compartidos
 │   ├── app.js         → Lógica de la tienda (catálogo, carrito, login)
 │   └── admin.js       → Lógica del panel de administración
 ├── fonts/             → Tipografías servidas desde el propio sitio (licencia OFL)
-└── img/               → Logo e imágenes de productos
+├── actualizar_catalogo.py → Actualiza fotos y descripciones de productos en una ecocordi.db antigua
+└── img/               → Fotos (WebP, de Unsplash; ver img/CREDITOS.md) y logo
 ```
 
 ---
@@ -93,7 +97,9 @@ ecocordi/
 
 - **Catálogo** cargado desde la base de datos.
 - **Filtro por superficie** (madera, metal, exterior, techo, interior): la
-  funcionalidad estrella, con accesos directos desde la portada.
+  funcionalidad estrella. Vive en `catalogo.html`; la superficie elegida queda en
+  la dirección (por ejemplo `catalogo.html?superficie=madera`), así se puede
+  compartir el enlace y el botón "atrás" vuelve al filtro anterior.
 - **Carrito de compras** que se mantiene aunque cierres la página y no deja
   pedir más unidades de las que hay en bodega.
 - **Stock** por producto: la tienda muestra "¡Quedan N!" cuando quedan 5 o
@@ -108,9 +114,10 @@ ecocordi/
 - **Mis pedidos**: cada cliente ve sus compras y el estado de cada una.
 - **Panel de administración** protegido: ver pedidos y cambiar su estado,
   agregar/eliminar productos y editar su precio y stock.
-- **Diseño "Carta de color"**: el sitio se arma como un muestrario de pintura.
-  Cada superficie tiene su color y su textura (vetas de madera, metal cepillado,
-  tablas de fachada, tejas, muro liso), dibujadas solo con CSS.
+- **Diseño "Luz de ventana"**: el mismo color cambia con la luz del día, y la
+  página lo muestra. Según la hora de quien la visita se ve con luz de **mañana**,
+  **tarde** o **noche** (fondo oscuro), y también se puede elegir a mano. Todas
+  las fotos y colores cambian juntos (`js/luz.js` + variables en `css/estilos.css`).
 - **Avisos y confirmaciones propios** (sin `alert()` ni `confirm()`).
 - **Responsive desde 360 px**, foco de teclado visible, contraste AA y respeto
   por la opción "reducir movimiento" del sistema.
@@ -140,6 +147,51 @@ ecocordi/
   o estilos escritos dentro del HTML. Por eso los eventos se conectan con
   `addEventListener` y los estilos viven en `css/estilos.css`.
 - Cabeceras `X-Content-Type-Options: nosniff` y `Referrer-Policy: same-origin`.
+
+---
+
+## 🔐 Iniciar sesión con Google
+
+El botón "Continuar con Google" aparece solo si el servidor tiene credenciales.
+Se usa el flujo OAuth 2.0 del lado del servidor (con `state`, `nonce` y PKCE),
+así que no se carga ningún script de Google y la CSP sigue intacta.
+
+1. Entra a [Google Cloud Console](https://console.cloud.google.com/) y crea un proyecto.
+2. **APIs y servicios → Pantalla de consentimiento de OAuth**: tipo *Externo*,
+   nombre de la app, correo de soporte y los permisos `openid`, `email` y `profile`.
+   Mientras esté "en prueba", agrega tu correo como *usuario de prueba*.
+3. **Credenciales → Crear credenciales → ID de cliente de OAuth** → *Aplicación web*.
+   En "URI de redireccionamiento autorizados" pon exactamente:
+   `http://localhost:8000/api/auth/google/callback`
+4. Arranca el servidor con las dos claves (nunca las subas a GitHub):
+
+   ```bash
+   GOOGLE_CLIENT_ID='xxx.apps.googleusercontent.com' GOOGLE_CLIENT_SECRET='xxx' python3 server.py
+   ```
+
+En producción, agrega la URI con tu dominio en Google Cloud y define
+`GOOGLE_REDIRECT_URI` con esa misma dirección. La cuenta de administrador
+no puede entrar con Google (solo con contraseña).
+
+---
+
+## ⚖️ Aspectos legales y de privacidad
+
+- Páginas: `terminos.html`, `privacidad.html`, `cookies.html` y `devoluciones.html`.
+  Se generan con **`python3 legales/generar.py`** (edita ese archivo, no los .html).
+  Los datos de la empresa se completan en `EMPRESA`, dentro de ese mismo archivo.
+- **Consentimiento:** crear una cuenta y enviar un pedido exigen marcar una casilla
+  (desmarcada por defecto). El servidor lo valida y guarda fecha y versión
+  (`VERSION_TERMINOS` en `server.py`: súbela si cambias los textos).
+- **Cookies:** solo la cookie de sesión (necesaria) y el carrito/luz en el
+  navegador. Sin analíticas ni terceros, por eso no hay aviso de cookies.
+- **Eliminar mi cuenta** (en "Mis pedidos"): borra nombre, correo y contraseña;
+  los pedidos quedan sin datos personales.
+- En producción con HTTPS, arranca con `COOKIE_SEGURA=1` para que la cookie
+  de sesión solo viaje cifrada.
+- **Pendiente antes de publicar:** datos de la empresa (razón social, RUT,
+  domicilio), IVA, despacho y medios de pago, copia del pedido por correo y
+  **revisión de un abogado**. Busca "Pendiente" y "Por confirmar" en los .html.
 
 ---
 

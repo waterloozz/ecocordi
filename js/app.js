@@ -23,6 +23,7 @@ const SUPERFICIES = {
 
 /* -------- 2. REFERENCIAS A ELEMENTOS DEL HTML -------- */
 const contenedorProductos = document.getElementById("productos");
+// Los filtros solo existen en catalogo.html (en la home no están: son null)
 const contenedorFiltros   = document.getElementById("filtros");
 const filtroActivo        = document.getElementById("filtroActivo");
 const contadorCarrito     = document.getElementById("contadorCarrito");
@@ -72,8 +73,8 @@ async function cargarProductos() {
 }
 
 /* -------- 5. MOSTRAR PRODUCTOS EN PANTALLA --------
-   Cada tarjeta es como una muestra de pintura: la franja de color de abajo
-   es la superficie principal del producto (la primera de su lista). */
+   Lista editorial: foto grande, nombre, superficies y una línea con
+   precio, stock y botón. */
 function mostrarProductos(lista) {
   if (lista.length === 0) {
     contenedorProductos.innerHTML =
@@ -98,8 +99,9 @@ function mostrarProductos(lista) {
     return `
       <article class="producto ${claseSuperficie(p.superficies[0])}" data-id="${p.id}">
         <div class="producto__foto">
-          <img src="${escaparHTML(p.imagen)}" alt="" width="400" height="300"
+          <img src="${escaparHTML(p.imagen)}" alt="" width="800" height="600"
                loading="lazy" decoding="async" />
+          <span class="imagen-referencial">Imagen referencial</span>
         </div>
         <div class="producto__cuerpo">
           <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
@@ -107,11 +109,13 @@ function mostrarProductos(lista) {
           <ul class="producto__superficies" aria-label="Superficies">${superficies}</ul>
           <div class="producto__pie">
             <span class="producto__precio">${formatearPrecio(p.precio)}</span>
-            ${avisoStock}
+            <div class="producto__compra">
+              ${avisoStock}
+              <button type="button" class="boton boton--principal producto__boton" ${agotado ? "disabled" : ""}>
+                ${agotado ? "Agotado" : "Agregar al carrito"}
+              </button>
+            </div>
           </div>
-          <button type="button" class="boton boton--principal producto__boton" ${agotado ? "disabled" : ""}>
-            ${agotado ? "Agotado" : "Agregar al carrito"}
-          </button>
         </div>
       </article>
     `;
@@ -131,35 +135,67 @@ contenedorProductos.addEventListener("click", function (evento) {
 });
 
 /* -------- 6. FILTRO POR SUPERFICIE (funcionalidad estrella) --------
-   Los botones grandes tienen contenido adentro (muestra, nombre, detalle),
-   así que usamos closest(".filtro") para encontrar el botón completo. */
-contenedorFiltros.addEventListener("click", function (evento) {
-  const boton = evento.target.closest(".filtro");
-  if (!boton) return;
-  elegirSuperficie(boton.dataset.superficie);
-});
+   Vive en catalogo.html. La superficie elegida se guarda en la dirección
+   de la página (catalogo.html?superficie=madera), así:
+     - la home puede enlazar directo a "pinturas para madera",
+     - el enlace se puede compartir (por ejemplo, por WhatsApp),
+     - el botón "atrás" del navegador vuelve al filtro anterior. */
 
-function elegirSuperficie(superficie) {
-  document.querySelectorAll(".filtro").forEach(function (btn) {
+/* Lee ?superficie=... de la dirección. Si no hay o no es válida: "todas" */
+function superficieDeLaURL() {
+  const superficie = new URLSearchParams(location.search).get("superficie");
+  return SUPERFICIES[superficie] ? superficie : "todas";
+}
+
+/* Marca como activo el botón de la superficie elegida */
+function marcarFiltro(superficie) {
+  document.querySelectorAll(".filtro[data-superficie]").forEach(function (btn) {
     const activo = btn.dataset.superficie === superficie;
     btn.classList.toggle("filtro--activo", activo);
     btn.setAttribute("aria-pressed", activo ? "true" : "false");
   });
-  superficieActiva = superficie;
-  mostrarCatalogo();
 }
 
-/* Atajos "¿Qué vas a pintar?" de la portada (y el "Ver todo" del catálogo):
-   cualquier botón con data-elegir-superficie filtra y lleva al catálogo. */
-document.addEventListener("click", function (evento) {
-  const atajo = evento.target.closest("[data-elegir-superficie]");
-  if (!atajo) return;
-  elegirSuperficie(atajo.dataset.elegirSuperficie);
-  document.getElementById("catalogo").scrollIntoView();
-});
+/* guardarEnHistorial = false cuando la elección viene del botón "atrás" */
+function elegirSuperficie(superficie, guardarEnHistorial) {
+  marcarFiltro(superficie);
+  superficieActiva = superficie;
+  mostrarCatalogo();
+  if (guardarEnHistorial !== false) {
+    const url = new URL(location.href);
+    if (superficie === "todas") url.searchParams.delete("superficie");
+    else url.searchParams.set("superficie", superficie);
+    history.pushState(null, "", url);
+  }
+}
+
+if (contenedorFiltros) {
+  // Al abrir el catálogo, partimos con la superficie que venga en la dirección
+  superficieActiva = superficieDeLaURL();
+  marcarFiltro(superficieActiva);
+
+  // Los botones tienen contenido adentro (miniatura y nombre),
+  // así que usamos closest(".filtro") para encontrar el botón completo.
+  contenedorFiltros.addEventListener("click", function (evento) {
+    const boton = evento.target.closest(".filtro");
+    if (!boton || boton.dataset.superficie === superficieActiva) return;
+    elegirSuperficie(boton.dataset.superficie);
+  });
+
+  // Botón "atrás" / "adelante" del navegador
+  window.addEventListener("popstate", function () {
+    elegirSuperficie(superficieDeLaURL(), false);
+  });
+
+  // El "Ver todo" que aparece junto al filtro activo
+  filtroActivo.addEventListener("click", function (evento) {
+    if (evento.target.closest("[data-elegir-superficie]")) elegirSuperficie("todas");
+  });
+}
 
 /* Muestra los productos según el filtro elegido. Se usa también cuando el
-   catálogo se recarga (por ejemplo, después de comprar cambia el stock). */
+   catálogo se recarga (por ejemplo, después de comprar cambia el stock).
+   En la home, #productos tiene data-limite="3": solo 3 destacados con stock. */
 function mostrarCatalogo() {
   let lista = productos;
   if (superficieActiva !== "todas") {
@@ -167,8 +203,13 @@ function mostrarCatalogo() {
       return p.superficies.includes(superficieActiva);
     });
   }
+  const limite = Number(contenedorProductos.dataset.limite) || 0;
+  if (limite) {
+    lista = lista.filter(function (p) { return p.stock > 0; }).slice(0, limite);
+  }
   mostrarProductos(lista);
 
+  if (!filtroActivo) return; // en la home no hay texto de filtro
   // Texto que dice qué se está mostrando
   const cantidad = lista.length === 1 ? "1 producto" : lista.length + " productos";
   if (superficieActiva === "todas") {
@@ -299,6 +340,16 @@ function sincronizarCarrito() {
   actualizarCarrito();
 }
 
+/* -------- 9b. BLOQUEAR EL FONDO --------
+   Cuando hay una ventana o el carrito abierto, marcamos el resto de la página
+   como "inert": el teclado (Tab) y los lectores de pantalla se quedan dentro
+   de la ventana, como en una ventana real. */
+function bloquearFondo(bloquear) {
+  document.querySelectorAll(".saltar, .cabecera, main, .pie, .whatsapp").forEach(function (el) {
+    el.inert = bloquear;
+  });
+}
+
 /* -------- 10. ABRIR / CERRAR PANELES --------
    Recordamos qué botón abrió cada panel para devolverle el foco al cerrar
    (importante para quien navega con teclado). */
@@ -308,12 +359,14 @@ function abrirCarrito() {
   focoAnterior = document.activeElement;
   panelCarrito.classList.add("abierto");
   fondoCarrito.classList.add("abierto");
+  bloquearFondo(true);
   document.getElementById("btnCerrarCarrito").focus();
 }
 function cerrarCarrito() {
   if (!panelCarrito.classList.contains("abierto")) return;
   panelCarrito.classList.remove("abierto");
   fondoCarrito.classList.remove("abierto");
+  bloquearFondo(false);
   if (focoAnterior) focoAnterior.focus();
 }
 document.getElementById("btnAbrirCarrito").addEventListener("click", abrirCarrito);
@@ -328,6 +381,14 @@ botonPagar.addEventListener("click", async function () {
     return;
   }
 
+  // Antes de enviar: aceptar los Términos y la Política de cambios y devoluciones
+  const aceptaPedido = document.getElementById("aceptaPedido");
+  if (!aceptaPedido.checked) {
+    avisar("Para enviar tu pedido, marca la casilla de aceptación de los Términos y la Política de cambios y devoluciones.", "error");
+    aceptaPedido.focus();
+    return;
+  }
+
   // Enviamos solo id y cantidad; el servidor calcula el total con precios reales
   const items = carrito.map(function (i) {
     return { id: i.id, cantidad: i.cantidad };
@@ -338,7 +399,7 @@ botonPagar.addEventListener("click", async function () {
     const respuesta = await fetch("/api/pedidos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: items }),
+      body: JSON.stringify({ items: items, acepta_terminos: true }),
     });
 
     if (respuesta.status === 401) {
@@ -359,9 +420,10 @@ botonPagar.addEventListener("click", async function () {
       avisar("No se pudo completar la compra: " + (datos.error || "error desconocido"), "error");
       return;
     }
-    avisar("¡Gracias por tu compra en Ecocordi!\n" +
+    avisar("¡Recibimos tu pedido!\n" +
            "Pedido N° " + datos.pedido_id + " · Total " + formatearPrecio(datos.total) + "\n" +
-           "Puedes seguirlo en \"Mis pedidos\".", "exito", 8000);
+           "Te contactaremos para coordinar el pago y la entrega. Puedes seguirlo en \"Mis pedidos\".", "exito", 9000);
+    aceptaPedido.checked = false;
 
     carrito = [];
     actualizarCarrito();
@@ -418,6 +480,7 @@ function abrirLogin() {
   modalError.textContent = "";
   modalLogin.classList.add("abierto");
   modalFondo.classList.add("abierto");
+  bloquearFondo(true);
   // Foco en el primer campo para escribir de inmediato
   document.getElementById(modoRegistro ? "loginNombre" : "loginCorreo").focus();
 }
@@ -425,6 +488,7 @@ function cerrarLogin() {
   if (!modalLogin.classList.contains("abierto")) return;
   modalLogin.classList.remove("abierto");
   modalFondo.classList.remove("abierto");
+  bloquearFondo(false);
   if (focoAnterior && document.body.contains(focoAnterior)) focoAnterior.focus();
 }
 document.getElementById("btnCerrarModal").addEventListener("click", cerrarLogin);
@@ -439,6 +503,8 @@ modalFondo.addEventListener("click", function () {
    vuelva a dibujar, el clic se sigue detectando. */
 function actualizarModoModal() {
   document.getElementById("campoNombre").style.display = modoRegistro ? "block" : "none";
+  document.getElementById("campoConsentimiento").style.display = modoRegistro ? "block" : "none";
+  document.getElementById("aceptaTerminos").required = modoRegistro;
   document.getElementById("modalTitulo").textContent = modoRegistro ? "Crear cuenta" : "Iniciar sesión";
   document.getElementById("modalSubtitulo").textContent = modoRegistro
     ? "Regístrate en Ecocordi" : "Accede a tu cuenta Ecocordi";
@@ -473,7 +539,10 @@ document.getElementById("formLogin").addEventListener("submit", async function (
   const clave  = document.getElementById("loginClave").value;
   const ruta   = modoRegistro ? "/api/register" : "/api/login";
   const cuerpo = { correo: correo, clave: clave };
-  if (modoRegistro) cuerpo.nombre = document.getElementById("loginNombre").value;
+  if (modoRegistro) {
+    cuerpo.nombre = document.getElementById("loginNombre").value;
+    cuerpo.acepta_terminos = document.getElementById("aceptaTerminos").checked;
+  }
 
   const respuesta = await fetch(ruta, {
     method: "POST",
@@ -497,6 +566,66 @@ document.getElementById("formLogin").addEventListener("submit", async function (
     : "Sesión iniciada. Hola, " + primerNombre + ".", "exito");
 });
 
+/* -------- 15a. INICIAR SESIÓN CON GOOGLE --------
+   El botón lleva al servidor (/api/auth/google/iniciar), que manda a Google.
+   Al terminar, Google vuelve al servidor y este nos devuelve a esta misma
+   página con ?google=ok | nuevo | necesita_aceptar | cancelado | admin | error.
+   No se carga ningún script de Google en la página (la CSP lo bloquearía). */
+const bloqueGoogle = document.getElementById("bloqueGoogle");
+
+// El botón solo aparece si el servidor tiene configuradas las credenciales
+async function mostrarBotonGoogle() {
+  try {
+    const respuesta = await fetch("/api/auth/google/disponible");
+    const datos = await respuesta.json();
+    if (datos.disponible) bloqueGoogle.style.display = "block";
+  } catch (error) { /* sin Google: queda solo el correo y contraseña */ }
+}
+
+document.getElementById("btnGoogle").addEventListener("click", function () {
+  const casilla = document.getElementById("aceptaTerminos");
+  // Crear una cuenta (también con Google) exige aceptar los términos
+  if (modoRegistro && !casilla.checked) {
+    modalError.textContent = "Para crear tu cuenta, marca primero la casilla de aceptación.";
+    casilla.focus();
+    return;
+  }
+  const volver = location.pathname.replace(/^\//, "") + location.search;
+  location.href = "/api/auth/google/iniciar?" + new URLSearchParams({
+    acepta: modoRegistro && casilla.checked ? "1" : "0",
+    volver: volver,
+  });
+});
+
+// Mensajes al volver de Google
+function revisarVueltaDeGoogle() {
+  const url = new URL(location.href);
+  const resultado = url.searchParams.get("google");
+  if (!resultado) return;
+  url.searchParams.delete("google"); // limpiamos la dirección
+  history.replaceState(null, "", url);
+
+  const mensajes = {
+    ok: ["Sesión iniciada con Google.", "exito"],
+    nuevo: ["Cuenta creada con Google. ¡Te damos la bienvenida!", "exito"],
+    cancelado: ["Cancelaste el inicio de sesión con Google.", "info"],
+    admin: ["La cuenta de administrador entra solo con correo y contraseña.", "error"],
+    no_configurado: ["El inicio de sesión con Google no está disponible por ahora.", "error"],
+    error: ["No se pudo iniciar sesión con Google. Inténtalo de nuevo.", "error"],
+  };
+  if (resultado === "necesita_aceptar") {
+    // Cuenta nueva sin aceptar términos: abrimos "Crear cuenta" para que acepte
+    modoRegistro = true;
+    actualizarModoModal();
+    abrirLogin();
+    modalError.textContent = "Para crear tu cuenta con Google, marca la casilla de aceptación y vuelve a presionar «Continuar con Google».";
+    document.getElementById("aceptaTerminos").focus();
+    return;
+  }
+  const mensaje = mensajes[resultado] || mensajes.error;
+  avisar(mensaje[0], mensaje[1]);
+}
+
 /* -------- 15b. MIS PEDIDOS --------
    Pide al servidor SOLO los pedidos del usuario con sesión iniciada
    (GET /api/pedidos) y los muestra con su estado. */
@@ -517,6 +646,7 @@ async function abrirMisPedidos() {
   listaMisPedidos.innerHTML = "<p class='mis-pedidos__vacio'>Cargando…</p>";
   modalPedidos.classList.add("abierto");
   modalFondo.classList.add("abierto");
+  bloquearFondo(true);
   document.getElementById("btnCerrarPedidos").focus();
 
   const respuesta = await fetch("/api/pedidos");
@@ -552,9 +682,31 @@ function cerrarMisPedidos() {
   if (!modalPedidos.classList.contains("abierto")) return;
   modalPedidos.classList.remove("abierto");
   modalFondo.classList.remove("abierto");
+  bloquearFondo(false);
   if (focoAnterior && document.body.contains(focoAnterior)) focoAnterior.focus();
 }
 document.getElementById("btnCerrarPedidos").addEventListener("click", cerrarMisPedidos);
+
+/* -------- 15c. ELIMINAR MI CUENTA (derecho de supresión) -------- */
+document.getElementById("btnEliminarCuenta").addEventListener("click", async function () {
+  const seguro = await confirmar({
+    titulo: "Eliminar mi cuenta",
+    mensaje: "Borraremos tu nombre, tu correo y tu contraseña. Tus pedidos quedan registrados sin tus datos. Esta acción no se puede deshacer.",
+    textoConfirmar: "Eliminar mi cuenta",
+    peligro: true,
+  });
+  if (!seguro) return;
+  const respuesta = await fetch("/api/cuenta/eliminar", { method: "POST" });
+  const datos = await respuesta.json();
+  if (!respuesta.ok) {
+    avisar("No se pudo eliminar la cuenta: " + (datos.error || "error desconocido"), "error");
+    return;
+  }
+  usuario = null;
+  cerrarMisPedidos();
+  renderCuenta();
+  avisar("Tu cuenta y tus datos personales fueron eliminados.", "exito");
+});
 
 /* -------- 16. CERRAR SESIÓN -------- */
 async function logout() {
@@ -610,4 +762,6 @@ document.getElementById("btnWhatsapp").addEventListener("click", function () {
 cargarCarrito();     // recupera el carrito guardado
 cargarProductos();   // trae los productos de la base de datos
 cargarUsuario();     // revisa si ya hay sesión iniciada
+mostrarBotonGoogle(); // muestra "Continuar con Google" si está disponible
+revisarVueltaDeGoogle(); // mensajes al volver de Google
 actualizarCarrito(); // dibuja el carrito

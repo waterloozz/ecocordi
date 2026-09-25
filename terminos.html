@@ -1,30 +1,110 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-luz="manana">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Términos y condiciones | Pinturas Ecocordi</title>
-  <meta name="theme-color" content="#0B2545" />
   <link rel="icon" href="img/favicon.png" type="image/png" />
   <link rel="stylesheet" href="css/estilos.css" />
+  <script src="js/luz.js"></script>
 </head>
 <body>
+  <!-- Página generada por legales/generar.py: edita ese archivo, no este. -->
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
   <header class="cabecera">
     <div class="contenedor cabecera__interior">
-      <a href="index.html" class="cabecera__logo">
-        <img src="img/logo.png" alt="Pinturas Ecocordi, volver a la tienda" width="283" height="122" />
+      <a href="index.html" class="marca" aria-label="Pinturas Ecocordi, volver a la tienda">
+        <span class="marca__nombre">Ecocordi</span>
+        <span class="marca__sub">Pinturas</span>
       </a>
       <div class="cabecera__acciones">
         <a href="index.html" class="cuenta__link">Volver a la tienda</a>
       </div>
     </div>
   </header>
-  <main class="contenedor legal">
-    <h1>Términos y condiciones</h1>
-    <!-- Documento pendiente: debe redactarlo o revisarlo la empresa (idealmente con asesoría legal) -->
-    <p class="por-confirmar">Documento en preparación.</p>
-    <p>Aquí irán las condiciones de compra, despacho, cambios y devoluciones de Pinturas Ecocordi.</p>
-    <p>Mientras tanto, cualquier consulta a <a href="mailto:pinturas@ecocordi.cl">pinturas@ecocordi.cl</a>.</p>
+  <main class="contenedor legal" id="contenido">
+    <h1>Términos y <em>condiciones</em></h1>
+    <p class="legal__fecha">Última actualización: 24 de septiembre de 2026.</p>
+
+    <div class="legal__resumen">
+      <p><strong>En resumen:</strong> hoy el sitio no cobra en línea. Cuando envías un pedido, queda
+      registrado y Pinturas Ecocordi te contacta para coordinar el pago y la entrega o retiro.
+      Tienes derecho a retracto y a garantía legal según la Ley 19.496 (ver
+      <a href="devoluciones.html">Cambios y devoluciones</a>). Nada de estos términos limita
+      los derechos que te da la ley.</p>
+    </div>
+
+    <h2>1. Quién vende</h2>
+    <p>Este sitio es operado por Pinturas Ecocordi:</p>
+    <dl class="datos-empresa">
+      <div><dt>Nombre comercial</dt><dd>Pinturas Ecocordi</dd></div>
+      <div><dt>Razón social</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>RUT</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Domicilio legal</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Representante legal</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Teléfono</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Correo</dt><dd><a href="mailto:pinturas@ecocordi.cl">pinturas@ecocordi.cl</a></dd></div>
+    </dl>
+    <div class="legal__pendiente"><p><strong>Pendiente:</strong> completar razón social, RUT, domicilio, representante legal y teléfono, que el Reglamento de Comercio Electrónico exige informar antes y después de la compra.</p></div>
+
+    <h2>2. Aceptación de estos términos</h2>
+    <p>Para crear una cuenta o enviar un pedido debes aceptar expresamente estos términos marcando
+    la casilla correspondiente. Guardamos la fecha y la versión que aceptaste. Puedes leer, guardar o
+    imprimir esta página cuando quieras; la versión vigente es la que tiene la fecha indicada arriba.</p>
+
+    <h2>3. Tu cuenta</h2>
+    <ul>
+      <li>Puedes crear tu cuenta con tu nombre, un correo válido y una contraseña de al menos 8 caracteres, o con tu cuenta de Google (“Continuar con Google”). Una cuenta creada con Google entra solo con Google.</li>
+      <li>Eres responsable de mantener tu contraseña en reserva. Si crees que alguien la conoce, escríbenos.</li>
+      <li>Puedes eliminar tu cuenta cuando quieras desde “Mis pedidos” (ver la <a href="privacidad.html">Política de privacidad</a>).</li>
+      <li>Si eres menor de edad, pide a tu madre, padre o representante legal que haga la compra.</li>
+    </ul>
+
+    <h2>4. Productos, imágenes y precios</h2>
+    <ul>
+      <li>Cada producto muestra su nombre, descripción, superficies para las que sirve, precio y disponibilidad (“Quedan N” o “Agotado”) antes de que envíes tu pedido.</li>
+      <li>Las fotografías son <strong>imágenes referenciales</strong> de superficies y ambientes: no muestran el envase ni el color exacto del producto.</li>
+      <li>Los precios están en pesos chilenos. El precio que se aplica es el vigente al momento de enviar tu pedido.</li>
+    </ul>
+    <div class="legal__pendiente"><p><strong>Pendiente:</strong> confirmar si los precios incluyen IVA e indicarlo junto a cada precio; informar costos de despacho, zonas y plazos de entrega o retiro, y los medios de pago aceptados.</p></div>
+
+    <h2>5. Cómo funciona un pedido</h2>
+    <ul>
+      <li>Antes de enviarlo, el carrito te muestra los productos, cantidades, precios y el total.</li>
+      <li>Al enviarlo, el pedido queda registrado con estado “Pendiente” y las unidades quedan reservadas.</li>
+      <li><strong>No se cobra nada en línea.</strong> Pinturas Ecocordi te contactará al correo de tu cuenta para coordinar el pago y la entrega o retiro.</li>
+      <li>Puedes seguir el estado de tus pedidos (pendiente, pagado, enviado, entregado o cancelado) en “Mis pedidos”.</li>
+      <li>Mientras tu pedido no esté pagado, puedes pedir su anulación escribiendo a <a href="mailto:pinturas@ecocordi.cl">pinturas@ecocordi.cl</a>, sin costo.</li>
+    </ul>
+    <div class="legal__pendiente"><p><strong>Pendiente:</strong> definir y describir el proceso real de confirmación, pago y entrega, y enviar al cliente una copia escrita de cada pedido (por ejemplo, un correo automático). El Reglamento de Comercio Electrónico exige esa copia; hoy el sitio no envía correos.</p></div>
+
+    <h2>6. Retracto y garantía legal</h2>
+    <p>Tienes derecho a retracto de 10 días en compras a distancia y a la garantía legal de 6 meses,
+    con las condiciones y excepciones que explicamos en <a href="devoluciones.html">Cambios y devoluciones</a>.</p>
+
+    <h2>7. Propiedad intelectual</h2>
+    <p>El nombre y el logo de Pinturas Ecocordi pertenecen a la empresa. Las fotografías son de
+    Unsplash y se usan bajo su licencia (ver <a href="creditos.html">Créditos</a>). Las tipografías
+    se usan bajo la licencia SIL Open Font License.</p>
+
+    <h2>8. Uso del sitio</h2>
+    <p>No está permitido usar el sitio para fines ilícitos, intentar acceder a cuentas ajenas o
+    afectar su funcionamiento. Podemos suspender cuentas que se usen de esa forma.</p>
+
+    <h2>9. Consultas y reclamos</h2>
+    <p>Para consultas, reclamos, cambios o devoluciones escríbenos a <a href="mailto:pinturas@ecocordi.cl">pinturas@ecocordi.cl</a>
+    indicando tu número de pedido. También puedes acudir al Servicio Nacional del Consumidor
+    (<a href="https://www.sernac.cl" target="_blank" rel="noopener">SERNAC</a>) o al Juzgado de Policía
+    Local competente, según la Ley 19.496 sobre Protección de los Derechos de los Consumidores.</p>
+
+    <h2>10. Ley aplicable y cambios</h2>
+    <p>Estos términos se rigen por las leyes de Chile. Si los cambiamos, publicaremos la nueva versión
+    con su fecha; cada pedido se rige por la versión que aceptaste al enviarlo.</p>
+
+    <nav class="legal__otras" aria-label="Otras políticas">
+      <h2>Otras políticas</h2>
+      <ul><li><a href="privacidad.html">Política de privacidad</a></li><li><a href="cookies.html">Política de cookies</a></li><li><a href="devoluciones.html">Cambios y devoluciones</a></li><li><a href="creditos.html">Créditos de fotografías</a></li></ul>
+    </nav>
   </main>
 </body>
 </html>

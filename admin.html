@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-luz="manana">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Panel de administración | Pinturas Ecocordi</title>
   <meta name="robots" content="noindex" />
-  <meta name="theme-color" content="#0B2545" />
   <link rel="icon" href="img/favicon.png" type="image/png" />
-  <link rel="preload" href="fonts/figtree-400-800.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/instrument-sans-400-700.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="css/estilos.css" />
 </head>
 <body class="admin-body">
@@ -21,8 +20,9 @@
   <!-- Cabecera del panel -->
   <header class="cabecera">
     <div class="contenedor cabecera__interior">
-      <a href="index.html" class="cabecera__logo">
-        <img src="img/logo.png" alt="Pinturas Ecocordi, volver a la tienda" width="283" height="122" />
+      <a href="index.html" class="marca" aria-label="Pinturas Ecocordi, volver a la tienda">
+        <span class="marca__nombre">Ecocordi</span>
+        <span class="marca__sub">Pinturas</span>
       </a>
       <span class="cabecera__titulo">Panel</span>
       <div class="cabecera__acciones">
@@ -102,7 +102,7 @@
             </label>
             <label class="campo">
               <span class="campo__etiqueta">Imagen</span>
-              <input class="campo__control" type="text" id="pImagen" placeholder="img/interior.jpg" />
+              <input class="campo__control" type="text" id="pImagen" placeholder="img/prod-interior.webp" />
             </label>
             <fieldset class="admin__superficies">
               <legend>Superficies</legend>

@@ -1,30 +1,116 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-luz="manana">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Política de privacidad | Pinturas Ecocordi</title>
-  <meta name="theme-color" content="#0B2545" />
   <link rel="icon" href="img/favicon.png" type="image/png" />
   <link rel="stylesheet" href="css/estilos.css" />
+  <script src="js/luz.js"></script>
 </head>
 <body>
+  <!-- Página generada por legales/generar.py: edita ese archivo, no este. -->
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
   <header class="cabecera">
     <div class="contenedor cabecera__interior">
-      <a href="index.html" class="cabecera__logo">
-        <img src="img/logo.png" alt="Pinturas Ecocordi, volver a la tienda" width="283" height="122" />
+      <a href="index.html" class="marca" aria-label="Pinturas Ecocordi, volver a la tienda">
+        <span class="marca__nombre">Ecocordi</span>
+        <span class="marca__sub">Pinturas</span>
       </a>
       <div class="cabecera__acciones">
         <a href="index.html" class="cuenta__link">Volver a la tienda</a>
       </div>
     </div>
   </header>
-  <main class="contenedor legal">
-    <h1>Política de privacidad</h1>
-    <!-- Documento pendiente: debe redactarlo o revisarlo la empresa (idealmente con asesoría legal) -->
-    <p class="por-confirmar">Documento en preparación.</p>
-    <p>Aquí se explicará qué datos personales guarda Pinturas Ecocordi (nombre, correo y pedidos), para qué se usan y cómo pedir que se borren.</p>
-    <p>Mientras tanto, cualquier consulta a <a href="mailto:pinturas@ecocordi.cl">pinturas@ecocordi.cl</a>.</p>
+  <main class="contenedor legal" id="contenido">
+    <h1>Política de <em>privacidad</em></h1>
+    <p class="legal__fecha">Última actualización: 24 de septiembre de 2026.</p>
+
+    <div class="legal__resumen">
+      <p><strong>En resumen:</strong> pedimos solo tu nombre, tu correo y una contraseña (o los recibimos de
+      Google si eliges “Continuar con Google”), y guardamos tus pedidos. Los usamos para tu cuenta y tus pedidos. No los vendemos, no los usamos para publicidad
+      y no usamos herramientas de analítica ni de seguimiento. Puedes eliminar tu cuenta cuando quieras.</p>
+    </div>
+
+    <h2>1. Responsable de tus datos</h2>
+    <dl class="datos-empresa">
+      <div><dt>Nombre comercial</dt><dd>Pinturas Ecocordi</dd></div>
+      <div><dt>Razón social</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>RUT</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Domicilio legal</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Representante legal</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Teléfono</dt><dd class="por-confirmar">Por confirmar</dd></div>
+      <div><dt>Correo</dt><dd><a href="mailto:pinturas@ecocordi.cl">pinturas@ecocordi.cl</a></dd></div>
+    </dl>
+    <div class="legal__pendiente"><p><strong>Pendiente:</strong> completar la identificación del responsable (razón social, RUT y domicilio).</p></div>
+
+    <h2>2. Qué datos tratamos</h2>
+    <ul>
+      <li><strong>Cuenta:</strong> nombre, correo electrónico y contraseña. La contraseña se guarda transformada (“hash” PBKDF2 con sal): nadie, ni siquiera nosotros, puede leerla.</li>
+      <li><strong>Si entras con Google:</strong> Google nos envía tu nombre, tu correo (verificado por Google), un identificador de tu cuenta de Google y la dirección de tu foto de perfil. Guardamos solo el nombre, el correo y el identificador; la foto no. Nunca recibimos tu contraseña de Google.</li>
+      <li><strong>Pedidos:</strong> productos, cantidades, precios, total, fecha y estado.</li>
+      <li><strong>Consentimiento:</strong> la fecha y la versión de los términos que aceptaste.</li>
+      <li><strong>Sesión:</strong> una cookie técnica que te mantiene conectado (ver la <a href="cookies.html">Política de cookies</a>).</li>
+      <li><strong>Seguridad:</strong> si un intento de iniciar sesión o registrarse falla, la dirección IP se usa solo en la memoria del servidor para bloquear intentos repetidos, y se descarta a los pocos minutos (el bloqueo dura 10). No se guarda en la base de datos ni en registros.</li>
+    </ul>
+    <p>No pedimos RUT, dirección, teléfono ni datos de tarjetas, y no tratamos datos sensibles.</p>
+
+    <h2>3. Para qué los usamos</h2>
+    <ul>
+      <li>Crear y mantener tu cuenta.</li>
+      <li>Registrar tus pedidos, mostrarte su estado y contactarte para coordinar el pago y la entrega.</li>
+      <li>Proteger el sitio y tu cuenta (por ejemplo, frente a intentos de adivinar contraseñas).</li>
+      <li>Cumplir obligaciones legales, como las de protección al consumidor y tributarias.</li>
+    </ul>
+    <p>No los usamos para publicidad, no hacemos perfiles y no los vendemos ni los cedemos.</p>
+
+    <h2>4. Base para usarlos</h2>
+    <p>Tu consentimiento, que entregas al marcar la casilla al crear tu cuenta, y la necesidad de
+    gestionar los pedidos que tú envías. Puedes retirar tu consentimiento eliminando tu cuenta.</p>
+
+    <h2>5. Con quién los compartimos</h2>
+    <p><strong>Google:</strong> si eliges “Continuar con Google”, Google sabrá que iniciaste sesión en
+    Pinturas Ecocordi y trata esos datos según su propia
+    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">política de privacidad</a>.
+    Es opcional: siempre puedes usar correo y contraseña.</p>
+    <p>Fuera de eso, con nadie para fines propios de otras empresas. Solo podrían acceder a ellos los proveedores
+    que sean necesarios para operar el sitio (por ejemplo, el servicio donde se aloje) y las
+    autoridades cuando la ley lo exija.</p>
+    <div class="legal__pendiente"><p><strong>Pendiente:</strong> cuando se elija dónde publicar el sitio, indicar aquí el proveedor de alojamiento y, si guarda los datos fuera de Chile, informar esa transferencia internacional.</p></div>
+
+    <h2>6. Cuánto tiempo los guardamos</h2>
+    <ul>
+      <li><strong>Cuenta:</strong> hasta que la elimines.</li>
+      <li><strong>Sesión:</strong> 7 días, o hasta que cierres sesión.</li>
+      <li><strong>Pedidos:</strong> el tiempo que exijan las normas tributarias y de protección al consumidor. Si eliminas tu cuenta, tus pedidos quedan registrados sin tu nombre ni tu correo.</li>
+      <li><strong>IP de intentos fallidos:</strong> unos 10 minutos, solo en memoria.</li>
+    </ul>
+
+    <h2>7. Tus derechos</h2>
+    <p>Según la Ley 19.628 sobre Protección de la Vida Privada puedes pedir <strong>acceso</strong>,
+    <strong>rectificación</strong>, <strong>cancelación</strong> (eliminación) y <strong>oposición</strong>
+    respecto de tus datos. Desde el 1 de diciembre de 2026, con la entrada en vigencia de la Ley 21.719,
+    se suman los derechos de <strong>portabilidad</strong> y <strong>bloqueo</strong>.</p>
+    <ul>
+      <li>Para eliminar tus datos: entra a tu cuenta, abre “Mis pedidos” y usa “Eliminar mi cuenta”. Eso también desvincula tu cuenta de Google; para quitarle el acceso desde Google, entra a <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener">tus conexiones de Google</a>.</li>
+      <li>Para cualquier otra solicitud: escribe a <a href="mailto:pinturas@ecocordi.cl">pinturas@ecocordi.cl</a> desde el correo de tu cuenta. Responderemos dentro de los plazos que fija la ley.</li>
+      <li>Si no quedas conforme, puedes recurrir a los tribunales y, desde el 1 de diciembre de 2026, a la Agencia de Protección de Datos Personales.</li>
+    </ul>
+
+    <h2>8. Cómo protegemos tus datos</h2>
+    <p>Contraseñas transformadas con PBKDF2, cookie de sesión inaccesible para JavaScript (HttpOnly),
+    límite de intentos de inicio de sesión, política de seguridad de contenidos (CSP) y acceso al panel
+    de administración solo para administradores. Ningún sistema es infalible: si ocurriera un incidente
+    que afecte tus datos, te informaremos según lo exija la ley.</p>
+
+    <h2>9. Cambios en esta política</h2>
+    <p>Si la cambiamos, publicaremos la nueva versión con su fecha. Si un cambio implica usar tus datos
+    para algo nuevo, te pediremos tu consentimiento otra vez.</p>
+
+    <nav class="legal__otras" aria-label="Otras políticas">
+      <h2>Otras políticas</h2>
+      <ul><li><a href="terminos.html">Términos y condiciones</a></li><li><a href="cookies.html">Política de cookies</a></li><li><a href="devoluciones.html">Cambios y devoluciones</a></li><li><a href="creditos.html">Créditos de fotografías</a></li></ul>
+    </nav>
   </main>
 </body>
 </html>
