@@ -13,6 +13,7 @@
 import http.server
 import socketserver
 import json
+import math
 import sqlite3
 import hashlib
 import hmac
@@ -79,6 +80,42 @@ FORMATO_MIGRACION = "galón"   # formato que reciben los productos antiguos
 LITROS_GALON = 3.785          # 1 galón = 3,785 litros (confirmar con la empresa)
 MAX_NOMBRE_FORMATO = 40
 MAX_BUSQUEDA = 60         # largo máximo del texto del buscador
+
+# ---- Asistente "¿Qué pintura necesito?" ----
+# Ficha técnica de cada producto: con estos datos el asistente elige la pintura.
+USOS = ("interior", "exterior", "ambos")          # "ambos" sirve para los dos
+ACABADOS = ("mate", "satinado", "brillante")
+CONDICIONES = ("humedad", "sol", "normal")        # lo que enfrenta la superficie
+MAX_MANOS = 5
+MANOS_POR_DEFECTO = 2     # si el producto no dice cuántas manos lleva
+MAX_M2 = 10000
+# Estas superficies ya dicen si están adentro o afuera (el asistente no lo pregunta)
+USO_DE_SUPERFICIE = {"exterior": "exterior", "techo": "exterior", "interior": "interior"}
+FRASE_SUPERFICIE = {"madera": "madera", "metal": "metal", "exterior": "muros exteriores y fachadas",
+                    "techo": "techos y cubiertas", "interior": "muros y cielos interiores"}
+COLUMNAS_FICHA = [
+    ("uso", "TEXT CHECK (uso IS NULL OR uso IN ('interior', 'exterior', 'ambos'))"),
+    ("acabado", "TEXT CHECK (acabado IS NULL OR acabado IN ('mate', 'satinado', 'brillante'))"),
+    ("resiste_humedad", "INTEGER NOT NULL DEFAULT 0 CHECK (resiste_humedad IN (0, 1))"),
+    ("resiste_sol", "INTEGER NOT NULL DEFAULT 0 CHECK (resiste_sol IN (0, 1))"),
+    ("lavable", "INTEGER NOT NULL DEFAULT 0 CHECK (lavable IN (0, 1))"),
+    ("manos_recomendadas", "INTEGER CHECK (manos_recomendadas IS NULL OR manos_recomendadas BETWEEN 1 AND 5)"),
+    # 1 = la ficha tiene valores de EJEMPLO que la empresa todavía debe confirmar
+    ("ficha_demo", "INTEGER NOT NULL DEFAULT 0 CHECK (ficha_demo IN (0, 1))"),
+]
+# Fichas de EJEMPLO para los productos iniciales (uso, acabado, humedad, sol,
+# lavable, rendimiento m²/L, manos). NO son datos reales de Ecocordi: quedan
+# marcadas con ficha_demo = 1 y están listadas en PENDIENTES.md.
+FICHAS_DEMO = {
+    "Protección de Madera":    ("ambos", "satinado", 1, 1, 0, 10, 2),
+    "Anticorrosivo Metal Pro": ("ambos", "brillante", 1, 0, 1, 9, 2),
+    "Pinturas para Exterior":  ("exterior", "mate", 1, 1, 1, 10, 2),
+    "Línea Constructoras":     ("exterior", "mate", 0, 0, 0, 12, 2),
+    "Pinturas para Interior":  ("interior", "mate", 0, 0, 1, 12, 2),
+    "Chalk Paint Ecocordi":    ("interior", "mate", 0, 0, 0, 8, 2),
+    "Productos Especiales":    ("ambos", "satinado", 1, 0, 1, 10, 2),
+    "Impermeabilizante Techo": ("exterior", "mate", 1, 1, 0, 6, 2),
+}
 
 # ---- Checkout (entrega, documento e IVA) ----
 TASA_IVA = 19  # IVA en Chile: 19 % (fijado por ley, no es un dato de la empresa)
@@ -348,6 +385,18 @@ def init_db():
     con.commit()
     _migrar_productos(con)
 
+    # Ficha técnica para el asistente. Si la base ya tenía productos, se les
+    # pone una ficha de EJEMPLO (marcada con ficha_demo = 1).
+    ficha_nueva = "uso" not in _columnas(c, "productos")
+    for columna, definicion in COLUMNAS_FICHA:
+        _agregar_columna(c, "productos", columna, definicion)
+    if ficha_nueva:
+        n = _rellenar_fichas_demo(con)
+        if n:
+            print(f"  Migración: ficha técnica de EJEMPLO para {n} productos (ver PENDIENTES.md)")
+
+    con.commit()
+
     # ÍNDICES: como el índice de un libro, permiten encontrar filas sin
     # revisar la tabla completa (por ejemplo, "los pedidos de este usuario").
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_google ON usuarios(google_sub)")
@@ -465,6 +514,40 @@ def _seed_productos(con):
         c.execute("INSERT INTO producto_formatos (producto_id, nombre, litros, precio, stock) VALUES (?,?,?,?,?)",
                   (pid, FORMATO_MIGRACION, LITROS_GALON, precio, STOCK_INICIAL))
     con.commit()
+    _rellenar_fichas_demo(con)
+
+
+def _ficha_de_ejemplo(nombre, superficies):
+    """Ficha de EJEMPLO coherente con el nombre y las superficies del producto:
+    (uso, acabado, resiste_humedad, resiste_sol, lavable, rendimiento, manos)."""
+    if nombre in FICHAS_DEMO:
+        return FICHAS_DEMO[nombre]
+    sups = set(superficies)
+    if sups and sups <= {"interior"}:
+        uso = "interior"
+    elif sups and sups <= {"exterior", "techo"}:
+        uso = "exterior"
+    else:
+        uso = "ambos"
+    afuera = int(bool(sups & {"exterior", "techo"}))
+    return (uso, "satinado", afuera, afuera, int("interior" in sups), 10, MANOS_POR_DEFECTO)
+
+
+def _rellenar_fichas_demo(con):
+    """Pone una ficha técnica de EJEMPLO a todos los productos (ficha_demo = 1).
+    Si un producto ya tenía rendimiento (lo cargó el admin), se respeta.
+    Solo se usa al crear la base o al agregar las columnas de la ficha."""
+    filas = con.execute("SELECT id, nombre FROM productos").fetchall()
+    for f in filas:
+        sups = [s[0] for s in con.execute(
+            "SELECT superficie FROM producto_superficies WHERE producto_id=? ORDER BY rowid", (f["id"],))]
+        uso, acabado, humedad, sol, lavable, rendimiento, manos = _ficha_de_ejemplo(f["nombre"], sups)
+        con.execute("""
+            UPDATE productos SET uso=?, acabado=?, resiste_humedad=?, resiste_sol=?, lavable=?,
+                   rendimiento_m2_litro=COALESCE(rendimiento_m2_litro, ?), manos_recomendadas=?, ficha_demo=1
+            WHERE id=?""", (uso, acabado, humedad, sol, lavable, rendimiento, manos, f["id"]))
+    con.commit()
+    return len(filas)
 
 
 def _seed_admin(con):
@@ -567,10 +650,13 @@ def _texto(datos, campo):
 # ------------------------------------------------------------
 def listar_productos(con):
     """Lista de productos tal como la entrega /api/productos:
-    {id, nombre, descripcion, imagen, rendimiento_m2_litro, superficies: [...], formatos: [...],
+    {id, nombre, descripcion, imagen, rendimiento_m2_litro, ficha técnica (uso, acabado,
+     resiste_humedad, resiste_sol, lavable, manos_recomendadas, ficha_demo),
+     superficies: [...], formatos: [...],
      precio (el del formato más barato), stock (suma de todos los formatos)}."""
+    ficha = ", ".join(columna for columna, _ in COLUMNAS_FICHA)
     productos = [dict(f) for f in con.execute(
-        "SELECT id, nombre, descripcion, imagen, rendimiento_m2_litro FROM productos ORDER BY id")]
+        f"SELECT id, nombre, descripcion, imagen, rendimiento_m2_litro, {ficha} FROM productos ORDER BY id")]
     superficies, formatos = {}, {}
     # ORDER BY rowid: las superficies salen en el orden en que se guardaron
     # (la primera define el color de la tarjeta, igual que antes)
@@ -628,6 +714,270 @@ def _leer_superficies(valor):
     if not isinstance(valor, list) or any(s not in SUPERFICIES for s in valor):
         return None
     return list(dict.fromkeys(valor))
+
+
+def _leer_ficha(datos):
+    """Revisa los campos de la ficha técnica que vengan en el JSON del admin.
+    Devuelve (cambios, error). Los sí/no llegan como true/false."""
+    cambios = {}
+    for campo, opciones in (("uso", USOS), ("acabado", ACABADOS)):
+        if campo in datos:
+            if datos[campo] is not None and datos[campo] not in opciones:
+                return None, f"{campo.capitalize()} inválido. Usa: " + ", ".join(opciones) + " (o vacío)"
+            cambios[campo] = datos[campo]
+    for campo in ("resiste_humedad", "resiste_sol", "lavable", "ficha_demo"):
+        if campo in datos:
+            if not isinstance(datos[campo], bool):
+                return None, f"{campo} debe ser true o false"
+            cambios[campo] = int(datos[campo])
+    if "manos_recomendadas" in datos:
+        manos = datos["manos_recomendadas"]
+        if manos is not None and (type(manos) is not int or not 1 <= manos <= MAX_MANOS):
+            return None, f"Manos recomendadas inválidas (número entero entre 1 y {MAX_MANOS}, o vacío)"
+        cambios["manos_recomendadas"] = manos
+    return cambios, None
+
+
+# ------------------------------------------------------------
+#  ASISTENTE "¿QUÉ PINTURA NECESITO?" Y CALCULADORA
+#  La misma lógica sirve para las dos: el asistente elige la pintura según
+#  reglas simples (sin inteligencia artificial) y la calculadora dice cuántos
+#  litros comprar y en qué formatos.
+# ------------------------------------------------------------
+MAX_PASOS_COMBINACION = 100000  # tope de combinaciones a revisar
+
+
+def mejor_combinacion(formatos, litros_necesarios):
+    """Combinación de formatos más conveniente para cubrir los litros:
+    la de menor precio; si empatan, la que sobra menos pintura; y si siguen
+    empatadas, la de menos tarros.
+    formatos: [(formato, disponibles)]. Devuelve None si el stock no alcanza.
+    Prueba cantidades del formato más grande al más chico y descarta los
+    caminos que ya son más caros que la mejor opción ("ramificar y podar")."""
+    lista = sorted([(f, d) for f, d in formatos if d > 0], key=lambda x: -x[0]["litros"])
+    if not lista or sum(f["litros"] * d for f, d in lista) + 1e-9 < litros_necesarios:
+        return None
+    mejor = None
+    pasos = 0
+    cantidades = [0] * len(lista)
+
+    def anotar(precio):
+        nonlocal mejor
+        litros = sum(n * f["litros"] for n, (f, _) in zip(cantidades, lista))
+        tarros = sum(cantidades)
+        if (mejor is None or precio < mejor["precio"]
+                or (precio == mejor["precio"] and (litros < mejor["litros"] - 1e-9
+                    or (abs(litros - mejor["litros"]) <= 1e-9 and tarros < mejor["tarros"])))):
+            mejor = {"precio": precio, "litros": litros, "tarros": tarros,
+                     "items": [(f, n) for n, (f, _) in zip(cantidades, lista) if n > 0]}
+
+    def probar(i, falta, precio):
+        nonlocal pasos
+        pasos += 1
+        if pasos > MAX_PASOS_COMBINACION:
+            return
+        if falta <= 1e-9:
+            anotar(precio)
+            return
+        if i == len(lista):
+            return
+        formato, disponibles = lista[i]
+        maximo = min(disponibles, math.ceil(falta / formato["litros"] - 1e-9))
+        for n in range(maximo, -1, -1):
+            nuevo = precio + n * formato["precio"]
+            if mejor is not None and nuevo > mejor["precio"]:
+                continue  # ya es más caro: no sigue por ahí
+            cantidades[i] = n
+            probar(i + 1, falta - n * formato["litros"], nuevo)
+            if i == len(lista) - 1:
+                break  # el formato más chico: solo sirve la cantidad justa
+        cantidades[i] = 0
+
+    probar(0, litros_necesarios, 0)
+    if mejor is None:
+        # Demasiadas combinaciones (un pedido enorme): del más grande al más chico
+        falta, items, precio = litros_necesarios, [], 0
+        for formato, disponibles in lista:
+            n = min(disponibles, math.ceil(falta / formato["litros"] - 1e-9)) if falta > 1e-9 else 0
+            if n:
+                items.append((formato, n))
+                falta -= n * formato["litros"]
+                precio += n * formato["precio"]
+        mejor = {"precio": precio, "litros": litros_necesarios - falta, "tarros": sum(n for _, n in items),
+                 "items": items}
+    return mejor
+
+
+def _disponibles(producto, reservado):
+    """[(formato, unidades disponibles)]: el stock menos lo que ya está en el carrito."""
+    return [(f, f["stock"] - reservado.get(f["id"], 0)) for f in producto["formatos"]]
+
+
+def calcular_pintura(producto, m2, manos=None, reservado=None):
+    """litros = m² × manos ÷ rendimiento, redondeado hacia arriba (a la décima
+    de litro), y la combinación de formatos con stock que los cubre."""
+    manos = manos or producto["manos_recomendadas"] or MANOS_POR_DEFECTO
+    rendimiento = producto["rendimiento_m2_litro"]
+    calculo = {"m2": m2, "manos": manos, "rendimiento": rendimiento, "litros": None, "combinacion": None,
+               "ficha_demo": bool(producto.get("ficha_demo"))}
+    if not rendimiento:
+        return calculo  # sin rendimiento no se puede calcular (no se inventa)
+    # El "- 1e-9" evita que un error de decimales convierta 8,0 en 8,1
+    calculo["litros"] = math.ceil(m2 * manos / rendimiento * 10 - 1e-9) / 10
+    mejor = mejor_combinacion(_disponibles(producto, reservado or {}), calculo["litros"])
+    if mejor:
+        calculo["combinacion"] = {
+            "items": [{"formato_id": f["id"], "nombre": f["nombre"], "litros": f["litros"],
+                       "precio": f["precio"], "cantidad": n} for f, n in mejor["items"]],
+            "precio": mejor["precio"],
+            "litros": round(mejor["litros"], 3),
+            "sobrante": round(mejor["litros"] - calculo["litros"], 3),
+        }
+    return calculo
+
+
+def _precio_litro(producto, reservado):
+    """El precio por litro más bajo entre los formatos con stock (None si no hay stock)."""
+    return min((f["precio"] / f["litros"] for f, d in _disponibles(producto, reservado) if d > 0), default=None)
+
+
+def puntuar(producto, r):
+    """Puntaje del producto según las respuestas, y los motivos en lenguaje simple.
+    Reglas: humedad + resiste humedad +3 · sol + resiste sol +3 · mismo acabado +2
+    ("no sé" le da +1 al satinado) · interior + lavable +1."""
+    puntos = 0
+    # Primer motivo: pasó el filtro (sirve para esa superficie y ese lugar)
+    if r["superficie"] in USO_DE_SUPERFICIE:
+        motivos = [f"Es para {FRASE_SUPERFICIE[r['superficie']]}."]
+    else:
+        motivos = [f"Sirve para {FRASE_SUPERFICIE[r['superficie']]} en {r['uso']}."]
+    if r["condicion"] == "humedad" and producto["resiste_humedad"]:
+        puntos += 3
+        motivos.append("Resiste la humedad: aguanta bien en baños, cocinas o muros que se mojan.")
+    if r["condicion"] == "sol" and producto["resiste_sol"]:
+        puntos += 3
+        motivos.append("Está hecha para el sol directo: el color se mantiene por más tiempo.")
+    if r["acabado"] == producto["acabado"]:
+        puntos += 2
+        motivos.append(f"Tiene el acabado {producto['acabado']} que prefieres.")
+    elif r["acabado"] == "no_se" and producto["acabado"] == "satinado":
+        puntos += 1
+        motivos.append("Su acabado satinado es un buen punto medio: brilla poco y se limpia fácil.")
+    if r["uso"] == "interior" and producto["lavable"]:
+        puntos += 1
+        motivos.append("Es lavable: las manchas salen con un paño húmedo.")
+    return puntos, motivos
+
+
+def recomendar(productos, r, reservado=None):
+    """Aplica las reglas del asistente. r = respuestas ya validadas.
+    Devuelve {"recomendado", "alternativas", "aviso"}; recomendado None si no hay candidatos."""
+    reservado = reservado or {}
+    candidatos = []
+    for p in productos:
+        # Filtro: la superficie, un uso compatible ("ambos" sirve para los dos)
+        # y al menos un formato con stock
+        if r["superficie"] not in p["superficies"] or p["uso"] not in (r["uso"], "ambos"):
+            continue
+        precio_litro = _precio_litro(p, reservado)
+        if precio_litro is None:
+            continue
+        puntos, motivos = puntuar(p, r)
+        candidatos.append({**p, "puntaje": puntos, "motivos": motivos, "precio_litro": round(precio_litro)})
+    # Más puntos primero; si empatan, el más barato por litro
+    candidatos.sort(key=lambda c: (-c["puntaje"], c["precio_litro"], c["id"]))
+
+    aviso = None
+    elegido = r.get("producto")
+    if elegido is not None:
+        # Viene del visualizador con un producto ya elegido: va primero si sirve
+        preferido = next((c for c in candidatos if c["id"] == elegido), None)
+        if preferido:
+            candidatos.remove(preferido)
+            candidatos.insert(0, preferido)
+        else:
+            aviso = ("La pintura que elegiste no sirve para lo que vas a pintar o no tiene stock. "
+                     "Te mostramos otras opciones.")
+    for c in candidatos[:3]:
+        if r.get("m2"):
+            c["calculo"] = calcular_pintura(c, r["m2"], r.get("manos"), reservado)
+    return {"recomendado": candidatos[0] if candidatos else None, "alternativas": candidatos[1:3], "aviso": aviso}
+
+
+def _numero(texto, entero=False):
+    """"12", "12.5" o "12,5" → número; None si no es un número válido."""
+    if not re.fullmatch(r"\d{1,6}" if entero else r"\d{1,6}([.,]\d{1,3})?", texto or ""):
+        return None
+    return int(texto) if entero else float(texto.replace(",", "."))
+
+
+def leer_carrito_param(texto):
+    """"12:2,15:1" (formato_id:cantidad) → {12: 2, 15: 1}; None si es inválido."""
+    reservado = {}
+    for parte in (texto or "").split(","):
+        m = re.fullmatch(r"(\d{1,9}):(\d{1,3})", parte)
+        if not m or len(reservado) >= 50:
+            return None
+        reservado[int(m[1])] = reservado.get(int(m[1]), 0) + int(m[2])
+    return reservado
+
+
+def leer_params(consulta, permitidos, obligatorios=()):
+    """Lee la parte ?a=1&b=2 de la dirección. Cada parámetro debe estar en la
+    lista permitida y venir una sola vez. Devuelve (params, error)."""
+    params = parse_qs(consulta, keep_blank_values=True)
+    for nombre, valores in params.items():
+        if nombre not in permitidos:
+            return None, f"Parámetro desconocido: {nombre}"
+        if len(valores) != 1:
+            return None, f"El parámetro {nombre} viene repetido"
+    params = {k: v[0] for k, v in params.items()}
+    for nombre in obligatorios:
+        if not params.get(nombre):
+            return None, f"Falta el parámetro {nombre}"
+    return params, None
+
+
+def leer_respuestas_asistente(consulta):
+    """Valida los parámetros de GET /api/asistente contra listas permitidas.
+    Devuelve (respuestas, error)."""
+    params, error = leer_params(consulta, ("superficie", "uso", "condicion", "acabado", "m2", "manos",
+                                           "producto", "carrito"), ("superficie", "uso"))
+    if error:
+        return None, error
+    r = {"superficie": params["superficie"], "uso": params["uso"],
+         "condicion": params.get("condicion", ""), "acabado": params.get("acabado", "")}
+    if r["superficie"] not in SUPERFICIES:
+        return None, "Superficie inválida. Usa: " + ", ".join(SUPERFICIES)
+    if r["uso"] not in ("interior", "exterior"):
+        return None, "Uso inválido. Usa: interior o exterior"
+    if USO_DE_SUPERFICIE.get(r["superficie"], r["uso"]) != r["uso"]:
+        return None, f"La superficie {r['superficie']} es de {USO_DE_SUPERFICIE[r['superficie']]}"
+    if "producto" in params:
+        r["producto"] = _numero(params["producto"], entero=True)
+        if r["producto"] is None:
+            return None, "Producto inválido"
+        # Con un producto ya elegido, la condición y el acabado son opcionales
+        r["condicion"] = r["condicion"] or "normal"
+        r["acabado"] = r["acabado"] or "no_se"
+    if r["condicion"] not in CONDICIONES:
+        return None, "Condición inválida. Usa: " + ", ".join(CONDICIONES)
+    if r["acabado"] not in ACABADOS + ("no_se",):
+        return None, "Acabado inválido. Usa: " + ", ".join(ACABADOS + ("no_se",))
+    if "m2" in params:
+        r["m2"] = _numero(params["m2"])
+        if r["m2"] is None or not 0 < r["m2"] <= MAX_M2:
+            return None, f"Metros cuadrados inválidos (un número mayor que 0 y hasta {MAX_M2})"
+    if "manos" in params:
+        r["manos"] = _numero(params["manos"], entero=True)
+        if r["manos"] is None or not 1 <= r["manos"] <= MAX_MANOS:
+            return None, f"Manos inválidas (entre 1 y {MAX_MANOS})"
+    r["reservado"] = {}
+    if "carrito" in params:
+        r["reservado"] = leer_carrito_param(params["carrito"])
+        if r["reservado"] is None:
+            return None, "Carrito inválido (formato_id:cantidad separados por comas)"
+    return r, None
 
 
 # ------------------------------------------------------------
@@ -775,7 +1125,7 @@ def _volver_seguro(volver):
     para redirigir a otra web (open redirect). La dirección se ARMA de nuevo
     solo con lo permitido: la página y los filtros del catálogo."""
     pagina, _, consulta = (volver or "").partition("?")
-    if pagina not in ("index.html", "catalogo.html", "pedido.html"):
+    if pagina not in ("index.html", "catalogo.html", "pedido.html", "asistente.html"):
         return "/"
     params = parse_qs(consulta)
     seguros = {}
@@ -785,6 +1135,15 @@ def _volver_seguro(volver):
     busqueda = params.get("q", [""])[0].strip()
     if busqueda and len(busqueda) <= MAX_BUSQUEDA:
         seguros["q"] = busqueda
+    if pagina == "asistente.html":
+        # Las respuestas del asistente, solo si son valores conocidos
+        for clave, validos in (("uso", ("interior", "exterior")), ("condicion", CONDICIONES),
+                               ("acabado", ACABADOS + ("no_se",))):
+            if params.get(clave, [""])[0] in validos:
+                seguros[clave] = params[clave][0]
+        for clave, patron in (("m2", r"\d{1,5}([.,]\d{1,2})?|no"), ("manos", r"[1-5]"), ("producto", r"\d{1,9}")):
+            if re.fullmatch(patron, params.get(clave, [""])[0]):
+                seguros[clave] = params[clave][0]
     return "/" + pagina + ("?" + urlencode(seguros) if seguros else "")
 
 
@@ -850,7 +1209,7 @@ RAIZ_PUBLICA = {"favicon.ico"}  # además de las páginas .html (robots.txt y si
 
 # Páginas que aparecen en el sitemap (las que Google debería mostrar).
 # El panel de administración NO va: es privado.
-PAGINAS_SITEMAP = ["index.html", "catalogo.html"] + [f"catalogo.html?superficie={s}" for s in SUPERFICIES] + [
+PAGINAS_SITEMAP = ["index.html", "catalogo.html", "asistente.html"] + [f"catalogo.html?superficie={s}" for s in SUPERFICIES] + [
     "terminos.html", "privacidad.html", "cookies.html", "devoluciones.html", "creditos.html"]
 
 
@@ -998,6 +1357,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if superficie not in (None, "todas"):
                 productos = [p for p in productos if superficie in p["superficies"]]
             return self._json(productos)
+        if ruta.path == "/api/asistente":
+            return self._asistente(ruta.query)
+        if ruta.path == "/api/calcular":
+            return self._calcular(ruta.query)
 
         if ruta.path == "/api/me":
             u = self._usuario_actual()
@@ -1083,6 +1446,55 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._json({"error": "Ruta no encontrada"}, 404)
 
     # ---- lógica de negocio ----
+    def _asistente(self, consulta):
+        """GET /api/asistente?superficie=madera&uso=exterior&condicion=sol&acabado=mate&m2=40&manos=2
+        Recomienda una pintura y hasta 2 alternativas, con sus motivos. Si viene m2,
+        calcula los litros y la combinación de formatos más conveniente."""
+        r, error = leer_respuestas_asistente(consulta)
+        if error:
+            return self._json({"error": error}, 400)
+        con = get_db()
+        try:
+            productos = listar_productos(con)
+        finally:
+            con.close()
+        resultado = recomendar(productos, r, r["reservado"])
+        respuesta = {"respuestas": {k: v for k, v in r.items() if k != "reservado"}, **resultado}
+        if not resultado["recomendado"]:
+            respuesta["mensaje"] = ("Por ahora no tenemos una pintura en stock para lo que vas a pintar. "
+                                    "Escríbenos o visítanos en una sucursal y te ayudamos a encontrar una.")
+            respuesta["whatsapp"] = WHATSAPP_NUMERO or None
+            respuesta["sucursales"] = list(SUCURSALES.values())
+        return self._json(respuesta)
+
+    def _calcular(self, consulta):
+        """GET /api/calcular?producto=5&m2=40&manos=2 — la calculadora del catálogo.
+        Usa exactamente el mismo cálculo que el asistente (calcular_pintura)."""
+        params, error = leer_params(consulta, ("producto", "m2", "manos", "carrito"), ("producto", "m2"))
+        if error:
+            return self._json({"error": error}, 400)
+        producto_id = _numero(params["producto"], entero=True)
+        m2 = _numero(params["m2"])
+        manos = _numero(params["manos"], entero=True) if "manos" in params else None
+        reservado = leer_carrito_param(params["carrito"]) if "carrito" in params else {}
+        if producto_id is None:
+            return self._json({"error": "Producto inválido"}, 400)
+        if m2 is None or not 0 < m2 <= MAX_M2:
+            return self._json({"error": f"Metros cuadrados inválidos (un número mayor que 0 y hasta {MAX_M2})"}, 400)
+        if "manos" in params and (manos is None or not 1 <= manos <= MAX_MANOS):
+            return self._json({"error": f"Manos inválidas (entre 1 y {MAX_MANOS})"}, 400)
+        if reservado is None:
+            return self._json({"error": "Carrito inválido (formato_id:cantidad separados por comas)"}, 400)
+        con = get_db()
+        try:
+            producto = next((p for p in listar_productos(con) if p["id"] == producto_id), None)
+        finally:
+            con.close()
+        if not producto:
+            return self._json({"error": "El producto no existe"}, 404)
+        return self._json({"producto_id": producto_id, "nombre": producto["nombre"],
+                           **calcular_pintura(producto, m2, manos, reservado)})
+
     def _con_limite(self, ruta, datos):
         """Atiende login/registro, pero antes revisa si esta IP está bloqueada.
         Cada ruta lleva su propio contador. Solo cuentan los intentos FALLIDOS."""
@@ -1533,7 +1945,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._json({"ok": True, "id": pedido_id, "estado": nuevo})
 
     def _editar_producto(self, producto_id, datos):
-        """PATCH /api/admin/productos/<id>  {"nombre", "descripcion", "imagen", "superficies", "rendimiento_m2_litro"}
+        """PATCH /api/admin/productos/<id>  {"nombre", "descripcion", "imagen", "superficies", "rendimiento_m2_litro",
+        y la ficha técnica: "uso", "acabado", "resiste_humedad", "resiste_sol", "lavable",
+        "manos_recomendadas", "ficha_demo"}
         Se puede mandar solo lo que cambia. El precio y el stock se editan en
         cada formato (PATCH /api/admin/formatos/<id>)."""
         cambios = {}
@@ -1550,6 +1964,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if error:
                 return self._json({"error": error}, 400)
             cambios["rendimiento_m2_litro"] = rendimiento
+        ficha, error = _leer_ficha(datos)
+        if error:
+            return self._json({"error": error}, 400)
+        cambios.update(ficha)
         superficies = None
         if "superficies" in datos:
             superficies = _leer_superficies(datos["superficies"])
@@ -1680,7 +2098,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _crear_producto(self, datos):
         """POST /api/admin/productos
-        {"nombre", "descripcion", "imagen", "superficies": [...],
+        {"nombre", "descripcion", "imagen", "superficies": [...], "rendimiento_m2_litro", ficha técnica,
          "formatos": [{"nombre": "galón", "litros": 3.785, "precio": 19990, "stock": 20}, ...]}"""
         u = self._usuario_actual()
         if not u or not u["es_admin"]:
@@ -1692,6 +2110,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if superficies is None:
             return self._json({"error": "Superficies inválidas. Usa: " + ", ".join(SUPERFICIES)}, 400)
         rendimiento, error = _leer_rendimiento(datos.get("rendimiento_m2_litro"))
+        if error:
+            return self._json({"error": error}, 400)
+        ficha, error = _leer_ficha(datos)
         if error:
             return self._json({"error": error}, 400)
         lista = datos.get("formatos")
@@ -1708,10 +2129,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         con = get_db()
         try:
             con.execute("BEGIN IMMEDIATE")  # producto, superficies y formatos: todo o nada
+            columnas = {"nombre": nombre, "descripcion": _texto(datos, "descripcion").strip(),
+                        "imagen": _texto(datos, "imagen").strip() or "img/prod-interior.webp",
+                        "rendimiento_m2_litro": rendimiento, **ficha}
+            # Los nombres de columna vienen de nuestras listas fijas, no del usuario
             nuevo_id = con.execute(
-                "INSERT INTO productos (nombre, descripcion, imagen, rendimiento_m2_litro) VALUES (?,?,?,?)",
-                (nombre, _texto(datos, "descripcion").strip(),
-                 _texto(datos, "imagen").strip() or "img/prod-interior.webp", rendimiento),
+                f"INSERT INTO productos ({', '.join(columnas)}) VALUES ({', '.join('?' for _ in columnas)})",
+                tuple(columnas.values()),
             ).lastrowid
             con.executemany("INSERT INTO producto_superficies (producto_id, superficie) VALUES (?,?)",
                             [(nuevo_id, sup) for sup in superficies])

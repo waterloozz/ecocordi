@@ -69,8 +69,10 @@ async function cargarProductos() {
     actualizarPinturasCalculadora();
     sugerirSuperficieCalculadora(superficieActiva);
   } catch (error) {
-    contenedorProductos.innerHTML =
-      "<p class='sin-resultados'>No se pudieron cargar los productos. ¿Está encendido el servidor?</p>";
+    if (contenedorProductos) {
+      contenedorProductos.innerHTML =
+        "<p class='sin-resultados'>No se pudieron cargar los productos. ¿Está encendido el servidor?</p>";
+    }
   }
 }
 
@@ -200,21 +202,24 @@ function mostrarProductos(lista, mensajeVacio) {
    bloquea), ponemos UN solo "escuchador" en el contenedor de productos.
    Cuando haces clic en cualquier parte de adentro, revisamos si fue en un
    botón, y leemos el formato desde su atributo data-formato-id. */
-contenedorProductos.addEventListener("click", function (evento) {
-  const boton = evento.target.closest(".producto__boton");
-  if (!boton) return; // el clic no fue en el botón
-  agregarAlCarrito(Number(boton.dataset.formatoId));
-});
+// Las páginas del asistente y del visualizador no tienen lista de productos
+if (contenedorProductos) {
+  contenedorProductos.addEventListener("click", function (evento) {
+    const boton = evento.target.closest(".producto__boton");
+    if (!boton) return; // el clic no fue en el botón
+    agregarAlCarrito(Number(boton.dataset.formatoId));
+  });
 
-/* Al elegir otro formato, cambian el precio, el stock y el botón de esa tarjeta */
-contenedorProductos.addEventListener("change", function (evento) {
-  if (!evento.target.matches(".producto__formatos input")) return;
-  const tarjeta = evento.target.closest(".producto");
-  const encontrado = buscarFormato(Number(evento.target.value));
-  if (!encontrado) return;
-  formatoElegido[encontrado.producto.id] = encontrado.formato.id;
-  tarjeta.querySelector(".producto__pie").innerHTML = htmlCompra(encontrado.formato);
-});
+  /* Al elegir otro formato, cambian el precio, el stock y el botón de esa tarjeta */
+  contenedorProductos.addEventListener("change", function (evento) {
+    if (!evento.target.matches(".producto__formatos input")) return;
+    const tarjeta = evento.target.closest(".producto");
+    const encontrado = buscarFormato(Number(evento.target.value));
+    if (!encontrado) return;
+    formatoElegido[encontrado.producto.id] = encontrado.formato.id;
+    tarjeta.querySelector(".producto__pie").innerHTML = htmlCompra(encontrado.formato);
+  });
+}
 
 /* -------- 6. FILTRO POR SUPERFICIE Y BUSCADOR (funcionalidad estrella) --------
    Viven en catalogo.html. La superficie y el texto buscado se guardan en la
@@ -339,6 +344,7 @@ if (contenedorFiltros) {
    el catálogo se recarga (por ejemplo, después de comprar cambia el stock).
    En la home, #productos tiene data-limite="3": solo 3 destacados con stock. */
 function mostrarCatalogo() {
+  if (!contenedorProductos) return;
   let lista = productos;
   if (superficieActiva !== "todas") {
     lista = lista.filter(function (p) {
@@ -938,61 +944,40 @@ async function cargarConfiguracion() {
 
 /* -------- 19b. CALCULADORA: ¿CUÁNTA PINTURA NECESITO? --------
    litros = metros² × manos ÷ rendimiento (m² que cubre 1 litro en una mano).
-   El rendimiento lo informa la empresa para cada producto (el admin lo carga).
-   Después buscamos la combinación de formatos MÁS BARATA que cubra esos
-   litros con el stock disponible. */
+   La cuenta la hace el SERVIDOR (GET /api/calcular), con la misma lógica que
+   usa el asistente: así las dos siempre dan el mismo resultado. El servidor
+   también busca la combinación de formatos MÁS BARATA que cubra esos litros
+   con el stock disponible (descontando lo que ya está en tu carrito). */
 const formCalculadora = document.getElementById("formCalculadora");
-const MAX_PASOS_CALCULO = 300000; // tope de combinaciones a revisar
 
-/* Combinación más conveniente: la de menor precio; si empatan, la que sobra
-   menos pintura; y si siguen empatadas, la de menos tarros.
-   formatos: [{ formato, disponible }] ; devuelve null si el stock no alcanza. */
-function mejorCombinacion(formatos, litrosNecesarios) {
-  const lista = formatos
-    .filter(function (f) { return f.disponible > 0; })
-    .sort(function (a, b) { return b.formato.litros - a.formato.litros; });
-  const litrosDisponibles = lista.reduce(function (suma, f) { return suma + f.formato.litros * f.disponible; }, 0);
-  if (lista.length === 0 || litrosDisponibles + 1e-9 < litrosNecesarios) return null;
-
-  let mejor = null;
-  let pasos = 0;
-  const cantidades = lista.map(function () { return 0; });
-
-  function anotar(precio) {
-    let litros = 0, tarros = 0;
-    cantidades.forEach(function (n, i) { litros += n * lista[i].formato.litros; tarros += n; });
-    const esMejor = !mejor || precio < mejor.precio ||
-      (precio === mejor.precio && (litros < mejor.litros - 1e-9 ||
-        (Math.abs(litros - mejor.litros) <= 1e-9 && tarros < mejor.tarros)));
-    if (esMejor) {
-      mejor = {
-        precio: precio, litros: litros, tarros: tarros,
-        items: cantidades
-          .map(function (n, i) { return { formato: lista[i].formato, cantidad: n }; })
-          .filter(function (item) { return item.cantidad > 0; }),
-      };
-    }
-  }
-
-  // Probamos cantidades del formato más grande al más chico ("ramificar y podar")
-  function probar(i, falta, precio) {
-    if (++pasos > MAX_PASOS_CALCULO) return;
-    if (falta <= 1e-9) { anotar(precio); return; }
-    if (i === lista.length) return;
-    const f = lista[i];
-    const maximo = Math.min(f.disponible, Math.ceil(falta / f.formato.litros - 1e-9));
-    for (let n = maximo; n >= 0; n--) {
-      const nuevoPrecio = precio + n * f.formato.precio;
-      if (mejor && nuevoPrecio > mejor.precio) continue; // ya es más caro: no sigue
-      cantidades[i] = n;
-      probar(i + 1, falta - n * f.formato.litros, nuevoPrecio);
-      if (i === lista.length - 1) break; // el más chico: solo sirve la cantidad justa
-    }
-    cantidades[i] = 0;
-  }
-  probar(0, litrosNecesarios, 0);
-  return mejor;
+/* Lo que hay en el carrito, como "formato_id:cantidad,..." (para no sugerir más de lo que queda) */
+function carritoComoParametro() {
+  const porFormato = {};
+  carrito.forEach(function (item) {
+    porFormato[item.formato_id] = (porFormato[item.formato_id] || 0) + (Number(item.cantidad) || 0);
+  });
+  return Object.entries(porFormato).slice(0, 50).map(function (par) { return par[0] + ":" + par[1]; }).join(",");
 }
+
+/* Detalle de una combinación de formatos (calculadora y asistente). Ya escapado. */
+function htmlCombinacion(combinacion, nombreProducto) {
+  return `<ul class="calculadora__lista">${combinacion.items.map(function (item) {
+      return `<li><span>${item.cantidad} × ${escaparHTML(item.nombre)}
+        <span class="calculadora__detalle">${formatearLitros(item.litros)}</span></span>
+        <span>${formatearPrecio(item.cantidad * item.precio)}</span></li>`;
+    }).join("")}</ul>
+    <p class="calculadora__total"><span>${formatearLitros(combinacion.litros)} de ${escaparHTML(nombreProducto)}</span>
+      <strong>${formatearPrecio(combinacion.precio)}</strong></p>`;
+}
+
+/* "40 m² × 2 manos ÷ 10 m² por litro" */
+function explicacionLitros(calculo) {
+  const decimales = { maximumFractionDigits: 1 };
+  return `${calculo.m2.toLocaleString("es-CL", decimales)} m² × ${calculo.manos} ${calculo.manos === 1 ? "mano" : "manos"}
+    ÷ ${calculo.rendimiento.toLocaleString("es-CL", decimales)} m² por litro`;
+}
+
+const NOTA_FICHA_DEMO = "El rendimiento es un valor de ejemplo: Ecocordi todavía debe confirmarlo.";
 
 /* Llena la lista de pinturas según la superficie elegida */
 function actualizarPinturasCalculadora() {
@@ -1030,7 +1015,7 @@ function sugerirSuperficieCalculadora(superficie) {
 
 let sugerenciaCalculadora = null; // última combinación sugerida (para "Agregar al carrito")
 
-function calcular() {
+async function calcular() {
   const resultado = document.getElementById("calcResultado");
   const producto = productos.find(function (p) {
     return String(p.id) === document.getElementById("calcProducto").value;
@@ -1043,44 +1028,39 @@ function calcular() {
     resultado.innerHTML = "<p>Revisa los datos: elige la superficie y la pintura, y escribe los metros cuadrados (hasta 10.000).</p>";
     return;
   }
+  const parametros = new URLSearchParams({ producto: producto.id, m2: metros, manos: manos });
+  const enCarrito = carritoComoParametro();
+  if (enCarrito) parametros.set("carrito", enCarrito);
+  let calculo;
+  try {
+    const respuesta = await fetch("/api/calcular?" + parametros);
+    calculo = await respuesta.json();
+    if (!respuesta.ok) throw new Error(calculo.error);
+  } catch (error) {
+    resultado.innerHTML = "<p>No pudimos calcularlo ahora. Revisa tu conexión e inténtalo de nuevo.</p>";
+    return;
+  }
+
   const nombre = escaparHTML(producto.nombre);
-  const rendimiento = producto.rendimiento_m2_litro;
-  if (!rendimiento) {
+  if (calculo.litros === null) {
     resultado.innerHTML = `<p>Todavía no tenemos el rendimiento de <strong>${nombre}</strong>, así que no podemos
       calcularlo por ti. Escríbenos y te ayudamos a elegir la cantidad.</p>`;
     return;
   }
 
-  const litros = metros * manos / rendimiento;
-  const decimales = { maximumFractionDigits: 1 };
-  const explicacion = `${metros.toLocaleString("es-CL", decimales)} m² × ${manos} ${manos === 1 ? "mano" : "manos"}
-    ÷ ${rendimiento.toLocaleString("es-CL", decimales)} m² por litro`;
-  // Stock disponible = stock del formato menos lo que ya está en el carrito
-  const formatos = producto.formatos.map(function (f) {
-    const enCarrito = carrito.find(function (i) { return i.formato_id === f.id; });
-    return { formato: f, disponible: f.stock - (enCarrito ? enCarrito.cantidad : 0) };
-  });
-  const combinacion = mejorCombinacion(formatos, litros);
-
-  let html = `<p class="calculadora__litros">Necesitas unos <strong>${formatearLitros(Math.ceil(litros * 10) / 10)}</strong>
-    <span>(${explicacion})</span></p>`;
-  if (!combinacion) {
+  let html = `<p class="calculadora__litros">Necesitas unos <strong>${formatearLitros(calculo.litros)}</strong>
+    <span>(${explicacionLitros(calculo)})</span></p>`;
+  if (!calculo.combinacion) {
     html += `<p>No tenemos stock suficiente de <strong>${nombre}</strong> para cubrir esa cantidad ahora.
       Escríbenos y lo coordinamos.</p>`;
   } else {
-    sugerenciaCalculadora = combinacion;
+    sugerenciaCalculadora = calculo.combinacion;
     html += `<p class="calculadora__subtitulo">Te sugerimos:</p>
-      <ul class="calculadora__lista">${combinacion.items.map(function (item) {
-        return `<li><span>${item.cantidad} × ${escaparHTML(item.formato.nombre)}
-          <span class="calculadora__detalle">${formatearLitros(item.formato.litros)}</span></span>
-          <span>${formatearPrecio(item.cantidad * item.formato.precio)}</span></li>`;
-      }).join("")}</ul>
-      <p class="calculadora__total"><span>${formatearLitros(Math.round(combinacion.litros * 1000) / 1000)} de ${nombre}</span>
-        <strong>${formatearPrecio(combinacion.precio)}</strong></p>
+      ${htmlCombinacion(calculo.combinacion, producto.nombre)}
       <button type="button" class="boton boton--principal boton--ancho" id="calcAgregar">Agregar al carrito</button>`;
   }
   html += `<p class="calculadora__nota">Es una estimación: el consumo real depende de la superficie
-    (porosidad, textura, color anterior) y de cómo se aplique.</p>`;
+    (porosidad, textura, color anterior) y de cómo se aplique.${calculo.ficha_demo ? " " + NOTA_FICHA_DEMO : ""}</p>`;
   resultado.innerHTML = html;
 }
 
@@ -1094,7 +1074,7 @@ if (formCalculadora) {
   document.getElementById("calcResultado").addEventListener("click", function (evento) {
     if (!evento.target.closest("#calcAgregar") || !sugerenciaCalculadora) return;
     sugerenciaCalculadora.items.forEach(function (item) {
-      agregarAlCarrito(item.formato.id, item.cantidad, false);
+      agregarAlCarrito(item.formato_id, item.cantidad, false);
     });
     sugerenciaCalculadora = null;
     evento.target.closest("#calcAgregar").disabled = true;
@@ -1106,7 +1086,9 @@ if (formCalculadora) {
    20. ARRANQUE
    ============================================================ */
 cargarCarrito();     // recupera el carrito guardado
-cargarProductos();   // trae los productos de la base de datos
+// trae los productos de la base de datos. Otras páginas (asistente) esperan
+// esta "promesa" antes de agregar cosas al carrito.
+const catalogoListo = cargarProductos();
 cargarUsuario();     // revisa si ya hay sesión iniciada
 mostrarBotonGoogle(); // muestra "Continuar con Google" si está disponible
 revisarVueltaDeGoogle(); // mensajes al volver de Google

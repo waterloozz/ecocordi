@@ -64,7 +64,8 @@ raiz = ET.fromstring(cuerpo)
 ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 urls = [u.find("s:loc", ns).text for u in raiz.findall("s:url", ns)]
 fechas = [u.find("s:lastmod", ns).text for u in raiz.findall("s:url", ns)]
-ok(len(urls) == 12 and all(u.startswith(SITIO + "/") for u in urls), "12 páginas, todas con el dominio de SITIO_URL", urls)
+ok(len(urls) == 13 and all(u.startswith(SITIO + "/") for u in urls), "13 páginas, todas con el dominio de SITIO_URL", urls)
+ok(SITIO + "/asistente.html" in urls, "El asistente está en el sitemap")
 ok(SITIO + "/catalogo.html?superficie=madera" in urls and SITIO + "/" in urls, "Incluye la portada y el catálogo por superficie")
 ok(not any("admin" in u for u in urls), "El panel de administración NO está en el sitemap")
 ok(all(len(f) == 10 and f[4] == "-" for f in fechas), "Cada página tiene su fecha (lastmod)")
@@ -90,7 +91,8 @@ titulo("Rendimiento por producto (para la calculadora)")
 srv = Servidor().arrancar()
 cliente, admin = srv.cliente(), srv.admin()
 _, productos = cliente.pedir("GET", "/api/productos")
-ok(all(p["rendimiento_m2_litro"] is None for p in productos), "Los productos de ejemplo NO tienen rendimiento inventado (null)")
+ok(all(p["rendimiento_m2_litro"] and p["ficha_demo"] == 1 for p in productos),
+   "Los productos de ejemplo traen un rendimiento de EJEMPLO, marcado con ficha_demo = 1")
 pid = productos[0]["id"]
 estado, _ = admin.pedir("PATCH", f"/api/admin/productos/{pid}", {"rendimiento_m2_litro": 12.5})
 _, productos = cliente.pedir("GET", "/api/productos")

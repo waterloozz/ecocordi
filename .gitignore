@@ -16,3 +16,6 @@ __pycache__/
 
 # Copias de respaldo de la base de datos (backup.py)
 backups/
+
+# Capturas de pantalla de las pruebas en Chrome (pruebas/prueba_navegador_*.py)
+capturas/

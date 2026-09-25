@@ -236,16 +236,7 @@ async function cargarProductos() {
               ${p.formatos.length === 0 ? '<span class="admin-prod__agotado">Sin formatos: no se puede comprar</span>' : ""}
             </div>
           </div>
-          <!-- Rendimiento: lo usa la calculadora de la tienda. Vacío = sin dato. -->
-          <form class="admin-prod__rendimiento">
-            <label class="admin-formato__campo">
-              <span>Rendimiento (m² por litro, una mano)</span>
-              <input class="admin-prod__input admin-prod__input--stock" type="number" name="rendimiento" min="0.1" max="100" step="any"
-                     value="${p.rendimiento_m2_litro ?? ""}" placeholder="Sin dato"
-                     aria-label="Rendimiento de ${nombre} en metros cuadrados por litro" />
-            </label>
-            <button type="submit" class="admin-prod__guardar">Guardar</button>
-          </form>
+          ${htmlFicha(p, nombre)}
         </td>
         <td data-etiqueta="Formatos">
           <ul class="admin-formatos">${formatos}</ul>
@@ -282,6 +273,68 @@ async function cargarProductos() {
   });
 }
 
+/* -------- 5b. FICHA TÉCNICA (asistente y calculadora) --------
+   Uso, acabado, resistencias, rendimiento y manos. "ficha_demo" marca los
+   valores de EJEMPLO que la empresa todavía debe confirmar. */
+const NOMBRES_USO = { interior: "Interior", exterior: "Exterior", ambos: "Interior y exterior" };
+const NOMBRES_ACABADO = { mate: "Mate", satinado: "Satinado", brillante: "Brillante" };
+
+/* Los campos del formulario, tal como los espera el servidor (vacío = null) */
+function datosFicha(rendimiento, manos, uso, acabado, humedad, sol, lavable) {
+  return {
+    rendimiento_m2_litro: rendimiento.trim() === "" ? null : Number(rendimiento),
+    manos_recomendadas: manos.trim() === "" ? null : Number(manos),
+    uso: uso || null,
+    acabado: acabado || null,
+    resiste_humedad: humedad,
+    resiste_sol: sol,
+    lavable: lavable,
+  };
+}
+
+function opcionesSelect(nombres, actual, textoVacio) {
+  return `<option value="">${textoVacio}</option>` + Object.entries(nombres).map(function (par) {
+    return `<option value="${par[0]}" ${par[0] === actual ? "selected" : ""}>${par[1]}</option>`;
+  }).join("");
+}
+
+/* Resumen de la ficha + formulario para editarla (se despliega con "Ficha técnica") */
+function htmlFicha(p, nombre) {
+  const resumen = [
+    NOMBRES_USO[p.uso] || "Sin uso: no aparece en el asistente",
+    NOMBRES_ACABADO[p.acabado],
+    p.rendimiento_m2_litro ? p.rendimiento_m2_litro.toLocaleString("es-CL") + " m²/L" : "Sin rendimiento",
+  ].filter(Boolean).join(" · ");
+  const casilla = function (nombreCampo, texto, marcada) {
+    return `<label class="casilla"><input type="checkbox" name="${nombreCampo}" ${marcada ? "checked" : ""} />${texto}</label>`;
+  };
+  return `
+    <details class="admin-ficha">
+      <summary>Ficha técnica <span class="tabla__secundario">${escaparHTML(resumen)}</span>
+        ${p.ficha_demo ? '<span class="etiqueta-demo">Ejemplo</span>' : ""}</summary>
+      <form class="admin-ficha__form">
+        <label class="admin-formato__campo"><span>Rendimiento (m²/L)</span>
+          <input class="admin-prod__input admin-prod__input--stock" type="number" name="rendimiento" min="0.1" max="100" step="any"
+                 value="${p.rendimiento_m2_litro ?? ""}" placeholder="Sin dato"
+                 aria-label="Rendimiento de ${nombre} en metros cuadrados por litro" /></label>
+        <label class="admin-formato__campo"><span>Manos</span>
+          <input class="admin-prod__input admin-prod__input--stock" type="number" name="manos" min="1" max="5" step="1"
+                 value="${p.manos_recomendadas ?? ""}" placeholder="—" aria-label="Manos recomendadas de ${nombre}" /></label>
+        <label class="admin-formato__campo"><span>Uso</span>
+          <select class="admin-prod__input" name="uso" aria-label="Uso de ${nombre}">${opcionesSelect(NOMBRES_USO, p.uso, "Sin dato")}</select></label>
+        <label class="admin-formato__campo"><span>Acabado</span>
+          <select class="admin-prod__input" name="acabado" aria-label="Acabado de ${nombre}">${opcionesSelect(NOMBRES_ACABADO, p.acabado, "Sin dato")}</select></label>
+        <div class="admin__casillas">
+          ${casilla("humedad", "Resiste humedad", p.resiste_humedad)}
+          ${casilla("sol", "Resiste sol", p.resiste_sol)}
+          ${casilla("lavable", "Lavable", p.lavable)}
+          ${casilla("demo", "Valores de ejemplo (por confirmar)", p.ficha_demo)}
+        </div>
+        <button type="submit" class="admin-prod__guardar">Guardar ficha</button>
+      </form>
+    </details>`;
+}
+
 /* Envía un cambio a la API y avisa el resultado. Devuelve true si salió bien. */
 async function enviar(metodo, ruta, datos, textoOk) {
   const respuesta = await fetch(ruta, {
@@ -310,9 +363,10 @@ document.getElementById("formProducto").addEventListener("submit", async functio
     superficies.push(chk.value);
   });
 
-  const rendimiento = document.getElementById("pRendimiento").value.trim();
+  const campo = function (id) { return document.getElementById(id); };
   const nuevo = {
-    rendimiento_m2_litro: rendimiento === "" ? null : Number(rendimiento),
+    ...datosFicha(campo("pRendimiento").value, campo("pManos").value, campo("pUso").value, campo("pAcabado").value,
+                  campo("pHumedad").checked, campo("pSol").checked, campo("pLavable").checked),
     nombre: document.getElementById("pNombre").value,
     descripcion: document.getElementById("pDesc").value,
     imagen: document.getElementById("pImagen").value || "img/prod-interior.webp",
@@ -388,11 +442,13 @@ document.getElementById("listaProductos").addEventListener("submit", async funct
     return;
   }
 
-  if (form.matches(".admin-prod__rendimiento")) {
-    const valor = form.elements.rendimiento.value.trim();
+  if (form.matches(".admin-ficha__form")) {
+    const e = form.elements;
     if (await enviar("PATCH", "/api/admin/productos/" + fila.dataset.id, {
-      rendimiento_m2_litro: valor === "" ? null : Number(valor),
-    }, "Rendimiento guardado: " + nombre)) {
+      ...datosFicha(e.rendimiento.value, e.manos.value, e.uso.value, e.acabado.value,
+                    e.humedad.checked, e.sol.checked, e.lavable.checked),
+      ficha_demo: e.demo.checked,
+    }, "Ficha técnica guardada: " + nombre)) {
       cargarProductos();
     }
     return;

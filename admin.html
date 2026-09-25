@@ -101,11 +101,42 @@
               <span class="campo__etiqueta">Descripción</span>
               <input class="campo__control" type="text" id="pDesc" placeholder="Para qué sirve, en una frase" />
             </label>
-            <label class="campo">
-              <span class="campo__etiqueta">Rendimiento (m² por litro, opcional)</span>
-              <input class="campo__control" type="number" id="pRendimiento" min="0.1" max="100" step="any"
-                     placeholder="Lo usa la calculadora; déjalo vacío si no lo sabes" />
-            </label>
+            <!-- Ficha técnica: la usan el asistente "¿Qué pintura necesito?" y la calculadora -->
+            <fieldset class="admin__ficha">
+              <legend>Ficha técnica <span class="tabla__secundario">La usan el asistente y la calculadora. Si no sabes un dato, déjalo vacío.</span></legend>
+              <label class="campo">
+                <span class="campo__etiqueta">Rendimiento (m² por litro, una mano)</span>
+                <input class="campo__control" type="number" id="pRendimiento" min="0.1" max="100" step="any"
+                       placeholder="Según la ficha técnica" />
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Manos recomendadas</span>
+                <input class="campo__control" type="number" id="pManos" min="1" max="5" step="1" placeholder="Ej: 2" />
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Uso</span>
+                <select class="campo__control" id="pUso">
+                  <option value="">Sin dato (no aparece en el asistente)</option>
+                  <option value="interior">Interior</option>
+                  <option value="exterior">Exterior</option>
+                  <option value="ambos">Interior y exterior</option>
+                </select>
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Acabado</span>
+                <select class="campo__control" id="pAcabado">
+                  <option value="">Sin dato</option>
+                  <option value="mate">Mate</option>
+                  <option value="satinado">Satinado</option>
+                  <option value="brillante">Brillante</option>
+                </select>
+              </label>
+              <div class="admin__casillas">
+                <label class="casilla"><input type="checkbox" id="pHumedad" />Resiste humedad</label>
+                <label class="casilla"><input type="checkbox" id="pSol" />Resiste sol directo</label>
+                <label class="casilla"><input type="checkbox" id="pLavable" />Lavable</label>
+              </div>
+            </fieldset>
             <!-- Primer formato de venta. Después se pueden agregar más desde la tabla. -->
             <fieldset class="admin__formato">
               <legend>Primer formato de venta <span class="tabla__secundario">Después puedes agregar más (1/4 galón, tineta…)</span></legend>

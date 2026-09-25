@@ -68,6 +68,7 @@
       <nav class="menu" id="menu" aria-label="Principal">
         <a href="index.html#superficies" class="menu__link">Superficies</a>
         <a href="catalogo.html" class="menu__link" aria-current="page">Catálogo</a>
+        <a href="asistente.html" class="menu__link">Asistente</a>
         <a href="index.html#nosotros" class="menu__link">Nosotros</a>
         <a href="index.html#sucursales" class="menu__link">Sucursales</a>
       </nav>
@@ -97,6 +98,9 @@
           <h1 class="catalogo-pagina__titulo" id="catalogoTitulo">Catálogo</h1>
           <p class="seccion__bajada">Elige la superficie y te mostramos solo las pinturas que le sirven.
             Precios en pesos chilenos<span data-nota-iva></span>.</p>
+          <a class="enlace-flecha catalogo-pagina__asistente" href="asistente.html">
+            ¿No sabes qué pintura usar? Usa el asistente <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg>
+          </a>
         </div>
         <form class="buscador" id="buscador" role="search" action="catalogo.html">
           <label class="solo-lector" for="buscarTexto">Buscar pinturas por nombre o uso</label>
@@ -154,6 +158,8 @@
               <h2 class="calculadora__titulo" id="calculadoraTitulo">¿Cuánta pintura <em>necesito?</em></h2>
               <p class="calculadora__texto">Dinos qué vas a pintar, cuántos metros cuadrados y cuántas manos.
                 Te sugerimos la combinación de formatos más conveniente según el stock disponible.</p>
+              <p class="calculadora__texto">¿No sabes qué pintura elegir?
+                <a href="asistente.html">El asistente te ayuda</a>.</p>
             </div>
             <form class="calculadora__campos" id="formCalculadora">
               <label class="campo">

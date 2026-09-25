@@ -46,7 +46,7 @@ o la función queda oculta. Cada punto dice **dónde se completa**.
 | **Formatos reales** de cada producto (1/4 galón, galón, tineta…), con sus **litros, precio y stock** | Panel de administración → Productos. Los productos de ejemplo parten con un solo formato "galón" con precios de ejemplo. |
 | Litros exactos del "galón" que vende la empresa (se usó 3,785 L, el galón estadounidense; algunas marcas envasan 3,6 L) | Panel → cada formato. Valor por defecto en `server.py` (`LITROS_GALON`) |
 | Litros de la tineta (no hay un tamaño único) | Panel → al crear el formato |
-| **Rendimiento** de cada producto (m² que cubre 1 litro en una mano), según la ficha técnica | Panel → Productos → "Rendimiento". Sin este dato la calculadora no calcula ese producto. |
+| **Ficha técnica** de cada producto — hoy son **valores de EJEMPLO** (marcados en la base de datos con `ficha_demo = 1` y avisados en pantalla): rendimiento (m² por litro en una mano), manos recomendadas, uso (interior / exterior / ambos), acabado (mate / satinado / brillante) y si resiste humedad, resiste sol directo y es lavable. El asistente y la calculadora usan estos datos. Los valores de ejemplo están en `server.py` (`FICHAS_DEMO`). | Panel → Productos → "Ficha técnica" de cada producto: corregir y desmarcar "Valores de ejemplo". |
 | Productos, descripciones y fotos reales | Panel de administración |
 
 ## Revisión final

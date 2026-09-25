@@ -18,6 +18,10 @@ sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 from utilidades import RAIZ, Servidor, ok, pedido, terminar, titulo  # noqa: E402
 
 
+# Columnas de la ficha técnica (asistente)
+FICHA = {"uso", "acabado", "resiste_humedad", "resiste_sol", "lavable", "manos_recomendadas", "ficha_demo"}
+
+
 def columnas(db, tabla):
     con = sqlite3.connect(db)
     cols = [r[1] for r in con.execute(f"PRAGMA table_info({tabla})")]
@@ -68,7 +72,7 @@ def crear_bd_antigua(ruta, con_stock=True):
 # ------------------------------------------------------------
 titulo("Base de datos nueva: tablas, índices y datos de ejemplo")
 srv = Servidor().arrancar()
-ok(set(columnas(srv.db, "productos")) == {"id", "nombre", "descripcion", "imagen", "rendimiento_m2_litro"},
+ok(set(columnas(srv.db, "productos")) == {"id", "nombre", "descripcion", "imagen", "rendimiento_m2_litro"} | FICHA,
    "productos ya no tiene precio, stock ni superficies", columnas(srv.db, "productos"))
 indices = {r[0] for r in consulta(srv.db, "SELECT name FROM sqlite_master WHERE type='index'")}
 for idx in ("idx_pedidos_usuario", "idx_pedidos_estado", "idx_pedido_items_pedido",
@@ -200,7 +204,7 @@ ok("Migración" in srv.salida, "El servidor avisa la migración")
 copias = glob.glob(os.path.join(srv.carpeta, "backups", "antes-de-migrar-*.db"))
 ok(len(copias) == 1 and "precio" in columnas(copias[0], "productos"),
    "Guarda una copia de seguridad ANTES de migrar (con el esquema antiguo)", copias)
-ok(set(columnas(srv.db, "productos")) == {"id", "nombre", "descripcion", "imagen", "rendimiento_m2_litro"}, "Columnas antiguas eliminadas")
+ok(set(columnas(srv.db, "productos")) == {"id", "nombre", "descripcion", "imagen", "rendimiento_m2_litro"} | FICHA, "Columnas antiguas eliminadas")
 _, lista = srv.cliente().pedir("GET", "/api/productos")
 por_nombre = {p["nombre"]: p for p in lista}
 ok(por_nombre["Madera Vieja"]["superficies"] == ["techo", "madera"], "Superficies traspasadas en su orden")
