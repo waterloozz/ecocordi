@@ -10,3 +10,9 @@ img_original/
 # Archivos temporales de Python
 __pycache__/
 *.pyc
+
+# Secretos locales (claves de Google, del admin, etc.). Ver .env.example
+.env
+
+# Copias de respaldo de la base de datos (backup.py)
+backups/

@@ -26,12 +26,37 @@ import re
 import urllib.request
 import urllib.error
 from http.cookies import SimpleCookie
-from urllib.parse import urlparse, parse_qs, urlencode
+from urllib.parse import urlparse, parse_qs, urlencode, unquote
 
-# Carpeta donde vive este archivo, y ruta de la base de datos
-BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE, "ecocordi.db")
-PUERTO = 8000
+# Carpeta donde vive este archivo
+BASE = os.path.dirname(os.path.realpath(__file__))
+
+
+def _cargar_env(ruta):
+    """Lee el archivo .env (si existe) con líneas CLAVE=valor y las deja como
+    variables de entorno. Así los secretos no van en el código ni en la línea
+    de comandos. Si una variable ya estaba definida al arrancar, esa manda.
+    El .env está en .gitignore: NUNCA se sube a GitHub (ver .env.example)."""
+    if not os.path.isfile(ruta):
+        return
+    with open(ruta, encoding="utf-8") as f:
+        for linea in f:
+            linea = linea.strip()
+            if not linea or linea.startswith("#") or "=" not in linea:
+                continue
+            clave, valor = linea.split("=", 1)
+            valor = valor.strip()
+            if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in "'\"":
+                valor = valor[1:-1]
+            os.environ.setdefault(clave.strip(), valor)
+
+
+_cargar_env(os.path.join(BASE, ".env"))
+
+# Ruta de la base de datos y puerto (se pueden cambiar para hacer pruebas
+# con una COPIA de la base de datos, sin tocar la real)
+DB_PATH = os.environ.get("ECOCORDI_DB") or os.path.join(BASE, "ecocordi.db")
+PUERTO = int(os.environ.get("PUERTO", "8000"))
 ADMIN_CORREO = os.environ.get("ADMIN_CORREO", "admin@ecocordi.cl")
 MAX_CANTIDAD = 999  # unidades máximas de un mismo producto por pedido
 CLAVE_MINIMA = 8          # largo mínimo de la contraseña al registrarse
@@ -446,6 +471,34 @@ def anotar_fallo(clave):
     with _fallos_lock:
         _fallos_recientes(clave)
         _fallos.setdefault(clave, []).append(time.time())
+
+
+# ------------------------------------------------------------
+#  ARCHIVOS PÚBLICOS
+#  El servidor solo entrega lo que forma parte de la página. Todo lo demás
+#  (la base de datos, los respaldos, server.py, .env, .git...) queda fuera:
+#  si no está en esta lista, responde 404.
+# ------------------------------------------------------------
+CARPETAS_PUBLICAS = {"css", "js", "img", "fonts"}
+EXTENSIONES_PUBLICAS = {".css", ".js", ".webp", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff2", ".txt"}
+RAIZ_PUBLICA = {"robots.txt", "favicon.ico"}  # además de las páginas .html
+
+
+def archivo_publico(ruta_url):
+    """Devuelve la ruta en disco del archivo pedido, o None si no es público."""
+    partes = [p for p in ruta_url.split("/") if p]
+    if not partes or "\x00" in ruta_url or any(p.startswith(".") or "\\" in p for p in partes):
+        return None
+    if len(partes) == 1:
+        if not (partes[0].endswith(".html") or partes[0] in RAIZ_PUBLICA):
+            return None
+    elif partes[0] not in CARPETAS_PUBLICAS or os.path.splitext(partes[-1])[1].lower() not in EXTENSIONES_PUBLICAS:
+        return None
+    archivo = os.path.realpath(os.path.join(BASE, *partes))
+    # Aunque haya enlaces simbólicos o "..", el archivo debe quedar DENTRO del proyecto
+    if os.path.commonpath([archivo, BASE]) != BASE or not os.path.isfile(archivo):
+        return None
+    return archivo
 
 
 # ------------------------------------------------------------
@@ -1009,10 +1062,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _servir_estatico(self, ruta):
         if ruta == "/":
             ruta = "/index.html"
-        ruta = ruta.lstrip("/")
-        archivo = os.path.normpath(os.path.join(BASE, ruta))
-        # Seguridad: no permitir salir de la carpeta del proyecto
-        if not archivo.startswith(BASE) or not os.path.isfile(archivo):
+        # Seguridad: solo archivos de la página (nunca la base de datos, .env, .git...)
+        archivo = archivo_publico(unquote(ruta))
+        if not archivo:
             self.send_error(404, "No encontrado")
             return
         tipo = mimetypes.guess_type(archivo)[0] or "application/octet-stream"
