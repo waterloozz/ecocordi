@@ -433,6 +433,24 @@ p { text-wrap: pretty; }
 .producto__boton { min-height: 42px; padding-inline: var(--esp-5); }
 
 .sin-resultados { grid-column: 1 / -1; padding: var(--esp-7); text-align: center; color: var(--texto-2); font-family: var(--serif); font-size: var(--txt-xl); }
+.sin-resultados__acciones { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-2); margin-top: var(--esp-3); font-family: var(--sans); font-size: var(--txt-sm); }
+
+/* Formatos de venta de cada tarjeta: chips que se eligen como opciones de radio */
+.producto__formatos { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-top: var(--esp-1); border: none; }
+.formato-chip { position: relative; display: inline-flex; }
+/* El círculo de la opción queda invisible pero sigue ahí (teclado y lectores de pantalla) */
+.formato-chip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.formato-chip span {
+  display: inline-flex; align-items: center; min-height: 36px; padding: 0 var(--esp-4);
+  border: 1.5px solid var(--linea); border-radius: 999px;
+  font-size: var(--txt-xs); font-weight: 600; color: var(--texto);
+  transition: background-color var(--rapido) var(--curva-salida), color var(--rapido) var(--curva-salida), border-color var(--rapido) var(--curva-salida);
+}
+.formato-chip:hover span { border-color: var(--texto); }
+.formato-chip input:checked + span { background: var(--texto); color: var(--muro); border-color: var(--texto); }
+.formato-chip input:focus-visible + span { outline: 3px solid var(--foco); outline-offset: 2px; }
+.formato-chip--agotado span { color: var(--texto-2); text-decoration: line-through; }
+.formato-chip--agotado input:checked + span { color: var(--muro); }
 
 .calculadora {
   display: flex; flex-direction: column; gap: var(--esp-3);
@@ -441,18 +459,31 @@ p { text-wrap: pretty; }
 }
 .calculadora__titulo { font-size: var(--txt-xl); }
 .calculadora__texto { font-size: var(--txt-sm); color: var(--texto-2); line-height: 1.5; }
+.calculadora__titulo + .calculadora__texto { margin-top: var(--esp-2); }
 .calculadora__campos { display: grid; gap: var(--esp-3); }
-.calculadora__resultado { padding: var(--esp-3); text-align: center; color: var(--texto-2); font-style: italic; border: 1px dashed var(--linea); border-radius: var(--radio-sm); }
+.calculadora__resultado { padding: var(--esp-4); font-size: var(--txt-sm); border: 1px dashed var(--linea); border-radius: var(--radio); }
+.calculadora__resultado > * + * { margin-top: var(--esp-2); }
+.calculadora__litros strong { font-size: var(--txt-lg); font-variant-numeric: tabular-nums; }
+.calculadora__litros span { display: block; font-size: var(--txt-xs); color: var(--texto-2); }
+.calculadora__subtitulo { font-weight: 600; }
+.calculadora__lista { display: grid; gap: var(--esp-1); }
+.calculadora__lista li, .calculadora__total { display: flex; justify-content: space-between; gap: var(--esp-3); font-variant-numeric: tabular-nums; }
+.calculadora__detalle { margin-left: var(--esp-1); font-size: var(--txt-xs); color: var(--texto-2); }
+.calculadora__total { padding-top: var(--esp-2); border-top: 1px solid var(--linea); }
+.calculadora__total strong { font-size: var(--txt-md); }
+.calculadora__nota { font-size: var(--txt-xs); color: var(--texto-2); line-height: 1.5; }
+.calculadora__boton, .calculadora__resultado { grid-column: 1 / -1; }
 
 /* ---- Página de catálogo (catalogo.html) ---- */
 .catalogo-pagina { padding-top: var(--esp-7); }
-.catalogo-pagina__cabecera { margin-bottom: var(--esp-6); }
+.catalogo-pagina__cabecera { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--esp-5) var(--esp-7); margin-bottom: var(--esp-6); }
 /* La calculadora, al final del listado, como franja horizontal */
 .calculadora--banda {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
   gap: var(--esp-5) var(--esp-7); align-items: center; margin-top: var(--esp-8);
 }
-.calculadora--banda .calculadora__campos { grid-template-columns: 1fr 1fr 1fr; align-items: end; }
+.calculadora--banda { align-items: start; }
+.calculadora--banda .calculadora__campos { grid-template-columns: 1fr 1fr; align-items: end; }
 .catalogo-pagina__titulo { font-size: var(--txt-3xl); letter-spacing: -0.02em; line-height: 0.95; }
 .catalogo-pagina__lista { padding-block: var(--esp-7) var(--esp-seccion); }
 
@@ -488,6 +519,17 @@ p { text-wrap: pretty; }
 .filtro--chip.filtro--activo { background: var(--acento); color: var(--sobre-acento); border-color: var(--acento); box-shadow: none; }
 .filtro--chip.filtro--activo::after { display: none; }
 .catalogo__estado { flex-shrink: 0; }
+
+/* Buscador del catálogo (en la barra fija, junto a los filtros) */
+.buscador { position: relative; flex: 0 1 22rem; }
+.buscador__icono { position: absolute; left: 14px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--texto-2); pointer-events: none; }
+.buscador__campo {
+  width: 100%; min-height: 46px; padding: 0 var(--esp-4) 0 42px;
+  background: var(--papel); color: var(--texto);
+  border: 1.5px solid var(--linea); border-radius: 999px; font-size: var(--txt-sm);
+}
+.buscador__campo::placeholder { color: var(--texto-2); opacity: 0.85; }
+.buscador__campo:focus { outline: none; border-color: var(--acento); box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 25%, transparent); }
 
 /* ============ 9. BENEFICIOS, NOSOTROS Y SUCURSALES ============ */
 .beneficios { padding-block: var(--esp-8); border-block: 1px solid var(--linea); }
@@ -738,6 +780,7 @@ p { text-wrap: pretty; }
 .admin-prod__borrar { width: 40px; height: 40px; display: grid; place-items: center; color: var(--texto-2); border-radius: 50%; }
 .admin-prod__borrar:hover { color: var(--error); background: var(--muro-2); }
 
+.admin-prod__rendimiento { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--esp-2); margin-top: var(--esp-3); }
 /* Formatos de cada producto en la tabla: un mini formulario por formato */
 .admin-formatos { display: grid; gap: var(--esp-2); }
 .admin-formato + .admin-formato { padding-top: var(--esp-2); border-top: 1px dashed var(--linea); }
@@ -863,6 +906,7 @@ p { text-wrap: pretty; }
   .ventana__foto, .ventana__luz { aspect-ratio: 4 / 5; }
   .beneficios__lista { grid-template-columns: 1fr; gap: var(--esp-6); }
   .barra-filtros__interior { flex-direction: column; align-items: stretch; gap: var(--esp-2); }
+  .buscador { flex: 1 1 100%; }
   .nosotros__grid { grid-template-columns: 1fr; }
   .pie__grid { grid-template-columns: 1fr 1fr; }
   .pie__marca { grid-column: 1 / -1; }

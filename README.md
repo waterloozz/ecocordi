@@ -122,9 +122,18 @@ ecocordi/
   compartir el enlace y el botón "atrás" vuelve al filtro anterior.
 - **Carrito de compras** que se mantiene aunque cierres la página y no deja
   pedir más unidades de las que hay en bodega.
+- **Buscador** en el catálogo (por nombre y descripción, sin importar
+  mayúsculas ni tildes). Se combina con el filtro de superficie y queda en la
+  dirección: `catalogo.html?superficie=metal&q=rejas`.
 - **Formatos de venta**: cada producto se vende en uno o más formatos
   (1/4 galón, galón, tineta…), cada uno con **su propio precio y stock**.
+  En cada tarjeta se elige el formato y cambian el precio y el stock.
   El carrito y los pedidos trabajan por formato.
+- **Calculadora "¿Cuánta pintura necesito?"**: con los m², las manos y la
+  pintura, calcula los litros (`m² × manos ÷ rendimiento`) y sugiere la
+  combinación de formatos **más barata** que alcance, según el stock. El
+  rendimiento (m² por litro) lo carga el admin en cada producto; si falta, la
+  calculadora lo dice en vez de inventarlo.
 - **Stock** por formato: la tienda muestra "¡Quedan N!" cuando quedan 5 o
   menos y "Agotado" (botón deshabilitado) cuando no queda nada.
 - **Cuentas de usuario** reales: registro e inicio de sesión con contraseñas
@@ -145,8 +154,11 @@ ecocordi/
 - **Avisos y confirmaciones propios** (sin `alert()` ni `confirm()`).
 - **Responsive desde 360 px**, foco de teclado visible, contraste AA y respeto
   por la opción "reducir movimiento" del sistema.
-- **Espacios preparados** (sin lógica todavía): calculadora de m² a litros y
-  botón flotante de WhatsApp.
+- **WhatsApp**: botón flotante que abre el chat con la empresa. El número se
+  configura con `WHATSAPP_NUMERO`; si no está, el botón no aparece.
+- **SEO**: vista previa al compartir en redes (Open Graph y Twitter), enlace
+  canónico, `robots.txt` y `sitemap.xml` generados por el servidor con el
+  dominio de `SITIO_URL`.
 
 ---
 
@@ -251,7 +263,8 @@ Cada prueba arranca su propio servidor con una **base de datos temporal**
 (tu `ecocordi.db` nunca se toca):
 
 ```bash
-python3 pruebas/prueba_base_datos.py
+python3 pruebas/prueba_base_datos.py   # Fase 1: base de datos, formatos, migraciones, respaldos
+python3 pruebas/prueba_catalogo.py     # Fase 2: configuración, SEO, rendimiento
 ```
 
 ## ⚖️ Aspectos legales y de privacidad

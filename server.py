@@ -27,6 +27,7 @@ import urllib.request
 import urllib.error
 from http.cookies import SimpleCookie
 from urllib.parse import urlparse, parse_qs, urlencode, unquote
+from xml.sax.saxutils import escape as xml_escape
 
 from backup import hacer_backup
 
@@ -76,6 +77,7 @@ SUPERFICIES = ("madera", "metal", "exterior", "techo", "interior")
 FORMATO_MIGRACION = "galón"   # formato que reciben los productos antiguos
 LITROS_GALON = 3.785          # 1 galón = 3,785 litros (confirmar con la empresa)
 MAX_NOMBRE_FORMATO = 40
+MAX_BUSQUEDA = 60         # largo máximo del texto del buscador
 MAX_LITROS = 1000
 # Estados posibles de un pedido (en orden). "cancelado" devuelve el stock.
 ESTADOS = ("pendiente", "pagado", "enviado", "entregado", "cancelado")
@@ -88,6 +90,23 @@ MAX_CORREO = 254
 # (la cookie de sesión solo viajará cifrada)
 COOKIE_SEGURA = os.environ.get("COOKIE_SEGURA") == "1"
 
+# Dirección pública del sitio, sin "/" al final (ej: https://www.ecocordi.cl).
+# Se usa para el sitemap, robots.txt y las etiquetas para compartir en redes
+# (Open Graph). Si no está definida, se usa la dirección local.
+def _sitio_url(valor):
+    valor = valor.strip().rstrip("/")
+    return valor if re.fullmatch(r"https?://[A-Za-z0-9.-]+(:\d+)?", valor) else ""
+
+
+SITIO_URL = _sitio_url(os.environ.get("SITIO_URL", "")) or f"http://localhost:{PUERTO}"
+SITIO_CONFIGURADO = bool(_sitio_url(os.environ.get("SITIO_URL", "")))
+
+# Número de WhatsApp de la empresa, con código de país (ej: 56912345678).
+# Si no está definido, el botón de WhatsApp no aparece.
+WHATSAPP_NUMERO = re.sub(r"[\s+()-]", "", os.environ.get("WHATSAPP_NUMERO", ""))
+if not re.fullmatch(r"\d{8,15}", WHATSAPP_NUMERO):
+    WHATSAPP_NUMERO = ""
+
 # Inicio de sesión con Google (OAuth 2.0 / OpenID Connect).
 # Las credenciales se crean en Google Cloud y NUNCA se escriben en el código:
 #   GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... python3 server.py
@@ -95,8 +114,7 @@ COOKIE_SEGURA = os.environ.get("COOKIE_SEGURA") == "1"
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 # Debe coincidir EXACTO con la "URI de redireccionamiento autorizada" en Google Cloud
-GOOGLE_REDIRECT_URI = os.environ.get(
-    "GOOGLE_REDIRECT_URI", f"http://localhost:{PUERTO}/api/auth/google/callback")
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI") or f"{SITIO_URL}/api/auth/google/callback"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_EMISORES = ("https://accounts.google.com", "accounts.google.com")
@@ -154,7 +172,9 @@ def init_db():
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre      TEXT NOT NULL,
             descripcion TEXT,
-            imagen      TEXT
+            imagen      TEXT,
+            -- Cuántos m² cubre 1 litro en una mano (lo informa la empresa; NULL = sin dato)
+            rendimiento_m2_litro REAL CHECK (rendimiento_m2_litro IS NULL OR rendimiento_m2_litro > 0)
         )
     """)
 
@@ -246,6 +266,9 @@ def init_db():
     # Cuentas vinculadas a Google: guardamos solo su identificador ("sub")
     if _agregar_columna(c, "usuarios", "google_sub", "TEXT"):
         print("  Migración: columna 'google_sub' agregada a usuarios")
+    if _agregar_columna(c, "productos", "rendimiento_m2_litro",
+                        "REAL CHECK (rendimiento_m2_litro IS NULL OR rendimiento_m2_litro > 0)"):
+        print("  Migración: columna 'rendimiento_m2_litro' agregada a productos (sin dato)")
     for columna in ("formato_id INTEGER", "formato TEXT"):
         nombre, tipo = columna.split()
         if _agregar_columna(c, "pedido_items", nombre, tipo):
@@ -470,10 +493,10 @@ def _texto(datos, campo):
 # ------------------------------------------------------------
 def listar_productos(con):
     """Lista de productos tal como la entrega /api/productos:
-    {id, nombre, descripcion, imagen, superficies: [...], formatos: [...],
+    {id, nombre, descripcion, imagen, rendimiento_m2_litro, superficies: [...], formatos: [...],
      precio (el del formato más barato), stock (suma de todos los formatos)}."""
     productos = [dict(f) for f in con.execute(
-        "SELECT id, nombre, descripcion, imagen FROM productos ORDER BY id")]
+        "SELECT id, nombre, descripcion, imagen, rendimiento_m2_litro FROM productos ORDER BY id")]
     superficies, formatos = {}, {}
     # ORDER BY rowid: las superficies salen en el orden en que se guardaron
     # (la primera define el color de la tarjeta, igual que antes)
@@ -512,6 +535,18 @@ def _leer_formato(datos, parcial=False):
                 return None, f"{campo.capitalize()} inválido (número entero entre 0 y {maximo})"
             campos[campo] = valor
     return campos, None
+
+
+MAX_RENDIMIENTO = 100  # m² por litro (ningún producto rinde más que esto)
+
+
+def _leer_rendimiento(valor):
+    """(rendimiento, error). None es válido: significa "sin dato"."""
+    if valor is None:
+        return None, None
+    if type(valor) not in (int, float) or not 0 < valor <= MAX_RENDIMIENTO:
+        return None, f"Rendimiento inválido (m² por litro, mayor que 0 y hasta {MAX_RENDIMIENTO})"
+    return float(valor), None
 
 
 def _leer_superficies(valor):
@@ -585,10 +620,20 @@ def google_configurado():
 
 def _volver_seguro(volver):
     """Solo permitimos volver a páginas propias: así nadie puede usar el sitio
-    para redirigir a otra web (open redirect)."""
-    if volver and re.fullmatch(r"(index|catalogo)\.html(\?superficie=[a-z]+)?", volver):
-        return "/" + volver
-    return "/"
+    para redirigir a otra web (open redirect). La dirección se ARMA de nuevo
+    solo con lo permitido: la página y los filtros del catálogo."""
+    pagina, _, consulta = (volver or "").partition("?")
+    if pagina not in ("index.html", "catalogo.html"):
+        return "/"
+    params = parse_qs(consulta)
+    seguros = {}
+    superficie = params.get("superficie", [""])[0]
+    if superficie in SUPERFICIES:
+        seguros["superficie"] = superficie
+    busqueda = params.get("q", [""])[0].strip()
+    if busqueda and len(busqueda) <= MAX_BUSQUEDA:
+        seguros["q"] = busqueda
+    return "/" + pagina + ("?" + urlencode(seguros) if seguros else "")
 
 
 def _agregar_param(url, clave, valor):
@@ -648,7 +693,35 @@ def anotar_fallo(clave):
 # ------------------------------------------------------------
 CARPETAS_PUBLICAS = {"css", "js", "img", "fonts"}
 EXTENSIONES_PUBLICAS = {".css", ".js", ".webp", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff2", ".txt"}
-RAIZ_PUBLICA = {"robots.txt", "favicon.ico"}  # además de las páginas .html
+RAIZ_PUBLICA = {"favicon.ico"}  # además de las páginas .html (robots.txt y sitemap.xml los arma el servidor)
+
+# Páginas que aparecen en el sitemap (las que Google debería mostrar).
+# El panel de administración NO va: es privado.
+PAGINAS_SITEMAP = ["index.html", "catalogo.html"] + [f"catalogo.html?superficie={s}" for s in SUPERFICIES] + [
+    "terminos.html", "privacidad.html", "cookies.html", "devoluciones.html", "creditos.html"]
+
+
+def generar_robots():
+    return ("# Ecocordi: los buscadores pueden ver la tienda, pero no el panel ni la API\n"
+            "User-agent: *\n"
+            "Allow: /\n"
+            "Disallow: /admin.html\n"
+            "Disallow: /api/\n\n"
+            f"Sitemap: {SITIO_URL}/sitemap.xml\n")
+
+
+def generar_sitemap():
+    """sitemap.xml: la lista de páginas del sitio para los buscadores (Google, Bing...)."""
+    urls = []
+    for pagina in PAGINAS_SITEMAP:
+        archivo = os.path.join(BASE, pagina.split("?")[0])
+        if not os.path.isfile(archivo):
+            continue
+        fecha = time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(archivo)))
+        direccion = SITIO_URL + "/" + ("" if pagina == "index.html" else pagina)
+        urls.append(f"  <url><loc>{xml_escape(direccion)}</loc><lastmod>{fecha}</lastmod></url>")
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + "\n".join(urls) + "\n</urlset>\n")
 
 
 def archivo_publico(ruta_url):
@@ -730,9 +803,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
         ruta = urlparse(self.path)
         if ruta.path.startswith("/api/"):
             return self._api_get(ruta)
+        if ruta.path == "/robots.txt":
+            return self._texto_plano(generar_robots(), "text/plain; charset=utf-8")
+        if ruta.path == "/sitemap.xml":
+            return self._texto_plano(generar_sitemap(), "application/xml; charset=utf-8")
         return self._servir_estatico(ruta.path)
 
+    def _texto_plano(self, texto, tipo):
+        cuerpo = texto.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", tipo)
+        self.send_header("Content-Length", str(len(cuerpo)))
+        self.end_headers()
+        self.wfile.write(cuerpo)
+
     def _api_get(self, ruta):
+        if ruta.path == "/api/config":
+            # Configuración PÚBLICA que necesita la página (nada secreto aquí)
+            return self._json({"whatsapp": WHATSAPP_NUMERO or None})
         if ruta.path == "/api/auth/google/disponible":
             return self._json({"disponible": google_configurado()})
         if ruta.path == "/api/auth/google/iniciar":
@@ -1160,7 +1248,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._json({"ok": True, "id": pedido_id, "estado": nuevo})
 
     def _editar_producto(self, producto_id, datos):
-        """PATCH /api/admin/productos/<id>  {"nombre", "descripcion", "imagen", "superficies"}
+        """PATCH /api/admin/productos/<id>  {"nombre", "descripcion", "imagen", "superficies", "rendimiento_m2_litro"}
         Se puede mandar solo lo que cambia. El precio y el stock se editan en
         cada formato (PATCH /api/admin/formatos/<id>)."""
         cambios = {}
@@ -1172,6 +1260,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         for campo in ("descripcion", "imagen"):
             if campo in datos:
                 cambios[campo] = _texto(datos, campo).strip()
+        if "rendimiento_m2_litro" in datos:
+            rendimiento, error = _leer_rendimiento(datos["rendimiento_m2_litro"])
+            if error:
+                return self._json({"error": error}, 400)
+            cambios["rendimiento_m2_litro"] = rendimiento
         superficies = None
         if "superficies" in datos:
             superficies = _leer_superficies(datos["superficies"])
@@ -1282,6 +1375,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         superficies = _leer_superficies(datos.get("superficies", []))
         if superficies is None:
             return self._json({"error": "Superficies inválidas. Usa: " + ", ".join(SUPERFICIES)}, 400)
+        rendimiento, error = _leer_rendimiento(datos.get("rendimiento_m2_litro"))
+        if error:
+            return self._json({"error": error}, 400)
         lista = datos.get("formatos")
         if not isinstance(lista, list) or not lista:
             return self._json({"error": "Agrega al menos un formato con su precio"}, 400)
@@ -1297,9 +1393,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             con.execute("BEGIN IMMEDIATE")  # producto, superficies y formatos: todo o nada
             nuevo_id = con.execute(
-                "INSERT INTO productos (nombre, descripcion, imagen) VALUES (?,?,?)",
+                "INSERT INTO productos (nombre, descripcion, imagen, rendimiento_m2_litro) VALUES (?,?,?,?)",
                 (nombre, _texto(datos, "descripcion").strip(),
-                 _texto(datos, "imagen").strip() or "img/prod-interior.webp"),
+                 _texto(datos, "imagen").strip() or "img/prod-interior.webp", rendimiento),
             ).lastrowid
             con.executemany("INSERT INTO producto_superficies (producto_id, superficie) VALUES (?,?)",
                             [(nuevo_id, sup) for sup in superficies])
@@ -1326,6 +1422,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         tipo = mimetypes.guess_type(archivo)[0] or "application/octet-stream"
         with open(archivo, "rb") as f:
             contenido = f.read()
+        if archivo.endswith(".html"):
+            # Las etiquetas para compartir en redes necesitan la dirección completa
+            contenido = contenido.replace(b"__SITIO_URL__", SITIO_URL.encode())
+            tipo = "text/html; charset=utf-8"
         self.send_response(200)
         self.send_header("Content-Type", tipo)
         self.send_header("Content-Length", str(len(contenido)))
@@ -1355,6 +1455,8 @@ if __name__ == "__main__":
     else:
         print("  Login con Google:      desactivado (faltan GOOGLE_CLIENT_ID")
         print("                         y GOOGLE_CLIENT_SECRET; ver README)")
+    print("  WhatsApp:              " + ("ACTIVADO" if WHATSAPP_NUMERO else "oculto (falta WHATSAPP_NUMERO)"))
+    print("  Dirección pública:     " + (SITIO_URL if SITIO_CONFIGURADO else "sin SITIO_URL (se usa localhost)"))
     print("  (Para detener el servidor: Ctrl + C)")
     print("=" * 50)
     # Hilo en segundo plano que olvida las IP de intentos fallidos viejos

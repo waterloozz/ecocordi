@@ -197,6 +197,16 @@ async function cargarProductos() {
               ${p.formatos.length === 0 ? '<span class="admin-prod__agotado">Sin formatos: no se puede comprar</span>' : ""}
             </div>
           </div>
+          <!-- Rendimiento: lo usa la calculadora de la tienda. Vacío = sin dato. -->
+          <form class="admin-prod__rendimiento">
+            <label class="admin-formato__campo">
+              <span>Rendimiento (m² por litro, una mano)</span>
+              <input class="admin-prod__input admin-prod__input--stock" type="number" name="rendimiento" min="0.1" max="100" step="any"
+                     value="${p.rendimiento_m2_litro ?? ""}" placeholder="Sin dato"
+                     aria-label="Rendimiento de ${nombre} en metros cuadrados por litro" />
+            </label>
+            <button type="submit" class="admin-prod__guardar">Guardar</button>
+          </form>
         </td>
         <td data-etiqueta="Formatos">
           <ul class="admin-formatos">${formatos}</ul>
@@ -261,7 +271,9 @@ document.getElementById("formProducto").addEventListener("submit", async functio
     superficies.push(chk.value);
   });
 
+  const rendimiento = document.getElementById("pRendimiento").value.trim();
   const nuevo = {
+    rendimiento_m2_litro: rendimiento === "" ? null : Number(rendimiento),
     nombre: document.getElementById("pNombre").value,
     descripcion: document.getElementById("pDesc").value,
     imagen: document.getElementById("pImagen").value || "img/prod-interior.webp",
@@ -332,6 +344,16 @@ document.getElementById("listaProductos").addEventListener("submit", async funct
       precio: Number(form.elements.precio.value),
       stock: Number(form.elements.stock.value),
     }, "Cambios guardados: " + nombre)) {
+      cargarProductos();
+    }
+    return;
+  }
+
+  if (form.matches(".admin-prod__rendimiento")) {
+    const valor = form.elements.rendimiento.value.trim();
+    if (await enviar("PATCH", "/api/admin/productos/" + fila.dataset.id, {
+      rendimiento_m2_litro: valor === "" ? null : Number(valor),
+    }, "Rendimiento guardado: " + nombre)) {
       cargarProductos();
     }
     return;

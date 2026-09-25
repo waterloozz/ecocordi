@@ -92,9 +92,14 @@
               <span class="campo__etiqueta">Imagen</span>
               <input class="campo__control" type="text" id="pImagen" placeholder="img/prod-interior.webp" />
             </label>
-            <label class="campo campo--ancho">
+            <label class="campo">
               <span class="campo__etiqueta">Descripción</span>
               <input class="campo__control" type="text" id="pDesc" placeholder="Para qué sirve, en una frase" />
+            </label>
+            <label class="campo">
+              <span class="campo__etiqueta">Rendimiento (m² por litro, opcional)</span>
+              <input class="campo__control" type="number" id="pRendimiento" min="0.1" max="100" step="any"
+                     placeholder="Lo usa la calculadora; déjalo vacío si no lo sabes" />
             </label>
             <!-- Primer formato de venta. Después se pueden agregar más desde la tabla. -->
             <fieldset class="admin__formato">

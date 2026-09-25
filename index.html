@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pinturas Ecocordi | Majestuosas por Naturaleza</title>
   <meta name="description" content="Pinturas Ecocordi: elige qué vas a pintar (madera, metal, exterior, techo o interior) y te decimos qué pintura usar. Sucursales en Talca y Santiago." />
+  <link rel="canonical" href="__SITIO_URL__/" />
+  <!-- Vista previa al compartir en redes (WhatsApp, Facebook, X...). El servidor
+       cambia __SITIO_URL__ por la dirección del sitio (variable SITIO_URL). -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Pinturas Ecocordi" />
+  <meta property="og:locale" content="es_CL" />
+  <meta property="og:title" content="Pinturas Ecocordi | Majestuosas por Naturaleza" />
+  <meta property="og:description" content="Pinturas Ecocordi: elige qué vas a pintar (madera, metal, exterior, techo o interior) y te decimos qué pintura usar. Sucursales en Talca y Santiago." />
+  <meta property="og:url" content="__SITIO_URL__/" />
+  <meta property="og:image" content="__SITIO_URL__/img/og-ecocordi.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Pintor aplicando pintura en un muro, con el logo de Pinturas Ecocordi" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Pinturas Ecocordi | Majestuosas por Naturaleza" />
+  <meta name="twitter:description" content="Pinturas Ecocordi: elige qué vas a pintar (madera, metal, exterior, techo o interior) y te decimos qué pintura usar. Sucursales en Talca y Santiago." />
+  <meta name="twitter:image" content="__SITIO_URL__/img/og-ecocordi.jpg" />
 
   <link rel="icon" href="img/favicon.png" type="image/png" />
   <!-- Precargamos las fuentes y la foto de portada para que nada "salte" al cargar -->
@@ -315,10 +332,11 @@
     <p class="contenedor pie__legal">© 2026 Pinturas Ecocordi. Talca y Santiago, Chile.</p>
   </footer>
 
-  <!-- Espacio preparado: botón flotante de WhatsApp (falta el número) -->
-  <button class="whatsapp" id="btnWhatsapp" type="button" aria-label="Escríbenos por WhatsApp (próximamente)">
+  <!-- Botón flotante de WhatsApp: aparece solo si el servidor tiene el número (WHATSAPP_NUMERO) -->
+  <a class="whatsapp oculto" id="btnWhatsapp" href="#" target="_blank" rel="noopener"
+     aria-label="Escríbenos por WhatsApp (se abre en otra pestaña)">
     <svg class="icono" aria-hidden="true"><use href="#i-chat"/></svg>
-  </button>
+  </a>
 
   <!-- ================= VENTANA DE INICIO DE SESIÓN ================= -->
   <div class="modal-fondo" id="modalFondo"></div>

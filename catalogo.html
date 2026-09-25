@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Catálogo | Pinturas Ecocordi</title>
   <meta name="description" content="Catálogo de Pinturas Ecocordi: pinturas para madera, metal, exterior, techo e interior, con precio y stock." />
+  <link rel="canonical" href="__SITIO_URL__/catalogo.html" />
+  <!-- Vista previa al compartir en redes (WhatsApp, Facebook, X...). El servidor
+       cambia __SITIO_URL__ por la dirección del sitio (variable SITIO_URL). -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Pinturas Ecocordi" />
+  <meta property="og:locale" content="es_CL" />
+  <meta property="og:title" content="Catálogo | Pinturas Ecocordi" />
+  <meta property="og:description" content="Catálogo de Pinturas Ecocordi: pinturas para madera, metal, exterior, techo e interior, con precio y stock." />
+  <meta property="og:url" content="__SITIO_URL__/catalogo.html" />
+  <meta property="og:image" content="__SITIO_URL__/img/og-ecocordi.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Pintor aplicando pintura en un muro, con el logo de Pinturas Ecocordi" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Catálogo | Pinturas Ecocordi" />
+  <meta name="twitter:description" content="Catálogo de Pinturas Ecocordi: pinturas para madera, metal, exterior, techo e interior, con precio y stock." />
+  <meta name="twitter:image" content="__SITIO_URL__/img/og-ecocordi.jpg" />
 
   <link rel="icon" href="img/favicon.png" type="image/png" />
   <!-- Precargamos las fuentes y la foto de portada para que nada "salte" al cargar -->
@@ -24,6 +41,7 @@
     <symbol id="i-tarro" viewBox="0 0 24 24"><path d="M4 9h16l-1.5 10.4A2 2 0 0 1 16.5 21h-9a2 2 0 0 1-2-1.6L4 9Z"/><path d="M7 9a5 5 0 0 1 10 0"/></symbol>
     <symbol id="i-basura" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></symbol>
     <symbol id="i-cerrar" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-buscar" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 8h16M4 16h16"/></symbol>
     <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.4-7-12a7 7 0 0 1 14 0c0 5.6-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></symbol>
@@ -75,14 +93,23 @@
   <main id="contenido">
     <section class="catalogo-pagina" id="catalogo" aria-labelledby="catalogoTitulo">
       <div class="contenedor catalogo-pagina__cabecera">
+        <div>
           <h1 class="catalogo-pagina__titulo" id="catalogoTitulo">Catálogo</h1>
           <p class="seccion__bajada">Elige la superficie y te mostramos solo las pinturas que le sirven.
             Precios en pesos chilenos.</p>
+        </div>
+        <form class="buscador" id="buscador" role="search" action="catalogo.html">
+          <label class="solo-lector" for="buscarTexto">Buscar pinturas por nombre o uso</label>
+          <svg class="icono buscador__icono" aria-hidden="true"><use href="#i-buscar"/></svg>
+          <input class="buscador__campo" type="search" id="buscarTexto" name="q" maxlength="60"
+                 placeholder="Buscar: rejas, muebles, fachada…" autocomplete="off" enterkeyhint="search" />
+        </form>
       </div>
 
       <!-- Barra de filtros: queda fija arriba al bajar por el catálogo.
-           app.js escucha los clics en #filtros y guarda la superficie en la
-           dirección (catalogo.html?superficie=madera) para poder compartirla. -->
+           app.js escucha los clics en #filtros y el buscador (arriba, junto al
+           título), y guarda la elección en la dirección (catalogo.html?superficie=madera&q=esmalte)
+           para poder compartirla. -->
       <div class="barra-filtros">
         <div class="contenedor barra-filtros__interior">
           <div class="filtros filtros--barra" id="filtros" role="group" aria-label="Filtrar el catálogo por superficie">
@@ -121,25 +148,47 @@
         <!-- app.js pinta aquí los productos -->
         <div class="productos productos--catalogo" id="productos"></div>
 
-          <!-- Espacio preparado: calculadora m² → litros (todavía sin lógica) -->
+          <!-- Calculadora: m² → litros → formatos sugeridos (app.js, sección "Calculadora") -->
           <aside class="calculadora calculadora--banda" id="calculadora" aria-labelledby="calculadoraTitulo">
             <div>
               <h2 class="calculadora__titulo" id="calculadoraTitulo">¿Cuánta pintura <em>necesito?</em></h2>
-              <p class="calculadora__texto">Muy pronto: escribe los metros cuadrados a pintar y te diremos cuántos litros comprar.</p>
+              <p class="calculadora__texto">Dinos qué vas a pintar, cuántos metros cuadrados y cuántas manos.
+                Te sugerimos la combinación de formatos más conveniente según el stock disponible.</p>
             </div>
-            <div class="calculadora__campos">
+            <form class="calculadora__campos" id="formCalculadora">
+              <label class="campo">
+                <span class="campo__etiqueta">Superficie</span>
+                <select class="campo__control" id="calcSuperficie" required>
+                  <option value="">Elige una</option>
+                  <option value="madera">Madera</option>
+                  <option value="metal">Metal</option>
+                  <option value="exterior">Exterior</option>
+                  <option value="techo">Techo</option>
+                  <option value="interior">Interior</option>
+                </select>
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Pintura</span>
+                <select class="campo__control" id="calcProducto" required disabled>
+                  <option value="">Primero elige la superficie</option>
+                </select>
+              </label>
               <label class="campo">
                 <span class="campo__etiqueta">Metros cuadrados</span>
-                <input class="campo__control" type="number" id="calcMetros" min="1" placeholder="Ej: 40" disabled />
+                <input class="campo__control" type="number" id="calcMetros" min="0.5" max="10000" step="any"
+                       inputmode="decimal" placeholder="Ej: 40" required />
               </label>
               <label class="campo">
                 <span class="campo__etiqueta">Manos de pintura</span>
-                <select class="campo__control" id="calcManos" disabled>
-                  <option>2</option><option>1</option><option>3</option>
+                <select class="campo__control" id="calcManos">
+                  <option value="1">1</option><option value="2" selected>2</option><option value="3">3</option>
                 </select>
               </label>
-              <p class="calculadora__resultado" id="calcResultado">Próximamente</p>
-            </div>
+              <button type="submit" class="boton boton--principal calculadora__boton">Calcular</button>
+              <div class="calculadora__resultado" id="calcResultado" aria-live="polite">
+                <p>Completa los datos y presiona «Calcular».</p>
+              </div>
+            </form>
           </aside>
       </div>
     </section>
@@ -188,10 +237,11 @@
     <p class="contenedor pie__legal">© 2026 Pinturas Ecocordi. Talca y Santiago, Chile.</p>
   </footer>
 
-  <!-- Espacio preparado: botón flotante de WhatsApp (falta el número) -->
-  <button class="whatsapp" id="btnWhatsapp" type="button" aria-label="Escríbenos por WhatsApp (próximamente)">
+  <!-- Botón flotante de WhatsApp: aparece solo si el servidor tiene el número (WHATSAPP_NUMERO) -->
+  <a class="whatsapp oculto" id="btnWhatsapp" href="#" target="_blank" rel="noopener"
+     aria-label="Escríbenos por WhatsApp (se abre en otra pestaña)">
     <svg class="icono" aria-hidden="true"><use href="#i-chat"/></svg>
-  </button>
+  </a>
 
   <!-- ================= VENTANA DE INICIO DE SESIÓN ================= -->
   <div class="modal-fondo" id="modalFondo"></div>

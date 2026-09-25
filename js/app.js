@@ -66,6 +66,8 @@ async function cargarProductos() {
     productos = await respuesta.json();
     mostrarCatalogo();
     sincronizarCarrito();
+    actualizarPinturasCalculadora();
+    sugerirSuperficieCalculadora(superficieActiva);
   } catch (error) {
     contenedorProductos.innerHTML =
       "<p class='sin-resultados'>No se pudieron cargar los productos. ¿Está encendido el servidor?</p>";
@@ -76,9 +78,14 @@ async function cargarProductos() {
    Cada producto se vende en uno o más formatos (1/4 galón, galón, tineta...),
    y cada formato tiene su propio precio y stock. El carrito guarda FORMATOS. */
 
-/* Formato que muestra la tarjeta: el primero que tenga stock (o el primero) */
+// Formato que la persona eligió en cada tarjeta: { id_producto: id_formato }.
+// Así, si el catálogo se vuelve a dibujar (filtro, búsqueda), no se pierde.
+const formatoElegido = {};
+
+/* Formato que muestra la tarjeta: el elegido; si no, el primero con stock (o el primero) */
 function formatoInicial(producto) {
-  return producto.formatos.find(function (f) { return f.stock > 0; }) || producto.formatos[0] || null;
+  const elegido = producto.formatos.find(function (f) { return f.id === formatoElegido[producto.id]; });
+  return elegido || producto.formatos.find(function (f) { return f.stock > 0; }) || producto.formatos[0] || null;
 }
 
 /* Busca un formato por su id en el catálogo cargado: { producto, formato } */
@@ -105,28 +112,66 @@ function itemDeCarrito(producto, formato, cantidad) {
   };
 }
 
+/* Litros con coma decimal chilena: 3,785 L */
+function formatearLitros(litros) {
+  return litros.toLocaleString("es-CL", { maximumFractionDigits: 3 }) + " L";
+}
+
 /* -------- 5. MOSTRAR PRODUCTOS EN PANTALLA --------
-   Lista editorial: foto grande, nombre, superficies y una línea con
-   precio, stock y botón. */
-function mostrarProductos(lista) {
+   Lista editorial: foto grande, nombre, superficies, formatos y una línea
+   con precio, stock y botón. */
+
+/* Precio, stock y botón de UN formato. Se vuelve a dibujar al cambiar de formato. */
+function htmlCompra(formato) {
+  // Stock del formato: "Agotado" si no queda nada, "Quedan N" si quedan 5 o menos
+  const stock = formato ? formato.stock : 0;
+  const agotado = stock <= 0;
+  let avisoStock = "";
+  if (agotado) {
+    avisoStock = '<span class="producto__stock producto__stock--agotado">Agotado</span>';
+  } else if (stock <= 5) {
+    avisoStock = `<span class="producto__stock producto__stock--pocas">Quedan ${stock}</span>`;
+  }
+  return `
+    <span class="producto__precio">
+      ${formato ? formatearPrecio(formato.precio) : ""}
+      <span class="producto__formato">${formato ? escaparHTML(formato.nombre) + " · " + formatearLitros(formato.litros) : "No disponible"}</span>
+    </span>
+    <div class="producto__compra">
+      ${avisoStock}
+      <button type="button" class="boton boton--principal producto__boton"
+              data-formato-id="${formato ? formato.id : ""}" ${agotado ? "disabled" : ""}>
+        ${agotado ? "Agotado" : "Agregar al carrito"}
+      </button>
+    </div>`;
+}
+
+/* Botones para elegir el formato (solo si hay más de uno) */
+function htmlFormatos(producto, elegido) {
+  if (producto.formatos.length < 2) return "";
+  const opciones = producto.formatos.map(function (f) {
+    return `
+      <label class="formato-chip ${f.stock <= 0 ? "formato-chip--agotado" : ""}">
+        <input type="radio" name="formato-${producto.id}" value="${f.id}" ${f.id === elegido.id ? "checked" : ""} />
+        <span>${escaparHTML(f.nombre)}</span>
+      </label>`;
+  }).join("");
+  return `
+    <fieldset class="producto__formatos">
+      <legend class="solo-lector">Formato de ${escaparHTML(producto.nombre)}</legend>
+      ${opciones}
+    </fieldset>`;
+}
+
+function mostrarProductos(lista, mensajeVacio) {
   if (lista.length === 0) {
-    contenedorProductos.innerHTML =
-      "<p class='sin-resultados'>Todavía no hay pinturas para esta superficie.</p>";
+    contenedorProductos.innerHTML = `<div class="sin-resultados">${mensajeVacio ||
+      "<p>Todavía no hay pinturas para esta superficie.</p>"}</div>`;
     return;
   }
 
   contenedorProductos.innerHTML = lista.map(function (p) {
     const formato = formatoInicial(p);
-    // Stock del formato: "Agotado" si no queda nada, "Quedan N" si quedan 5 o menos
-    const stock = formato ? formato.stock : 0;
-    const agotado = stock <= 0;
-    let avisoStock = "";
-    if (agotado) {
-      avisoStock = '<span class="producto__stock producto__stock--agotado">Agotado</span>';
-    } else if (stock <= 5) {
-      avisoStock = `<span class="producto__stock producto__stock--pocas">Quedan ${stock}</span>`;
-    }
-
     const superficies = p.superficies.map(function (s) {
       return `<li class="${claseSuperficie(s)}">${escaparHTML(SUPERFICIES[s] || s)}</li>`;
     }).join("");
@@ -142,19 +187,8 @@ function mostrarProductos(lista) {
           <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
           <p class="producto__desc">${escaparHTML(p.descripcion)}</p>
           <ul class="producto__superficies" aria-label="Superficies">${superficies}</ul>
-          <div class="producto__pie">
-            <span class="producto__precio">
-              ${formato ? formatearPrecio(formato.precio) : ""}
-              <span class="producto__formato">${formato ? escaparHTML(formato.nombre) : "No disponible"}</span>
-            </span>
-            <div class="producto__compra">
-              ${avisoStock}
-              <button type="button" class="boton boton--principal producto__boton"
-                      data-formato-id="${formato ? formato.id : ""}" ${agotado ? "disabled" : ""}>
-                ${agotado ? "Agotado" : "Agregar al carrito"}
-              </button>
-            </div>
-          </div>
+          ${formato ? htmlFormatos(p, formato) : ""}
+          <div class="producto__pie">${htmlCompra(formato)}</div>
         </div>
       </article>
     `;
@@ -165,24 +199,68 @@ function mostrarProductos(lista) {
    En vez de poner onclick="..." en cada botón (la CSP del servidor lo
    bloquea), ponemos UN solo "escuchador" en el contenedor de productos.
    Cuando haces clic en cualquier parte de adentro, revisamos si fue en un
-   botón, y leemos el id desde el atributo data-id de la tarjeta. */
+   botón, y leemos el formato desde su atributo data-formato-id. */
 contenedorProductos.addEventListener("click", function (evento) {
   const boton = evento.target.closest(".producto__boton");
   if (!boton) return; // el clic no fue en el botón
   agregarAlCarrito(Number(boton.dataset.formatoId));
 });
 
-/* -------- 6. FILTRO POR SUPERFICIE (funcionalidad estrella) --------
-   Vive en catalogo.html. La superficie elegida se guarda en la dirección
-   de la página (catalogo.html?superficie=madera), así:
+/* Al elegir otro formato, cambian el precio, el stock y el botón de esa tarjeta */
+contenedorProductos.addEventListener("change", function (evento) {
+  if (!evento.target.matches(".producto__formatos input")) return;
+  const tarjeta = evento.target.closest(".producto");
+  const encontrado = buscarFormato(Number(evento.target.value));
+  if (!encontrado) return;
+  formatoElegido[encontrado.producto.id] = encontrado.formato.id;
+  tarjeta.querySelector(".producto__pie").innerHTML = htmlCompra(encontrado.formato);
+});
+
+/* -------- 6. FILTRO POR SUPERFICIE Y BUSCADOR (funcionalidad estrella) --------
+   Viven en catalogo.html. La superficie y el texto buscado se guardan en la
+   dirección de la página (catalogo.html?superficie=madera&q=rejas), así:
      - la home puede enlazar directo a "pinturas para madera",
      - el enlace se puede compartir (por ejemplo, por WhatsApp),
      - el botón "atrás" del navegador vuelve al filtro anterior. */
+const campoBusqueda = document.getElementById("buscarTexto");
+let busqueda = ""; // texto del buscador
 
 /* Lee ?superficie=... de la dirección. Si no hay o no es válida: "todas" */
 function superficieDeLaURL() {
   const superficie = new URLSearchParams(location.search).get("superficie");
   return SUPERFICIES[superficie] ? superficie : "todas";
+}
+
+function busquedaDeLaURL() {
+  return (new URLSearchParams(location.search).get("q") || "").trim().slice(0, 60);
+}
+
+/* Para buscar sin importar mayúsculas ni tildes: "Protección" → "proteccion" */
+function normalizar(texto) {
+  return String(texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+/* ¿El producto tiene TODAS las palabras buscadas (en su nombre o descripción)? */
+function coincideBusqueda(producto, texto) {
+  const palabras = normalizar(texto).split(/\s+/).filter(Boolean);
+  const donde = normalizar(producto.nombre + " " + producto.descripcion);
+  return palabras.every(function (palabra) { return donde.includes(palabra); });
+}
+
+/* Escribe la superficie y la búsqueda en la dirección de la página.
+   nuevaEntrada = true crea un paso en el historial (botón "atrás");
+   al escribir en el buscador solo se reemplaza, para no llenar el historial. */
+function guardarEnURL(nuevaEntrada) {
+  // Siempre en el mismo orden (superficie y luego búsqueda): así un mismo
+  // filtro produce siempre el mismo enlace
+  const url = new URL(location.href);
+  url.searchParams.delete("superficie");
+  url.searchParams.delete("q");
+  if (superficieActiva !== "todas") url.searchParams.set("superficie", superficieActiva);
+  if (busqueda) url.searchParams.set("q", busqueda);
+  if (url.href === location.href) return;
+  if (nuevaEntrada) history.pushState(null, "", url);
+  else history.replaceState(null, "", url);
 }
 
 /* Marca como activo el botón de la superficie elegida */
@@ -199,17 +277,22 @@ function elegirSuperficie(superficie, guardarEnHistorial) {
   marcarFiltro(superficie);
   superficieActiva = superficie;
   mostrarCatalogo();
-  if (guardarEnHistorial !== false) {
-    const url = new URL(location.href);
-    if (superficie === "todas") url.searchParams.delete("superficie");
-    else url.searchParams.set("superficie", superficie);
-    history.pushState(null, "", url);
-  }
+  if (guardarEnHistorial !== false) guardarEnURL(true);
+  sugerirSuperficieCalculadora(superficie);
+}
+
+function elegirBusqueda(texto, guardarEnHistorial) {
+  busqueda = texto.trim().slice(0, 60);
+  if (campoBusqueda && campoBusqueda.value.trim() !== busqueda) campoBusqueda.value = busqueda;
+  mostrarCatalogo();
+  if (guardarEnHistorial !== false) guardarEnURL(false);
 }
 
 if (contenedorFiltros) {
-  // Al abrir el catálogo, partimos con la superficie que venga en la dirección
+  // Al abrir el catálogo, partimos con lo que venga en la dirección
   superficieActiva = superficieDeLaURL();
+  busqueda = busquedaDeLaURL();
+  campoBusqueda.value = busqueda;
   marcarFiltro(superficieActiva);
 
   // Los botones tienen contenido adentro (miniatura y nombre),
@@ -220,46 +303,84 @@ if (contenedorFiltros) {
     elegirSuperficie(boton.dataset.superficie);
   });
 
+  // Buscador: filtra mientras se escribe (con una pequeña pausa para no
+  // redibujar en cada letra). Enter no recarga la página: solo cierra el teclado.
+  let pausa = null;
+  campoBusqueda.addEventListener("input", function () {
+    clearTimeout(pausa);
+    pausa = setTimeout(function () { elegirBusqueda(campoBusqueda.value); }, 200);
+  });
+  document.getElementById("buscador").addEventListener("submit", function (evento) {
+    evento.preventDefault();
+    clearTimeout(pausa);
+    elegirBusqueda(campoBusqueda.value);
+    campoBusqueda.blur();
+  });
+
   // Botón "atrás" / "adelante" del navegador
   window.addEventListener("popstate", function () {
+    busqueda = busquedaDeLaURL();
+    campoBusqueda.value = busqueda;
     elegirSuperficie(superficieDeLaURL(), false);
   });
 
-  // El "Ver todo" que aparece junto al filtro activo
-  filtroActivo.addEventListener("click", function (evento) {
+  // "Ver todo" y "Borrar búsqueda", junto al texto que dice qué se muestra
+  // (también dentro del mensaje "sin resultados")
+  document.getElementById("catalogo").addEventListener("click", function (evento) {
     if (evento.target.closest("[data-elegir-superficie]")) elegirSuperficie("todas");
+    if (evento.target.closest("[data-borrar-busqueda]")) {
+      elegirBusqueda("");
+      campoBusqueda.focus();
+    }
   });
 }
 
-/* Muestra los productos según el filtro elegido. Se usa también cuando el
-   catálogo se recarga (por ejemplo, después de comprar cambia el stock).
+/* Muestra los productos según el filtro y la búsqueda. Se usa también cuando
+   el catálogo se recarga (por ejemplo, después de comprar cambia el stock).
    En la home, #productos tiene data-limite="3": solo 3 destacados con stock. */
 function mostrarCatalogo() {
   let lista = productos;
   if (superficieActiva !== "todas") {
-    lista = productos.filter(function (p) {
+    lista = lista.filter(function (p) {
       return p.superficies.includes(superficieActiva);
     });
+  }
+  if (busqueda) {
+    lista = lista.filter(function (p) { return coincideBusqueda(p, busqueda); });
   }
   const limite = Number(contenedorProductos.dataset.limite) || 0;
   if (limite) {
     lista = lista.filter(function (p) { return p.stock > 0; }).slice(0, limite);
   }
-  mostrarProductos(lista);
+
+  const nombreSuperficie = escaparHTML(SUPERFICIES[superficieActiva] || superficieActiva);
+  const botonVerTodo = '<button type="button" class="catalogo__quitar" data-elegir-superficie="todas">Ver todas las superficies</button>';
+  const botonBorrar = '<button type="button" class="catalogo__quitar" data-borrar-busqueda>Borrar búsqueda</button>';
+  let mensajeVacio = "";
+  if (busqueda) {
+    mensajeVacio = `<p>No encontramos pinturas para «${escaparHTML(busqueda)}»` +
+      (superficieActiva !== "todas" ? ` en ${nombreSuperficie}` : "") + ".</p>" +
+      `<p class="sin-resultados__acciones">${botonBorrar}${superficieActiva !== "todas" ? botonVerTodo : ""}</p>`;
+  }
+  mostrarProductos(lista, mensajeVacio);
 
   if (!filtroActivo) return; // en la home no hay texto de filtro
   // Texto que dice qué se está mostrando
   const cantidad = lista.length === 1 ? "1 producto" : lista.length + " productos";
-  if (superficieActiva === "todas") {
+  const partes = [];
+  if (superficieActiva !== "todas") partes.push(`<strong>${nombreSuperficie}</strong>`);
+  if (busqueda) partes.push(`«${escaparHTML(busqueda)}»`);
+  if (partes.length === 0) {
     filtroActivo.textContent = cantidad;
   } else {
-    filtroActivo.innerHTML = `Mostrando <strong>${escaparHTML(SUPERFICIES[superficieActiva] || superficieActiva)}</strong> · ${cantidad}
-      <button type="button" class="catalogo__quitar" data-elegir-superficie="todas">Ver todo</button>`;
+    filtroActivo.innerHTML = `Mostrando ${partes.join(" · ")} · ${cantidad}
+      ${busqueda ? botonBorrar : ""}${superficieActiva !== "todas" ? '<button type="button" class="catalogo__quitar" data-elegir-superficie="todas">Ver todo</button>' : ""}`;
   }
 }
 
 /* -------- 7. CARRITO: agregar, cambiar cantidad, eliminar -------- */
-function agregarAlCarrito(formatoId, cantidad) {
+/* abrir = false: agrega sin abrir el panel (la calculadora agrega varios y lo abre al final) */
+function agregarAlCarrito(formatoId, cantidad, abrir) {
   const encontrado = buscarFormato(formatoId);
   if (!encontrado) return;
   const producto = encontrado.producto;
@@ -281,7 +402,7 @@ function agregarAlCarrito(formatoId, cantidad) {
     carrito.push(itemDeCarrito(producto, formato, nuevaCantidad));
   }
   actualizarCarrito();
-  abrirCarrito();
+  if (abrir !== false) abrirCarrito();
 }
 
 function cambiarCantidad(id, cambio) {
@@ -812,12 +933,189 @@ document.addEventListener("keydown", function (evento) {
   cerrarMenu();
 });
 
-/* -------- 19. BOTÓN DE WHATSAPP (espacio preparado) --------
-   Cuando tengan el número, reemplazar esto por un enlace a
-   https://wa.me/569XXXXXXXX y borrar este aviso. */
-document.getElementById("btnWhatsapp").addEventListener("click", function () {
-  avisar("Muy pronto podrás escribirnos por WhatsApp. Mientras tanto: pinturas@ecocordi.cl", "info");
-});
+/* -------- 19. BOTÓN DE WHATSAPP --------
+   El número NO está en el código: lo entrega el servidor (/api/config), que
+   lo lee de la configuración (WHATSAPP_NUMERO). Si no hay número, el botón
+   queda oculto. */
+async function configurarWhatsapp() {
+  const boton = document.getElementById("btnWhatsapp");
+  if (!boton) return;
+  try {
+    const respuesta = await fetch("/api/config");
+    const config = await respuesta.json();
+    if (!config.whatsapp || !/^\d{8,15}$/.test(config.whatsapp)) return;
+    boton.href = "https://wa.me/" + config.whatsapp + "?" + new URLSearchParams({
+      text: "Hola, Pinturas Ecocordi. Tengo una consulta:",
+    });
+    boton.classList.remove("oculto");
+  } catch (error) { /* sin configuración: el botón sigue oculto */ }
+}
+
+/* -------- 19b. CALCULADORA: ¿CUÁNTA PINTURA NECESITO? --------
+   litros = metros² × manos ÷ rendimiento (m² que cubre 1 litro en una mano).
+   El rendimiento lo informa la empresa para cada producto (el admin lo carga).
+   Después buscamos la combinación de formatos MÁS BARATA que cubra esos
+   litros con el stock disponible. */
+const formCalculadora = document.getElementById("formCalculadora");
+const MAX_PASOS_CALCULO = 300000; // tope de combinaciones a revisar
+
+/* Combinación más conveniente: la de menor precio; si empatan, la que sobra
+   menos pintura; y si siguen empatadas, la de menos tarros.
+   formatos: [{ formato, disponible }] ; devuelve null si el stock no alcanza. */
+function mejorCombinacion(formatos, litrosNecesarios) {
+  const lista = formatos
+    .filter(function (f) { return f.disponible > 0; })
+    .sort(function (a, b) { return b.formato.litros - a.formato.litros; });
+  const litrosDisponibles = lista.reduce(function (suma, f) { return suma + f.formato.litros * f.disponible; }, 0);
+  if (lista.length === 0 || litrosDisponibles + 1e-9 < litrosNecesarios) return null;
+
+  let mejor = null;
+  let pasos = 0;
+  const cantidades = lista.map(function () { return 0; });
+
+  function anotar(precio) {
+    let litros = 0, tarros = 0;
+    cantidades.forEach(function (n, i) { litros += n * lista[i].formato.litros; tarros += n; });
+    const esMejor = !mejor || precio < mejor.precio ||
+      (precio === mejor.precio && (litros < mejor.litros - 1e-9 ||
+        (Math.abs(litros - mejor.litros) <= 1e-9 && tarros < mejor.tarros)));
+    if (esMejor) {
+      mejor = {
+        precio: precio, litros: litros, tarros: tarros,
+        items: cantidades
+          .map(function (n, i) { return { formato: lista[i].formato, cantidad: n }; })
+          .filter(function (item) { return item.cantidad > 0; }),
+      };
+    }
+  }
+
+  // Probamos cantidades del formato más grande al más chico ("ramificar y podar")
+  function probar(i, falta, precio) {
+    if (++pasos > MAX_PASOS_CALCULO) return;
+    if (falta <= 1e-9) { anotar(precio); return; }
+    if (i === lista.length) return;
+    const f = lista[i];
+    const maximo = Math.min(f.disponible, Math.ceil(falta / f.formato.litros - 1e-9));
+    for (let n = maximo; n >= 0; n--) {
+      const nuevoPrecio = precio + n * f.formato.precio;
+      if (mejor && nuevoPrecio > mejor.precio) continue; // ya es más caro: no sigue
+      cantidades[i] = n;
+      probar(i + 1, falta - n * f.formato.litros, nuevoPrecio);
+      if (i === lista.length - 1) break; // el más chico: solo sirve la cantidad justa
+    }
+    cantidades[i] = 0;
+  }
+  probar(0, litrosNecesarios, 0);
+  return mejor;
+}
+
+/* Llena la lista de pinturas según la superficie elegida */
+function actualizarPinturasCalculadora() {
+  if (!formCalculadora) return;
+  const superficie = document.getElementById("calcSuperficie").value;
+  const selector = document.getElementById("calcProducto");
+  const anterior = selector.value;
+  const lista = productos.filter(function (p) {
+    return p.formatos.length > 0 && p.superficies.includes(superficie);
+  });
+  if (!superficie) {
+    selector.innerHTML = '<option value="">Primero elige la superficie</option>';
+    selector.disabled = true;
+    return;
+  }
+  selector.disabled = lista.length === 0;
+  selector.innerHTML = lista.length === 0
+    ? '<option value="">No hay pinturas para esta superficie</option>'
+    : '<option value="">Elige una pintura</option>' + lista.map(function (p) {
+        return `<option value="${p.id}">${escaparHTML(p.nombre)}</option>`;
+      }).join("");
+  if (lista.some(function (p) { return String(p.id) === anterior; })) selector.value = anterior;
+  else if (lista.length === 1) selector.value = String(lista[0].id);
+}
+
+/* Al filtrar el catálogo por una superficie, la calculadora la toma también
+   (solo si la persona todavía no eligió una) */
+function sugerirSuperficieCalculadora(superficie) {
+  if (!formCalculadora || !SUPERFICIES[superficie]) return;
+  const selector = document.getElementById("calcSuperficie");
+  if (selector.value) return;
+  selector.value = superficie;
+  actualizarPinturasCalculadora();
+}
+
+let sugerenciaCalculadora = null; // última combinación sugerida (para "Agregar al carrito")
+
+function calcular() {
+  const resultado = document.getElementById("calcResultado");
+  const producto = productos.find(function (p) {
+    return String(p.id) === document.getElementById("calcProducto").value;
+  });
+  const metros = Number(document.getElementById("calcMetros").value);
+  const manos = Number(document.getElementById("calcManos").value);
+  sugerenciaCalculadora = null;
+
+  if (!producto || !(metros > 0) || metros > 10000 || ![1, 2, 3].includes(manos)) {
+    resultado.innerHTML = "<p>Revisa los datos: elige la superficie y la pintura, y escribe los metros cuadrados (hasta 10.000).</p>";
+    return;
+  }
+  const nombre = escaparHTML(producto.nombre);
+  const rendimiento = producto.rendimiento_m2_litro;
+  if (!rendimiento) {
+    resultado.innerHTML = `<p>Todavía no tenemos el rendimiento de <strong>${nombre}</strong>, así que no podemos
+      calcularlo por ti. Escríbenos y te ayudamos a elegir la cantidad.</p>`;
+    return;
+  }
+
+  const litros = metros * manos / rendimiento;
+  const decimales = { maximumFractionDigits: 1 };
+  const explicacion = `${metros.toLocaleString("es-CL", decimales)} m² × ${manos} ${manos === 1 ? "mano" : "manos"}
+    ÷ ${rendimiento.toLocaleString("es-CL", decimales)} m² por litro`;
+  // Stock disponible = stock del formato menos lo que ya está en el carrito
+  const formatos = producto.formatos.map(function (f) {
+    const enCarrito = carrito.find(function (i) { return i.formato_id === f.id; });
+    return { formato: f, disponible: f.stock - (enCarrito ? enCarrito.cantidad : 0) };
+  });
+  const combinacion = mejorCombinacion(formatos, litros);
+
+  let html = `<p class="calculadora__litros">Necesitas unos <strong>${formatearLitros(Math.ceil(litros * 10) / 10)}</strong>
+    <span>(${explicacion})</span></p>`;
+  if (!combinacion) {
+    html += `<p>No tenemos stock suficiente de <strong>${nombre}</strong> para cubrir esa cantidad ahora.
+      Escríbenos y lo coordinamos.</p>`;
+  } else {
+    sugerenciaCalculadora = combinacion;
+    html += `<p class="calculadora__subtitulo">Te sugerimos:</p>
+      <ul class="calculadora__lista">${combinacion.items.map(function (item) {
+        return `<li><span>${item.cantidad} × ${escaparHTML(item.formato.nombre)}
+          <span class="calculadora__detalle">${formatearLitros(item.formato.litros)}</span></span>
+          <span>${formatearPrecio(item.cantidad * item.formato.precio)}</span></li>`;
+      }).join("")}</ul>
+      <p class="calculadora__total"><span>${formatearLitros(Math.round(combinacion.litros * 1000) / 1000)} de ${nombre}</span>
+        <strong>${formatearPrecio(combinacion.precio)}</strong></p>
+      <button type="button" class="boton boton--principal boton--ancho" id="calcAgregar">Agregar al carrito</button>`;
+  }
+  html += `<p class="calculadora__nota">Es una estimación: el consumo real depende de la superficie
+    (porosidad, textura, color anterior) y de cómo se aplique.</p>`;
+  resultado.innerHTML = html;
+}
+
+if (formCalculadora) {
+  document.getElementById("calcSuperficie").addEventListener("change", actualizarPinturasCalculadora);
+  formCalculadora.addEventListener("submit", function (evento) {
+    evento.preventDefault();
+    calcular();
+  });
+  // "Agregar al carrito" de la sugerencia (el botón se dibuja con el resultado)
+  document.getElementById("calcResultado").addEventListener("click", function (evento) {
+    if (!evento.target.closest("#calcAgregar") || !sugerenciaCalculadora) return;
+    sugerenciaCalculadora.items.forEach(function (item) {
+      agregarAlCarrito(item.formato.id, item.cantidad, false);
+    });
+    sugerenciaCalculadora = null;
+    evento.target.closest("#calcAgregar").disabled = true;
+    abrirCarrito();
+  });
+}
 
 /* ============================================================
    20. ARRANQUE
@@ -827,4 +1125,5 @@ cargarProductos();   // trae los productos de la base de datos
 cargarUsuario();     // revisa si ya hay sesión iniciada
 mostrarBotonGoogle(); // muestra "Continuar con Google" si está disponible
 revisarVueltaDeGoogle(); // mensajes al volver de Google
+configurarWhatsapp(); // muestra el botón de WhatsApp si hay número configurado
 actualizarCarrito(); // dibuja el carrito

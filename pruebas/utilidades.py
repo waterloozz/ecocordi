@@ -67,7 +67,8 @@ class Servidor:
                             ECOCORDI_BACKUPS=os.path.join(self.carpeta, "backups"),
                             ADMIN_CORREO=ADMIN_CORREO, ADMIN_CLAVE=ADMIN_CLAVE,
                             GOOGLE_CLIENT_ID="", GOOGLE_CLIENT_SECRET="", PYTHONUNBUFFERED="1",
-                            **(entorno or {}))
+                            WHATSAPP_NUMERO="", SITIO_URL="", GOOGLE_REDIRECT_URI="")
+        self.entorno.update(entorno or {})
         self.proceso = None
         self.salida = ""
 
