@@ -39,6 +39,21 @@ Necesitas tener **Python 3** instalado (ya viene en la mayoría de los Linux/Mac
 3. Abre tu navegador en: **http://localhost:8000**
 4. Para detener el servidor: `Ctrl + C`
 
+### Configuración y secretos (`.env`)
+
+Las claves (admin, Google) y los datos que dependen de la empresa **no van en
+el código**. Se escriben en un archivo `.env`, que el servidor lee al arrancar
+y que **nunca se sube a GitHub** (está en `.gitignore`):
+
+```bash
+cp .env.example .env     # copia la plantilla
+nano .env                # completa los valores (o ábrelo con tu editor)
+python3 server.py
+```
+
+`.env.example` explica cada variable. Lo que todavía falta pedirle a la
+empresa está en **`PENDIENTES.md`**.
+
 ---
 
 ## 🔑 Cuenta de administrador
@@ -71,7 +86,12 @@ gestionar productos.
 ```
 ecocordi/
 ├── server.py          → Backend: servidor + base de datos (API)
-├── ecocordi.db        → Base de datos SQLite (se crea sola al arrancar)
+├── backup.py          → Copia de seguridad de la base de datos (ver "Copias de seguridad")
+├── ecocordi.db        → Base de datos SQLite (se crea sola al arrancar; NO se sube a GitHub)
+├── backups/           → Copias de seguridad (se crea sola; NO se sube a GitHub)
+├── .env.example       → Plantilla de configuración (el .env real no se sube)
+├── PENDIENTES.md      → Datos que faltan de la empresa y dónde se completan
+├── pruebas/           → Pruebas automáticas (python3 pruebas/prueba_base_datos.py)
 ├── index.html         → Página principal: portada, superficies y 3 destacados
 ├── catalogo.html      → Catálogo completo con filtro por superficie (?superficie=madera)
 ├── admin.html         → Panel de administración
@@ -102,7 +122,10 @@ ecocordi/
   compartir el enlace y el botón "atrás" vuelve al filtro anterior.
 - **Carrito de compras** que se mantiene aunque cierres la página y no deja
   pedir más unidades de las que hay en bodega.
-- **Stock** por producto: la tienda muestra "¡Quedan N!" cuando quedan 5 o
+- **Formatos de venta**: cada producto se vende en uno o más formatos
+  (1/4 galón, galón, tineta…), cada uno con **su propio precio y stock**.
+  El carrito y los pedidos trabajan por formato.
+- **Stock** por formato: la tienda muestra "¡Quedan N!" cuando quedan 5 o
   menos y "Agotado" (botón deshabilitado) cuando no queda nada.
 - **Cuentas de usuario** reales: registro e inicio de sesión con contraseñas
   encriptadas (nunca se guardan en texto plano).
@@ -113,7 +136,8 @@ ecocordi/
   (al cancelar, las unidades vuelven al stock).
 - **Mis pedidos**: cada cliente ve sus compras y el estado de cada una.
 - **Panel de administración** protegido: ver pedidos y cambiar su estado,
-  agregar/eliminar productos y editar su precio y stock.
+  agregar/eliminar productos, agregar/eliminar formatos y editar el precio y
+  stock de cada formato.
 - **Diseño "Luz de ventana"**: el mismo color cambia con la luz del día, y la
   página lo muestra. Según la hora de quien la visita se ve con luz de **mañana**,
   **tarde** o **noche** (fondo oscuro), y también se puede elegir a mano. Todas
@@ -138,8 +162,11 @@ ecocordi/
   validan el id y la cantidad de cada producto.
 - **Integridad de datos**: `PRAGMA foreign_keys = ON` y restricciones `CHECK`
   (el stock nunca puede quedar negativo; el estado solo acepta valores válidos).
-- Si la base de datos es de una versión anterior, al arrancar se le agregan las
-  columnas nuevas (`stock`, `estado`) **sin borrar datos**.
+- Si la base de datos es de una versión anterior, al arrancar se **migra sola
+  sin borrar datos** (antes guarda una copia en `backups/antes-de-migrar-….db`).
+- El servidor **solo entrega los archivos de la página** (HTML, CSS, JS,
+  imágenes y fuentes). La base de datos, los respaldos, `.env`, `server.py` y
+  `.git` responden 404.
 - Consultas SQL **parametrizadas** (protegen contra inyección SQL).
 - Rutas de administrador protegidas (verifican que el usuario sea admin).
 - Protección contra **XSS**: todo dato se escapa antes de mostrarse, y la
@@ -174,6 +201,58 @@ En producción, agrega la URI con tu dominio en Google Cloud y define
 no puede entrar con Google (solo con contraseña).
 
 ---
+
+## 🗄️ Base de datos
+
+Tablas principales:
+
+| Tabla | Qué guarda |
+|-------|-----------|
+| `productos` | nombre, descripción e imagen |
+| `producto_superficies` | para qué superficies sirve cada producto (un producto → varias superficies) |
+| `producto_formatos` | formatos de venta: nombre, litros, **precio y stock** |
+| `usuarios`, `sesiones` | cuentas y sesiones iniciadas |
+| `pedidos`, `pedido_items` | pedidos y su detalle (con copia del nombre, formato y precio del momento) |
+
+Tiene índices para las búsquedas frecuentes (pedidos por usuario y por estado,
+detalle por pedido, sesiones por usuario y por fecha).
+
+## 💾 Copias de seguridad
+
+`backup.py` guarda una copia de `ecocordi.db` en `backups/` con la fecha en el
+nombre, revisa que la copia esté sana y **conserva las últimas 14**. Usa la
+API de backup de SQLite, así que funciona aunque el servidor esté encendido.
+
+```bash
+python3 backup.py
+```
+
+Para que se haga **sola todos los días a las 3 AM**, agrégala a `cron`:
+
+```bash
+crontab -e
+```
+
+y pega esta línea (cambiando la ruta por la de tu carpeta):
+
+```
+0 3 * * * cd /home/rober/Escritorio/ecocordi && /usr/bin/python3 backup.py >> backups/backup.log 2>&1
+```
+
+**Restaurar una copia:** detén el servidor, reemplaza `ecocordi.db` por la copia
+elegida de `backups/` y vuelve a arrancarlo.
+
+> Las copias quedan en el mismo computador. Para protegerte de que se pierda
+> el disco, copia de vez en cuando la carpeta `backups/` a otro lugar.
+
+## 🧪 Pruebas automáticas
+
+Cada prueba arranca su propio servidor con una **base de datos temporal**
+(tu `ecocordi.db` nunca se toca):
+
+```bash
+python3 pruebas/prueba_base_datos.py
+```
 
 ## ⚖️ Aspectos legales y de privacidad
 

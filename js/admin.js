@@ -89,7 +89,8 @@ async function cargarPedidos() {
 
   contenedor.innerHTML = pedidos.map(function (p) {
     const items = p.items.map(function (it) {
-      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)} <span class="tabla__secundario">${formatearPrecio(it.precio)} c/u</span></li>`;
+      const formato = it.formato ? " (" + escaparHTML(it.formato) + ")" : "";
+      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}${formato} <span class="tabla__secundario">${formatearPrecio(it.precio)} c/u</span></li>`;
     }).join("");
 
     // Solo usamos estados conocidos para armar clases CSS
@@ -120,10 +121,28 @@ async function cargarPedidos() {
   }).join("");
 }
 
-/* -------- 4. CARGAR Y MOSTRAR LOS PRODUCTOS (una fila por producto) --------
-   Los campos de precio y stock de cada fila pertenecen a un <form> vacío
-   gracias al atributo form="editar-ID": así cada fila es un formulario
-   aunque sus campos estén en distintas celdas de la tabla. */
+/* -------- 4. FORMATOS DE VENTA --------
+   Cada producto se vende en uno o más formatos (1/4 galón, galón, tineta...),
+   cada uno con su propio precio y stock. */
+
+// Litros de los formatos conocidos: se completan solos si el campo está vacío.
+// La tineta no tiene un tamaño único, así que sus litros se escriben a mano.
+const LITROS_CONOCIDOS = { "1/4 galón": 0.946, "galón": 3.785 };
+
+function completarLitros(campoNombre, campoLitros) {
+  campoNombre.addEventListener("change", function () {
+    const litros = LITROS_CONOCIDOS[campoNombre.value.trim().toLowerCase()];
+    if (litros && !campoLitros.value) campoLitros.value = litros;
+  });
+}
+
+function formatearLitros(litros) {
+  return litros.toLocaleString("es-CL", { maximumFractionDigits: 3 }) + " L";
+}
+
+/* -------- 5. CARGAR Y MOSTRAR LOS PRODUCTOS (una fila por producto) --------
+   Cada formato es un pequeño formulario (precio, stock, Guardar y borrar).
+   Al final de la celda, "Agregar formato" abre un formulario para uno nuevo. */
 async function cargarProductos() {
   const respuesta = await fetch("/api/productos");
   const productos = await respuesta.json();
@@ -132,15 +151,40 @@ async function cargarProductos() {
 
   if (productos.length === 0) {
     contenedor.innerHTML =
-      "<tr><td colspan='4' class='admin__vacio tabla__sin-etiqueta'>No hay productos. Agrega el primero con el formulario.</td></tr>";
+      "<tr><td colspan='3' class='admin__vacio tabla__sin-etiqueta'>No hay productos. Agrega el primero con el formulario.</td></tr>";
     return;
   }
 
   contenedor.innerHTML = productos.map(function (p) {
     const nombre = escaparHTML(p.nombre);
-    const idForm = "editar-" + p.id;
     const superficies = p.superficies.map(function (s) {
       return `<li class="${claseSuperficie(s)}">${escaparHTML(SUPERFICIES[s] || s)}</li>`;
+    }).join("");
+    const formatos = p.formatos.map(function (f) {
+      const formato = escaparHTML(f.nombre);
+      return `
+        <li class="admin-formato" data-formato-id="${f.id}">
+          <form class="admin-formato__form">
+            <span class="admin-formato__nombre">${formato}
+              <span class="tabla__secundario">${formatearLitros(f.litros)}</span>
+              ${f.stock === 0 ? '<span class="admin-prod__agotado">Agotado</span>' : ""}
+            </span>
+            <label class="admin-formato__campo">
+              <span>Precio</span>
+              <input class="admin-prod__input" type="number" name="precio" min="0" step="1"
+                     value="${f.precio}" required aria-label="Precio de ${nombre}, ${formato}" />
+            </label>
+            <label class="admin-formato__campo">
+              <span>Stock</span>
+              <input class="admin-prod__input admin-prod__input--stock" type="number" name="stock" min="0" step="1"
+                     value="${f.stock}" required aria-label="Stock de ${nombre}, ${formato}" />
+            </label>
+            <button type="submit" class="admin-prod__guardar">Guardar</button>
+            <button type="button" class="admin-prod__borrar admin-formato__borrar" aria-label="Eliminar el formato ${formato} de ${nombre}">
+              <svg class="icono" aria-hidden="true"><use href="#i-basura"/></svg>
+            </button>
+          </form>
+        </li>`;
     }).join("");
     return `
       <tr class="admin-prod ${claseSuperficie(p.superficies[0])}" data-id="${p.id}">
@@ -150,33 +194,64 @@ async function cargarProductos() {
             <div>
               <span class="admin-prod__nombre">${nombre}</span>
               <ul class="admin-prod__sups" aria-label="Superficies">${superficies}</ul>
-              ${p.stock === 0 ? '<span class="admin-prod__agotado">Agotado</span>' : ""}
+              ${p.formatos.length === 0 ? '<span class="admin-prod__agotado">Sin formatos: no se puede comprar</span>' : ""}
             </div>
           </div>
         </td>
-        <td data-etiqueta="Precio">
-          <form class="admin-prod__editar" id="${idForm}"></form>
-          <input class="admin-prod__input" form="${idForm}" type="number" name="precio" min="0" step="1"
-                 value="${p.precio}" required aria-label="Precio de ${nombre}" />
-        </td>
-        <td data-etiqueta="Stock">
-          <input class="admin-prod__input admin-prod__input--stock" form="${idForm}" type="number" name="stock" min="0" step="1"
-                 value="${p.stock}" required aria-label="Stock de ${nombre}" />
+        <td data-etiqueta="Formatos">
+          <ul class="admin-formatos">${formatos}</ul>
+          <details class="admin-formato-nuevo">
+            <summary>Agregar formato</summary>
+            <form class="admin-formato-nuevo__form">
+              <label class="admin-formato__campo"><span>Formato</span>
+                <input class="admin-prod__input" type="text" name="nombre" list="formatosSugeridos" maxlength="40" required
+                       placeholder="1/4 galón" aria-label="Nombre del nuevo formato de ${nombre}" /></label>
+              <label class="admin-formato__campo"><span>Litros</span>
+                <input class="admin-prod__input admin-prod__input--stock" type="number" name="litros" min="0.001" max="1000" step="any" required
+                       aria-label="Litros del nuevo formato de ${nombre}" /></label>
+              <label class="admin-formato__campo"><span>Precio</span>
+                <input class="admin-prod__input" type="number" name="precio" min="0" step="1" required
+                       aria-label="Precio del nuevo formato de ${nombre}" /></label>
+              <label class="admin-formato__campo"><span>Stock</span>
+                <input class="admin-prod__input admin-prod__input--stock" type="number" name="stock" min="0" step="1" value="0" required
+                       aria-label="Stock del nuevo formato de ${nombre}" /></label>
+              <button type="submit" class="admin-prod__guardar">Agregar</button>
+            </form>
+          </details>
         </td>
         <td data-etiqueta="Acciones">
-          <div class="admin-prod__acciones">
-            <button type="submit" form="${idForm}" class="admin-prod__guardar">Guardar</button>
-            <button type="button" class="admin-prod__borrar" aria-label="Eliminar ${nombre}">
-              <svg class="icono" aria-hidden="true"><use href="#i-basura"/></svg>
-            </button>
-          </div>
+          <button type="button" class="admin-prod__borrar admin-prod__borrar-producto" aria-label="Eliminar ${nombre}">
+            <svg class="icono" aria-hidden="true"><use href="#i-basura"/></svg>
+          </button>
         </td>
       </tr>
     `;
   }).join("");
+
+  document.querySelectorAll(".admin-formato-nuevo__form").forEach(function (form) {
+    completarLitros(form.elements.nombre, form.elements.litros);
+  });
 }
 
-/* -------- 5. AGREGAR UN NUEVO PRODUCTO -------- */
+/* Envía un cambio a la API y avisa el resultado. Devuelve true si salió bien. */
+async function enviar(metodo, ruta, datos, textoOk) {
+  const respuesta = await fetch(ruta, {
+    method: metodo,
+    headers: { "Content-Type": "application/json" },
+    body: datos ? JSON.stringify(datos) : undefined,
+  });
+  const resultado = await respuesta.json().catch(function () { return {}; });
+  if (!respuesta.ok) {
+    avisar("No se pudo guardar: " + (resultado.error || "error desconocido"), "error");
+    return false;
+  }
+  avisar(textoOk, "exito");
+  return true;
+}
+
+/* -------- 6. AGREGAR UN NUEVO PRODUCTO (con su primer formato) -------- */
+completarLitros(document.getElementById("pFormato"), document.getElementById("pLitros"));
+
 document.getElementById("formProducto").addEventListener("submit", async function (e) {
   e.preventDefault();
 
@@ -189,78 +264,90 @@ document.getElementById("formProducto").addEventListener("submit", async functio
   const nuevo = {
     nombre: document.getElementById("pNombre").value,
     descripcion: document.getElementById("pDesc").value,
-    precio: document.getElementById("pPrecio").value,
-    stock: document.getElementById("pStock").value || 0,
     imagen: document.getElementById("pImagen").value || "img/prod-interior.webp",
     superficies: superficies,
+    formatos: [{
+      nombre: document.getElementById("pFormato").value.trim(),
+      litros: Number(document.getElementById("pLitros").value),
+      precio: Number(document.getElementById("pPrecio").value),
+      stock: Number(document.getElementById("pStock").value || 0),
+    }],
   };
 
-  const respuesta = await fetch("/api/admin/productos", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(nuevo),
-  });
-
-  if (respuesta.ok) {
+  if (await enviar("POST", "/api/admin/productos", nuevo, "Producto agregado: " + nuevo.nombre)) {
     document.getElementById("formProducto").reset();
     cargarProductos();
-    avisar("Producto agregado: " + nuevo.nombre, "exito");
-  } else {
-    const err = await respuesta.json();
-    avisar("No se pudo guardar: " + (err.error || "error desconocido"), "error");
   }
 });
 
-/* -------- 6. BORRAR UN PRODUCTO (con diálogo de confirmación propio) -------- */
-async function borrarProducto(id, nombre) {
-  const seguro = await confirmar({
-    titulo: "Eliminar producto",
-    mensaje: "¿Eliminar «" + nombre + "» del catálogo? Esta acción no se puede deshacer.",
-    textoConfirmar: "Eliminar",
-    peligro: true,
-  });
-  if (!seguro) return;
-  const respuesta = await fetch("/api/admin/productos/" + id, { method: "DELETE" });
-  if (!respuesta.ok) {
-    avisar("No se pudo eliminar el producto.", "error");
+/* -------- 7. BORRAR PRODUCTOS Y FORMATOS (con diálogo de confirmación propio) --------
+   Un solo "escuchador" para todos los botones (delegación de eventos). */
+document.getElementById("listaProductos").addEventListener("click", async function (evento) {
+  const fila = evento.target.closest(".admin-prod");
+  if (!fila) return;
+  const nombre = fila.querySelector(".admin-prod__nombre").textContent;
+
+  if (evento.target.closest(".admin-prod__borrar-producto")) {
+    const seguro = await confirmar({
+      titulo: "Eliminar producto",
+      mensaje: "¿Eliminar «" + nombre + "» y todos sus formatos del catálogo? Esta acción no se puede deshacer.",
+      textoConfirmar: "Eliminar",
+      peligro: true,
+    });
+    if (seguro && await enviar("DELETE", "/api/admin/productos/" + fila.dataset.id, null, "Producto eliminado: " + nombre)) {
+      cargarProductos();
+    }
     return;
   }
-  cargarProductos();
-  avisar("Producto eliminado: " + nombre, "exito");
-}
 
-/* Un solo "escuchador" para todos los botones de borrar (delegación de
-   eventos): el id sale del data-id de la fila del producto. */
-document.getElementById("listaProductos").addEventListener("click", function (evento) {
-  const boton = evento.target.closest(".admin-prod__borrar");
-  if (!boton) return;
-  const fila = boton.closest(".admin-prod");
-  borrarProducto(Number(fila.dataset.id), fila.querySelector(".admin-prod__nombre").textContent);
+  const botonFormato = evento.target.closest(".admin-formato__borrar");
+  if (botonFormato) {
+    const item = botonFormato.closest(".admin-formato");
+    const formato = item.querySelector(".admin-formato__nombre").firstChild.textContent.trim();
+    const seguro = await confirmar({
+      titulo: "Eliminar formato",
+      mensaje: "¿Eliminar el formato «" + formato + "» de «" + nombre + "»? Los pedidos ya hechos no cambian.",
+      textoConfirmar: "Eliminar",
+      peligro: true,
+    });
+    if (seguro && await enviar("DELETE", "/api/admin/formatos/" + item.dataset.formatoId, null,
+                               "Formato eliminado: " + nombre + " (" + formato + ")")) {
+      cargarProductos();
+    }
+  }
 });
 
-/* -------- 7. EDITAR PRECIO Y STOCK DE UN PRODUCTO --------
+/* -------- 7b. GUARDAR PRECIO Y STOCK, O AGREGAR UN FORMATO --------
    El evento "submit" también "sube" hasta el contenedor, así que un solo
    escuchador atiende los formularios de todos los productos. */
 document.getElementById("listaProductos").addEventListener("submit", async function (evento) {
   evento.preventDefault();
   const form = evento.target;
   const fila = form.closest(".admin-prod");
-  const id = Number(fila.dataset.id);
-  const respuesta = await fetch("/api/admin/productos/" + id, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const nombre = fila.querySelector(".admin-prod__nombre").textContent;
+
+  if (form.matches(".admin-formato__form")) {
+    const item = form.closest(".admin-formato");
+    if (await enviar("PATCH", "/api/admin/formatos/" + item.dataset.formatoId, {
       precio: Number(form.elements.precio.value),
       stock: Number(form.elements.stock.value),
-    }),
-  });
-  const datos = await respuesta.json();
-  if (!respuesta.ok) {
-    avisar("No se pudo guardar: " + (datos.error || "error desconocido"), "error");
+    }, "Cambios guardados: " + nombre)) {
+      cargarProductos();
+    }
     return;
   }
-  cargarProductos();
-  avisar("Cambios guardados: " + fila.querySelector(".admin-prod__nombre").textContent, "exito");
+
+  if (form.matches(".admin-formato-nuevo__form")) {
+    const formato = form.elements.nombre.value.trim();
+    if (await enviar("POST", "/api/admin/productos/" + fila.dataset.id + "/formatos", {
+      nombre: formato,
+      litros: Number(form.elements.litros.value),
+      precio: Number(form.elements.precio.value),
+      stock: Number(form.elements.stock.value),
+    }, "Formato agregado: " + nombre + " (" + formato + ")")) {
+      cargarProductos();
+    }
+  }
 });
 
 /* -------- 8. CAMBIAR EL ESTADO DE UN PEDIDO -------- */

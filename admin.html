@@ -89,21 +89,35 @@
               <input class="campo__control" type="text" id="pNombre" placeholder="Ej: Esmalte al agua" required />
             </label>
             <label class="campo">
-              <span class="campo__etiqueta">Precio (pesos)</span>
-              <input class="campo__control" type="number" id="pPrecio" min="0" step="1" placeholder="Ej: 19990" required />
+              <span class="campo__etiqueta">Imagen</span>
+              <input class="campo__control" type="text" id="pImagen" placeholder="img/prod-interior.webp" />
             </label>
             <label class="campo campo--ancho">
               <span class="campo__etiqueta">Descripción</span>
               <input class="campo__control" type="text" id="pDesc" placeholder="Para qué sirve, en una frase" />
             </label>
-            <label class="campo">
-              <span class="campo__etiqueta">Stock inicial</span>
-              <input class="campo__control" type="number" id="pStock" min="0" step="1" placeholder="Ej: 20" />
-            </label>
-            <label class="campo">
-              <span class="campo__etiqueta">Imagen</span>
-              <input class="campo__control" type="text" id="pImagen" placeholder="img/prod-interior.webp" />
-            </label>
+            <!-- Primer formato de venta. Después se pueden agregar más desde la tabla. -->
+            <fieldset class="admin__formato">
+              <legend>Primer formato de venta <span class="tabla__secundario">Después puedes agregar más (1/4 galón, tineta…)</span></legend>
+              <label class="campo">
+                <span class="campo__etiqueta">Formato</span>
+                <input class="campo__control" type="text" id="pFormato" list="formatosSugeridos" maxlength="40"
+                       placeholder="Ej: galón" required />
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Litros</span>
+                <input class="campo__control" type="number" id="pLitros" min="0.001" max="1000" step="any"
+                       placeholder="Ej: 3.785" required />
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Precio (pesos)</span>
+                <input class="campo__control" type="number" id="pPrecio" min="0" step="1" placeholder="Ej: 19990" required />
+              </label>
+              <label class="campo">
+                <span class="campo__etiqueta">Stock inicial</span>
+                <input class="campo__control" type="number" id="pStock" min="0" step="1" placeholder="Ej: 20" />
+              </label>
+            </fieldset>
             <fieldset class="admin__superficies">
               <legend>Superficies</legend>
               <label class="casilla sup--madera"><input type="checkbox" value="madera" /><span class="casilla__color"></span>Madera</label>
@@ -124,8 +138,7 @@
             <thead>
               <tr>
                 <th scope="col">Producto</th>
-                <th scope="col">Precio</th>
-                <th scope="col">Stock</th>
+                <th scope="col">Formatos, precio y stock</th>
                 <th scope="col"><span class="solo-lector">Acciones</span></th>
               </tr>
             </thead>
@@ -133,6 +146,12 @@
             <tbody id="listaProductos"></tbody>
           </table>
         </div>
+        <!-- Nombres de formato sugeridos (se puede escribir otro) -->
+        <datalist id="formatosSugeridos">
+          <option value="1/4 galón"></option>
+          <option value="galón"></option>
+          <option value="tineta"></option>
+        </datalist>
       </section>
     </div>
   </main>

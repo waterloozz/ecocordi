@@ -35,7 +35,7 @@ const cuentaArea          = document.getElementById("cuentaArea");
 
 /* -------- 3. UTILIDAD: formatear precios en pesos chilenos -------- */
 function formatearPrecio(valor) {
-  return "$" + valor.toLocaleString("es-CL");
+  return "$" + (Number(valor) || 0).toLocaleString("es-CL");
 }
 
 /* -------- UTILIDAD: escapar texto antes de meterlo en el HTML --------
@@ -72,6 +72,39 @@ async function cargarProductos() {
   }
 }
 
+/* -------- 4b. FORMATOS DE VENTA --------
+   Cada producto se vende en uno o más formatos (1/4 galón, galón, tineta...),
+   y cada formato tiene su propio precio y stock. El carrito guarda FORMATOS. */
+
+/* Formato que muestra la tarjeta: el primero que tenga stock (o el primero) */
+function formatoInicial(producto) {
+  return producto.formatos.find(function (f) { return f.stock > 0; }) || producto.formatos[0] || null;
+}
+
+/* Busca un formato por su id en el catálogo cargado: { producto, formato } */
+function buscarFormato(formatoId) {
+  for (const producto of productos) {
+    const formato = producto.formatos.find(function (f) { return f.id === formatoId; });
+    if (formato) return { producto: producto, formato: formato };
+  }
+  return null;
+}
+
+/* Lo que guardamos en el carrito por cada formato */
+function itemDeCarrito(producto, formato, cantidad) {
+  return {
+    formato_id: formato.id,
+    producto_id: producto.id,
+    nombre: producto.nombre,
+    formato: formato.nombre,
+    precio: formato.precio,
+    stock: formato.stock,
+    imagen: producto.imagen,
+    superficies: producto.superficies,
+    cantidad: cantidad,
+  };
+}
+
 /* -------- 5. MOSTRAR PRODUCTOS EN PANTALLA --------
    Lista editorial: foto grande, nombre, superficies y una línea con
    precio, stock y botón. */
@@ -83,13 +116,15 @@ function mostrarProductos(lista) {
   }
 
   contenedorProductos.innerHTML = lista.map(function (p) {
-    // Stock: "Agotado" si no queda nada, "Quedan N" si quedan 5 o menos
-    const agotado = p.stock <= 0;
+    const formato = formatoInicial(p);
+    // Stock del formato: "Agotado" si no queda nada, "Quedan N" si quedan 5 o menos
+    const stock = formato ? formato.stock : 0;
+    const agotado = stock <= 0;
     let avisoStock = "";
     if (agotado) {
       avisoStock = '<span class="producto__stock producto__stock--agotado">Agotado</span>';
-    } else if (p.stock <= 5) {
-      avisoStock = `<span class="producto__stock producto__stock--pocas">Quedan ${p.stock}</span>`;
+    } else if (stock <= 5) {
+      avisoStock = `<span class="producto__stock producto__stock--pocas">Quedan ${stock}</span>`;
     }
 
     const superficies = p.superficies.map(function (s) {
@@ -108,10 +143,14 @@ function mostrarProductos(lista) {
           <p class="producto__desc">${escaparHTML(p.descripcion)}</p>
           <ul class="producto__superficies" aria-label="Superficies">${superficies}</ul>
           <div class="producto__pie">
-            <span class="producto__precio">${formatearPrecio(p.precio)}</span>
+            <span class="producto__precio">
+              ${formato ? formatearPrecio(formato.precio) : ""}
+              <span class="producto__formato">${formato ? escaparHTML(formato.nombre) : "No disponible"}</span>
+            </span>
             <div class="producto__compra">
               ${avisoStock}
-              <button type="button" class="boton boton--principal producto__boton" ${agotado ? "disabled" : ""}>
+              <button type="button" class="boton boton--principal producto__boton"
+                      data-formato-id="${formato ? formato.id : ""}" ${agotado ? "disabled" : ""}>
                 ${agotado ? "Agotado" : "Agregar al carrito"}
               </button>
             </div>
@@ -130,8 +169,7 @@ function mostrarProductos(lista) {
 contenedorProductos.addEventListener("click", function (evento) {
   const boton = evento.target.closest(".producto__boton");
   if (!boton) return; // el clic no fue en el botón
-  const tarjeta = boton.closest(".producto");
-  agregarAlCarrito(Number(tarjeta.dataset.id));
+  agregarAlCarrito(Number(boton.dataset.formatoId));
 });
 
 /* -------- 6. FILTRO POR SUPERFICIE (funcionalidad estrella) --------
@@ -221,27 +259,33 @@ function mostrarCatalogo() {
 }
 
 /* -------- 7. CARRITO: agregar, cambiar cantidad, eliminar -------- */
-function agregarAlCarrito(id) {
-  const producto = productos.find(function (p) { return p.id === id; });
-  const enCarrito = carrito.find(function (item) { return item.id === id; });
+function agregarAlCarrito(formatoId, cantidad) {
+  const encontrado = buscarFormato(formatoId);
+  if (!encontrado) return;
+  const producto = encontrado.producto;
+  const formato = encontrado.formato;
+  const sumar = cantidad || 1;
+  const enCarrito = carrito.find(function (item) { return item.formato_id === formatoId; });
+  const yaTengo = enCarrito ? enCarrito.cantidad : 0;
 
+  // No dejamos pedir más de lo que hay en bodega
+  if (yaTengo + sumar > formato.stock) {
+    avisar("Ya tienes en tu carrito todas las unidades disponibles de " +
+           producto.nombre + " (" + formato.nombre + "): " + formato.stock + ".", "info");
+    if (yaTengo >= formato.stock) return;
+  }
+  const nuevaCantidad = Math.min(yaTengo + sumar, formato.stock);
   if (enCarrito) {
-    // No dejamos pedir más de lo que hay en bodega
-    if (enCarrito.cantidad >= producto.stock) {
-      avisar("Ya tienes en tu carrito todas las unidades disponibles de " +
-             producto.nombre + " (" + producto.stock + ").", "info");
-      return;
-    }
-    enCarrito.cantidad++;
+    enCarrito.cantidad = nuevaCantidad;
   } else {
-    carrito.push({ ...producto, cantidad: 1 });
+    carrito.push(itemDeCarrito(producto, formato, nuevaCantidad));
   }
   actualizarCarrito();
   abrirCarrito();
 }
 
 function cambiarCantidad(id, cambio) {
-  const item = carrito.find(function (i) { return i.id === id; });
+  const item = carrito.find(function (i) { return i.formato_id === id; });
   if (cambio > 0 && item.cantidad >= item.stock) return; // sin más stock
   item.cantidad += cambio;
   if (item.cantidad <= 0) {
@@ -252,7 +296,7 @@ function cambiarCantidad(id, cambio) {
 }
 
 function eliminarDelCarrito(id) {
-  carrito = carrito.filter(function (item) { return item.id !== id; });
+  carrito = carrito.filter(function (item) { return item.formato_id !== id; });
   actualizarCarrito();
 }
 
@@ -270,16 +314,16 @@ function actualizarCarrito() {
       </div>`;
   } else {
     carritoItems.innerHTML = carrito.map(function (item) {
-      total += item.precio * item.cantidad;
-      cantidadTotal += item.cantidad;
+      total += (Number(item.precio) || 0) * (Number(item.cantidad) || 0);
+      cantidadTotal += Number(item.cantidad) || 0;
       const nombre = escaparHTML(item.nombre);
       const alMaximo = item.cantidad >= item.stock;
       return `
-        <div class="item ${claseSuperficie((item.superficies || [])[0])}" data-id="${item.id}">
+        <div class="item ${claseSuperficie((item.superficies || [])[0])}" data-id="${item.formato_id}">
           <img class="item__imagen" src="${escaparHTML(item.imagen)}" alt="" width="64" height="64" loading="lazy" />
           <div class="item__info">
             <p class="item__nombre">${nombre}</p>
-            <p class="item__precio">${formatearPrecio(item.precio)} c/u</p>
+            <p class="item__precio">${item.formato ? escaparHTML(item.formato) + " · " : ""}${formatearPrecio(item.precio)} c/u</p>
             <div class="item__controles">
               <button type="button" class="item__btn" data-accion="restar" aria-label="Quitar una unidad de ${nombre}">−</button>
               <span class="item__cantidad" aria-label="Cantidad">${item.cantidad}</span>
@@ -303,7 +347,7 @@ function actualizarCarrito() {
 
 /* -------- 8b. CLICS DENTRO DEL CARRITO (delegación de eventos) --------
    Cada botón dice qué hace con data-accion ("restar", "sumar", "eliminar")
-   y la fila del carrito guarda el id del producto en data-id. */
+   y la fila del carrito guarda el id del FORMATO en data-id. */
 carritoItems.addEventListener("click", function (evento) {
   const boton = evento.target.closest("[data-accion]");
   if (!boton) return;
@@ -317,26 +361,44 @@ carritoItems.addEventListener("click", function (evento) {
 /* -------- 9. CARRITO PERSISTENTE (localStorage) --------
    localStorage guarda datos en el navegador aunque cierres la página. */
 function guardarCarrito() {
-  localStorage.setItem("carrito_ecocordi", JSON.stringify(carrito));
+  try {
+    localStorage.setItem("carrito_ecocordi", JSON.stringify(carrito));
+  } catch (error) { /* modo privado o sin permiso: el carrito vive solo en esta página */ }
 }
 function cargarCarrito() {
-  const guardado = localStorage.getItem("carrito_ecocordi");
-  if (guardado) carrito = JSON.parse(guardado);
+  try {
+    const guardado = JSON.parse(localStorage.getItem("carrito_ecocordi") || "[]");
+    if (Array.isArray(guardado)) carrito = guardado;
+  } catch (error) {
+    carrito = []; // guardado dañado o navegador sin localStorage: carrito vacío
+  }
 }
 
 /* El carrito guardado puede estar desactualizado: quizás el admin borró un
-   producto, cambió su precio o se agotó. Cuando llega el catálogo real,
+   formato, cambió su precio o se agotó. Cuando llega el catálogo real,
    quitamos lo que ya no existe o está agotado, copiamos nombre, precio,
-   imagen y stock actuales, y bajamos la cantidad si supera el stock. */
+   imagen y stock actuales, y bajamos la cantidad si supera el stock.
+   Los carritos de la versión anterior guardaban el id del PRODUCTO: esos
+   pasan al formato que muestra la tarjeta de ese producto. */
 function sincronizarCarrito() {
-  carrito = carrito
-    .filter(function (item) {
-      return productos.some(function (p) { return p.id === item.id && p.stock > 0; });
-    })
-    .map(function (item) {
-      const actual = productos.find(function (p) { return p.id === item.id; });
-      return { ...actual, cantidad: Math.min(item.cantidad, actual.stock) };
-    });
+  const nuevo = [];
+  carrito.forEach(function (item) {
+    let encontrado = buscarFormato(item.formato_id);
+    if (!encontrado && item.formato_id === undefined) {
+      const producto = productos.find(function (p) { return p.id === item.id; });
+      const formato = producto && formatoInicial(producto);
+      if (formato) encontrado = { producto: producto, formato: formato };
+    }
+    if (!encontrado || encontrado.formato.stock <= 0) return;
+    const cantidad = Math.min(Number(item.cantidad) || 1, encontrado.formato.stock);
+    const repetido = nuevo.find(function (i) { return i.formato_id === encontrado.formato.id; });
+    if (repetido) {
+      repetido.cantidad = Math.min(repetido.cantidad + cantidad, encontrado.formato.stock);
+    } else {
+      nuevo.push(itemDeCarrito(encontrado.producto, encontrado.formato, cantidad));
+    }
+  });
+  carrito = nuevo;
   actualizarCarrito();
 }
 
@@ -389,9 +451,9 @@ botonPagar.addEventListener("click", async function () {
     return;
   }
 
-  // Enviamos solo id y cantidad; el servidor calcula el total con precios reales
+  // Enviamos solo el formato y la cantidad; el servidor calcula el total con precios reales
   const items = carrito.map(function (i) {
-    return { id: i.id, cantidad: i.cantidad };
+    return { formato_id: i.formato_id, cantidad: i.cantidad };
   });
 
   botonPagar.disabled = true; // evita comprar dos veces con un doble clic
@@ -661,7 +723,8 @@ async function abrirMisPedidos() {
   }
   listaMisPedidos.innerHTML = pedidos.map(function (p) {
     const items = p.items.map(function (it) {
-      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}</li>`;
+      const formato = it.formato ? ` <span class="mi-pedido__formato">(${escaparHTML(it.formato)})</span>` : "";
+      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}${formato}</li>`;
     }).join("");
     // La clase de color solo se arma con estados conocidos
     const estado = NOMBRES_ESTADO[p.estado] ? p.estado : "pendiente";
