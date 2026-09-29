@@ -1,15 +1,19 @@
 /* ============================================================
-   ECOCORDI - Asistente "¿Qué pintura necesito?" (asistente.html)
-   Una pregunta por pantalla. Cada respuesta se guarda en la dirección de la
-   página (asistente.html?superficie=madera&uso=exterior&condicion=sol&acabado=mate&m2=40):
-     - el enlace se puede compartir o recargar sin perder nada,
-     - el botón "atrás" del navegador vuelve a la pregunta anterior.
-   La recomendación la hace el SERVIDOR (GET /api/asistente) con reglas
-   simples; este archivo solo pregunta y muestra el resultado.
+   ECOCORDI - Asistente "¿Qué pintura necesito?" en burbuja de chat
+   Una burbuja «Asistente» flota abajo a la derecha (portada y catálogo).
+   Al tocarla se abre un chat que hace las preguntas una a una; se responde
+   tocando botones. La recomendación la hace el SERVIDOR (GET /api/asistente)
+   con reglas simples; este archivo solo conversa y muestra el resultado.
+
+   Las respuestas se guardan en sessionStorage: si pasas de la portada al
+   catálogo y vuelves a abrir el chat, sigue donde lo dejaste (se borra al
+   cerrar la pestaña).
+
+   Cualquier enlace a "#asistente" o botón con data-abrir-asistente abre el chat.
 
    Usa lo que ya define app.js (se carga antes): escaparHTML, formatearPrecio,
-   formatearLitros, agregarAlCarrito, abrirCarrito, catalogoListo, productos,
-   carritoComoParametro, htmlCombinacion, explicacionLitros y NOTA_FICHA_DEMO.
+   formatearLitros, agregarAlCarrito, abrirCarrito, catalogoListo,
+   carritoComoParametro, htmlCombinacion y explicacionLitros.
    ============================================================ */
 
 /* -------- 1. LAS PREGUNTAS -------- */
@@ -18,18 +22,18 @@ const USO_DE_SUPERFICIE = { exterior: "exterior", techo: "exterior", interior: "
 
 const PREGUNTAS = {
   superficie: {
-    titulo: "¿Qué vas a pintar?",
+    mensaje: "¿Qué vas a pintar?",
     ayuda: "Cada superficie necesita su pintura.",
     opciones: [
-      { valor: "madera", titulo: "Madera", detalle: "Puertas, muebles y terrazas", foto: "img/sup-madera.webp" },
-      { valor: "metal", titulo: "Metal", detalle: "Rejas, portones y estructuras", foto: "img/sup-metal.webp" },
-      { valor: "exterior", titulo: "Muro exterior", detalle: "Fachadas y muros de afuera", foto: "img/sup-exterior.webp" },
-      { valor: "techo", titulo: "Techo", detalle: "Cubiertas y techumbres", foto: "img/sup-techo.webp" },
-      { valor: "interior", titulo: "Interior", detalle: "Muros y cielos de tu casa", foto: "img/sup-interior.webp" },
+      { valor: "madera", titulo: "Madera", foto: "img/sup-madera-mini.webp" },
+      { valor: "metal", titulo: "Metal", foto: "img/sup-metal-mini.webp" },
+      { valor: "exterior", titulo: "Muro exterior", foto: "img/sup-exterior-mini.webp" },
+      { valor: "techo", titulo: "Techo", foto: "img/sup-techo-mini.webp" },
+      { valor: "interior", titulo: "Interior", foto: "img/sup-interior-mini.webp" },
     ],
   },
   uso: {
-    titulo: "¿Dónde está?",
+    mensaje: "¿Está adentro o afuera?",
     ayuda: "Afuera, la pintura tiene que aguantar el sol, la lluvia y el viento.",
     opciones: [
       { valor: "interior", titulo: "Adentro", detalle: "Dentro de la casa, protegido", icono: "i-sofa" },
@@ -37,7 +41,7 @@ const PREGUNTAS = {
     ],
   },
   condicion: {
-    titulo: "¿Le llega humedad o sol directo?",
+    mensaje: "¿Le llega humedad o sol directo?",
     ayuda: "Si no estás seguro, elige «Nada especial».",
     opciones: [
       { valor: "humedad", titulo: "Humedad", detalle: "Baño, cocina o un muro que se moja", icono: "i-gota" },
@@ -46,70 +50,43 @@ const PREGUNTAS = {
     ],
   },
   acabado: {
-    titulo: "¿Qué acabado prefieres?",
+    mensaje: "¿Qué acabado prefieres?",
     ayuda: "El acabado es cuánto brilla la pintura una vez seca.",
     opciones: [
       { valor: "mate", titulo: "Mate", detalle: "Sin brillo. Disimula las imperfecciones del muro.", brillo: 0 },
       { valor: "satinado", titulo: "Satinado", detalle: "Brillo suave. Se limpia con más facilidad.", brillo: 1 },
       { valor: "brillante", titulo: "Brillante", detalle: "Mucho brillo. Se limpia muy fácil, pero resalta las imperfecciones.", brillo: 2 },
-      { valor: "no_se", titulo: "No sé", detalle: "Te sugerimos el más versátil.", brillo: null },
+      { valor: "no_se", titulo: "No sé", detalle: "Te sugiero el más versátil.", brillo: null },
     ],
   },
+  m2: {
+    mensaje: "Por último: ¿cuántos m² vas a pintar?",
+    ayuda: "Con eso calculo cuántos litros necesitas y qué formatos te convienen.",
+  },
 };
-// Orden de las preguntas (y de los parámetros en la dirección)
+// Orden de las preguntas
 const ORDEN = ["superficie", "uso", "condicion", "acabado", "m2"];
-const PARAMETROS = ORDEN.concat(["manos", "producto"]);
 // Medidas típicas para el mini cálculo de m² (la persona puede corregir el total)
 const M2_PUERTA = 1.8;
 const M2_VENTANA = 1.5;
+// Pausa de "escribiendo…" antes de cada pregunta (sin pausa si se pidió reducir movimiento)
+const PAUSA_ESCRIBIENDO = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450;
+const CLAVE_GUARDADO = "asistente_ecocordi";
 
-/* -------- 2. REFERENCIAS -------- */
-const pantalla = document.getElementById("asistentePantalla");
-const barraProgreso = document.getElementById("asistenteProgreso");
-const textoPaso = document.getElementById("asistentePaso");
-const botonAtras = document.getElementById("asistenteAtras");
-const enlaceReiniciar = document.getElementById("asistenteReiniciar");
+const SALUDO = `<p>¡Hola! Soy el asistente de Pinturas Ecocordi.</p>
+  <p>Te hago unas preguntas cortas y te digo qué pintura usar, cuánta necesitas y cuánto cuesta.</p>`;
 
-let resultadoActual = null; // [recomendado, alternativa1, alternativa2] que se están mostrando
-let dibujoActual = 0;       // evita que una respuesta lenta del servidor pise una pantalla más nueva
-
-/* -------- 3. LEER LAS RESPUESTAS DE LA DIRECCIÓN --------
-   Nunca confiamos en la dirección: un valor que no está en la lista se ignora
+/* -------- 2. LAS RESPUESTAS --------
+   Nunca confiamos en lo guardado: un valor que no está en la lista se descarta
    (y el asistente vuelve a hacer esa pregunta). */
 function valoresDe(clave) {
   return PREGUNTAS[clave].opciones.map(function (o) { return o.valor; });
 }
 
-function leerRespuestas() {
-  const url = new URLSearchParams(location.search);
-  const r = {};
-  if (valoresDe("superficie").includes(url.get("superficie"))) r.superficie = url.get("superficie");
-  if (r.superficie) {
-    const uso = USO_DE_SUPERFICIE[r.superficie] || url.get("uso");
-    if (valoresDe("uso").includes(uso)) r.uso = uso;
-  }
-  ["condicion", "acabado"].forEach(function (clave) {
-    if (valoresDe(clave).includes(url.get(clave))) r[clave] = url.get(clave);
-  });
-  const m2 = url.get("m2");
-  if (m2 === "no") {
-    r.m2 = "no"; // eligió no calcular
-  } else if (/^\d{1,5}([.,]\d{1,2})?$/.test(m2 || "")) {
-    const numero = Number(m2.replace(",", "."));
-    if (numero > 0 && numero <= 10000) r.m2 = numero;
-  }
-  if (/^[1-5]$/.test(url.get("manos") || "")) r.manos = Number(url.get("manos"));
-  if (/^\d{1,9}$/.test(url.get("producto") || "")) r.producto = Number(url.get("producto"));
-  return r;
-}
-
 /* Preguntas que corresponden según lo ya respondido */
 function pasosDe(r) {
   return ORDEN.filter(function (clave) {
-    if (clave === "uso") return !USO_DE_SUPERFICIE[r.superficie];
-    // Si viene con una pintura ya elegida (desde el visualizador), solo falta la medida
-    if (clave === "condicion" || clave === "acabado") return r.producto === undefined;
-    return true;
+    return clave !== "uso" || !USO_DE_SUPERFICIE[r.superficie];
   });
 }
 
@@ -118,64 +95,217 @@ function pasoActual(r) {
   return pasosDe(r).find(function (clave) { return r[clave] === undefined; }) || "resultado";
 }
 
-/* Escribe las respuestas en la dirección, siempre en el mismo orden */
-function urlCon(respuestas) {
-  const params = new URLSearchParams();
-  PARAMETROS.forEach(function (clave) {
-    if (respuestas[clave] !== undefined) params.set(clave, respuestas[clave]);
+/* Las preguntas ya respondidas, en orden */
+function pasosRespondidos(r) {
+  return pasosDe(r).filter(function (clave) { return r[clave] !== undefined; });
+}
+
+function limpiarRespuestas(datos) {
+  const r = {};
+  if (!datos || typeof datos !== "object") return r;
+  if (valoresDe("superficie").includes(datos.superficie)) r.superficie = datos.superficie;
+  if (r.superficie) {
+    const uso = USO_DE_SUPERFICIE[r.superficie] || datos.uso;
+    if (valoresDe("uso").includes(uso)) r.uso = uso;
+  }
+  ["condicion", "acabado"].forEach(function (clave) {
+    if (valoresDe(clave).includes(datos[clave])) r[clave] = datos[clave];
   });
-  // "uso" no hace falta si la superficie ya lo dice
-  if (USO_DE_SUPERFICIE[respuestas.superficie]) params.delete("uso");
-  const texto = params.toString();
-  return location.pathname + (texto ? "?" + texto : "");
+  if (datos.m2 === "no") {
+    r.m2 = "no"; // eligió no calcular
+  } else if (typeof datos.m2 === "number" && datos.m2 > 0 && datos.m2 <= 10000) {
+    r.m2 = Math.round(datos.m2 * 100) / 100;
+  }
+  if ([1, 2, 3].includes(datos.manos) && typeof r.m2 === "number") r.manos = datos.manos;
+  // Solo vale lo respondido en orden: si falta una respuesta, se borran las que siguen
+  let falta = false;
+  pasosDe(r).forEach(function (clave) {
+    if (falta) delete r[clave];
+    else if (r[clave] === undefined) falta = true;
+  });
+  if (typeof r.m2 !== "number") delete r.manos;
+  return r;
 }
 
-/* Guarda una respuesta y borra las que venían después (podrían ya no servir) */
-function responder(clave, valor, extra) {
-  const r = leerRespuestas();
-  ORDEN.slice(ORDEN.indexOf(clave)).forEach(function (k) { delete r[k]; });
-  delete r.manos;
-  r[clave] = valor;
-  Object.assign(r, extra || {});
-  // Un paso nuevo en el historial: el botón "atrás" del navegador vuelve aquí
-  history.pushState({ asistente: true }, "", urlCon(r));
-  dibujar(true);
-}
-
-/* -------- 4. DIBUJAR LA PANTALLA ACTUAL -------- */
-function dibujar(enfocar) {
-  const r = leerRespuestas();
-  const pasos = pasosDe(r);
-  const actual = pasoActual(r);
-  const numero = actual === "resultado" ? pasos.length : pasos.indexOf(actual) + 1;
-
-  barraProgreso.max = pasos.length;
-  barraProgreso.value = numero;
-  textoPaso.textContent = actual === "resultado" ? "Tu resultado" : `Pregunta ${numero} de ${pasos.length}`;
-  botonAtras.classList.toggle("oculto", numero === 1 && actual !== "resultado");
-  enlaceReiniciar.classList.toggle("oculto", Object.keys(r).length === 0);
-
-  dibujoActual++;
-  resultadoActual = null;
-  if (actual === "resultado") {
-    dibujarResultado(r, dibujoActual, enfocar);
-  } else {
-    pantalla.innerHTML = (actual === "m2" ? htmlMetros() : htmlPregunta(actual)) + htmlProductoElegido(r);
-    mostrarProductoElegido(r);
-    if (enfocar) enfocarTitulo();
+function leerGuardadas() {
+  try {
+    return limpiarRespuestas(JSON.parse(sessionStorage.getItem(CLAVE_GUARDADO) || "{}"));
+  } catch (error) {
+    return {}; // navegador sin almacenamiento (modo privado estricto): se empieza de cero
   }
 }
 
-/* Al cambiar de pantalla, el foco va al título de la pregunta: así quien usa
-   teclado o lector de pantalla sabe que cambió (y sigue con Tab desde ahí). */
-function enfocarTitulo() {
-  const titulo = document.getElementById("asistentePregunta");
-  if (!titulo) return;
-  titulo.focus({ preventScroll: true });
-  const arriba = pantalla.closest(".asistente").getBoundingClientRect().top + window.scrollY;
-  if (window.scrollY > arriba) window.scrollTo({ top: arriba });
+function guardar() {
+  try {
+    sessionStorage.setItem(CLAVE_GUARDADO, JSON.stringify(respuestas));
+  } catch (error) {
+    // Sin almacenamiento, el chat funciona igual; solo no se recuerda al cambiar de página
+  }
 }
 
+let respuestas = leerGuardadas();
+let resultadoActual = null; // [recomendado, alternativa1, alternativa2] que se están mostrando
+let turno = 0;              // cada cambio de conversación suma 1: una espera vieja no dibuja nada
+let iniciado = false;       // la conversación se dibuja la primera vez que se abre
+let midiendo = false;       // la zona de respuesta muestra el mini cálculo de m²
+let focoAntesDelChat = null;
+
+/* -------- 3. LA BURBUJA Y LA VENTANA DEL CHAT --------
+   Se crean desde aquí para no repetir el mismo HTML en cada página. */
+const burbuja = document.createElement("button");
+burbuja.type = "button";
+burbuja.className = "asistente-burbuja";
+burbuja.id = "asistenteBurbuja";
+burbuja.setAttribute("aria-expanded", "false");
+burbuja.setAttribute("aria-controls", "asistenteChat");
+burbuja.innerHTML = '<svg class="icono" aria-hidden="true"><use href="#i-asistente"/></svg>Asistente';
+
+const chat = document.createElement("section");
+chat.className = "chat";
+chat.id = "asistenteChat";
+chat.setAttribute("role", "dialog");
+chat.setAttribute("aria-labelledby", "chatTitulo");
+chat.innerHTML = `
+  <header class="chat__cabecera">
+    <span class="chat__avatar" aria-hidden="true">E</span>
+    <div class="chat__nombre">
+      <h2 class="chat__titulo" id="chatTitulo">Asistente Ecocordi</h2>
+      <p class="chat__subtitulo">Te ayudo a elegir tu pintura</p>
+    </div>
+    <button type="button" class="chat__accion" id="chatReiniciar" aria-label="Empezar de nuevo" title="Empezar de nuevo">
+      <svg class="icono" aria-hidden="true"><use href="#i-reiniciar"/></svg>
+    </button>
+    <button type="button" class="chat__accion" id="chatCerrar" aria-label="Cerrar el asistente" title="Cerrar">
+      <svg class="icono" aria-hidden="true"><use href="#i-cerrar"/></svg>
+    </button>
+  </header>
+  <div class="chat__mensajes" id="chatMensajes" role="log" aria-label="Conversación con el asistente" tabindex="-1"></div>
+  <div class="chat__entrada" id="chatEntrada"></div>`;
+
+document.body.append(burbuja, chat);
+const mensajes = document.getElementById("chatMensajes");
+const entrada = document.getElementById("chatEntrada");
+
+/* -------- 4. MENSAJES -------- */
+function agregarMensaje(de, html, clase) {
+  const mensaje = document.createElement("div");
+  mensaje.className = "mensaje mensaje--" + de + (clase ? " " + clase : "");
+  mensaje.innerHTML = html;
+  mensajes.append(mensaje);
+  mensajes.scrollTop = mensajes.scrollHeight;
+  return mensaje;
+}
+
+/* Los tres puntitos mientras el asistente "escribe" (los lectores de pantalla no los leen) */
+function mostrarEscribiendo() {
+  const puntos = agregarMensaje("bot", '<span class="escribiendo"><span></span><span></span><span></span></span>', "mensaje--escribiendo");
+  puntos.setAttribute("aria-hidden", "true");
+  return puntos;
+}
+
+function esperar(milisegundos) {
+  return new Promise(function (listo) { setTimeout(listo, milisegundos); });
+}
+
+function htmlPregunta(clave) {
+  const pregunta = PREGUNTAS[clave];
+  return `<p class="mensaje__titulo">${pregunta.mensaje}</p><p class="mensaje__ayuda">${pregunta.ayuda}</p>`;
+}
+
+function formatearNumero(valor) {
+  return valor.toLocaleString("es-CL", { maximumFractionDigits: 1 });
+}
+
+/* Lo que "dice" la persona al responder: "Madera", "40 m² · 2 manos"... */
+function textoRespuesta(clave, r) {
+  if (clave === "m2") {
+    if (r.m2 === "no") return "Prefiero no calcular ahora";
+    return formatearNumero(r.m2) + " m²" + (r.manos ? " · " + r.manos + (r.manos === 1 ? " mano" : " manos") : "");
+  }
+  const opcion = PREGUNTAS[clave].opciones.find(function (o) { return o.valor === r[clave]; });
+  return opcion ? opcion.titulo : "";
+}
+
+/* Dibuja toda la conversación de nuevo (al abrir por primera vez, volver atrás
+   o empezar de nuevo). Lo ya respondido aparece al instante, sin pausas. */
+function dibujarTodo() {
+  mensajes.innerHTML = "";
+  resultadoActual = null;
+  midiendo = false;
+  agregarMensaje("bot", SALUDO);
+  pasosRespondidos(respuestas).forEach(function (clave) {
+    agregarMensaje("bot", htmlPregunta(clave));
+    agregarMensaje("yo", escaparHTML(textoRespuesta(clave, respuestas)));
+  });
+  return continuar(false);
+}
+
+/* Muestra lo que sigue: la próxima pregunta o el resultado */
+async function continuar(conPausa) {
+  const miTurno = ++turno;
+  const actual = pasoActual(respuestas);
+  entrada.innerHTML = ""; // mientras "escribe", no hay opciones para tocar
+  const puntos = conPausa || actual === "resultado" ? mostrarEscribiendo() : null;
+
+  let datos = null;
+  if (actual === "resultado") datos = await buscarPintura();
+  else if (conPausa) await esperar(PAUSA_ESCRIBIENDO);
+  if (miTurno !== turno) return; // la conversación cambió mientras esperábamos
+  if (puntos) puntos.remove();
+
+  if (actual === "resultado") {
+    mostrarResultado(datos);
+  } else {
+    agregarMensaje("bot", htmlPregunta(actual));
+    dibujarEntrada(actual);
+    // Las opciones de abajo achican la conversación: bajamos hasta la última pregunta
+    mensajes.scrollTop = mensajes.scrollHeight;
+  }
+}
+
+/* -------- 5. RESPONDER, VOLVER ATRÁS Y EMPEZAR DE NUEVO -------- */
+function responder(clave, valor, extra) {
+  // Al cambiar una respuesta, las que venían después podrían ya no servir
+  ORDEN.slice(ORDEN.indexOf(clave)).forEach(function (k) { delete respuestas[k]; });
+  delete respuestas.manos;
+  respuestas[clave] = valor;
+  Object.assign(respuestas, extra || {});
+  respuestas = limpiarRespuestas(respuestas);
+  guardar();
+  midiendo = false;
+  agregarMensaje("yo", escaparHTML(textoRespuesta(clave, respuestas)));
+  // El botón tocado desaparece: el foco espera en la conversación y luego va a las opciones nuevas
+  mensajes.focus({ preventScroll: true });
+  continuar(true).then(enfocarEntrada);
+}
+
+function atras() {
+  const respondidos = pasosRespondidos(respuestas);
+  const ultimo = respondidos[respondidos.length - 1];
+  if (!ultimo) return;
+  delete respuestas[ultimo];
+  if (ultimo === "m2") delete respuestas.manos;
+  if (ultimo === "superficie") delete respuestas.uso; // el uso podía venir de la superficie
+  guardar();
+  dibujarTodo();
+  enfocarEntrada();
+}
+
+function empezarDeNuevo() {
+  respuestas = {};
+  guardar();
+  dibujarTodo();
+  enfocarEntrada();
+}
+
+/* El foco va a lo primero que se puede responder (o a la conversación) */
+function enfocarEntrada() {
+  if (!chat.classList.contains("abierto")) return;
+  const primero = entrada.querySelector("input, button:not([data-atras]), select");
+  (primero || mensajes).focus({ preventScroll: true });
+}
+
+/* -------- 6. LA ZONA DE RESPUESTA (abajo del chat) -------- */
 /* Muestra de brillo para el acabado: un círculo con más o menos reflejo */
 function htmlBrillo(brillo, indice) {
   if (brillo === null) {
@@ -183,7 +313,7 @@ function htmlBrillo(brillo, indice) {
       <circle cx="28" cy="28" r="25" class="brillo__vacio"/>
       <text x="28" y="36" text-anchor="middle" class="brillo__signo">?</text></svg>`;
   }
-  const id = "brillo" + indice;
+  const id = "chatBrillo" + indice;
   const reflejo = [0, 0.35, 0.85][brillo];
   const tamano = ["0", "0.55", "0.32"][brillo];
   return `<svg class="brillo" viewBox="0 0 56 56" aria-hidden="true">
@@ -195,89 +325,81 @@ function htmlBrillo(brillo, indice) {
     <circle cx="28" cy="28" r="25" fill="url(#${id})"/></svg>`;
 }
 
-function htmlPregunta(clave) {
+function htmlOpciones(clave) {
   const pregunta = PREGUNTAS[clave];
-  const opciones = pregunta.opciones.map(function (o, i) {
+  const conDetalle = clave !== "superficie";
+  const botones = pregunta.opciones.map(function (o, i) {
     let visual;
-    if (o.foto) visual = `<img class="eleccion__foto" src="${o.foto}" alt="" width="800" height="1000" decoding="async" />`;
-    else if (o.brillo !== undefined) visual = `<span class="eleccion__icono eleccion__icono--brillo">${htmlBrillo(o.brillo, i)}</span>`;
-    else visual = `<span class="eleccion__icono"><svg class="icono" aria-hidden="true"><use href="#${o.icono}"/></svg></span>`;
+    if (o.foto) visual = `<img class="chat__opcion-foto" src="${o.foto}" alt="" width="32" height="32" decoding="async" />`;
+    else if (o.brillo !== undefined) visual = `<span class="chat__opcion-icono chat__opcion-icono--brillo">${htmlBrillo(o.brillo, i)}</span>`;
+    else visual = `<span class="chat__opcion-icono"><svg class="icono" aria-hidden="true"><use href="#${o.icono}"/></svg></span>`;
     return `
-      <button type="button" class="eleccion ${o.foto ? "eleccion--foto" : ""}" data-clave="${clave}" data-valor="${o.valor}">
+      <button type="button" class="chat__opcion ${conDetalle ? "chat__opcion--detalle" : ""}" data-clave="${clave}" data-valor="${o.valor}">
         ${visual}
-        <span class="eleccion__texto">
-          <span class="eleccion__titulo">${o.titulo}</span>
-          <span class="eleccion__detalle">${o.detalle}</span>
+        <span class="chat__opcion-texto">
+          <span class="chat__opcion-titulo">${o.titulo}</span>
+          ${o.detalle ? `<span class="chat__opcion-detalle">${o.detalle}</span>` : ""}
         </span>
       </button>`;
   }).join("");
-  return `
-    <h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">${pregunta.titulo}</h2>
-    <p class="asistente__ayuda">${pregunta.ayuda}</p>
-    <div class="elecciones elecciones--${clave}" role="group" aria-labelledby="asistentePregunta">${opciones}</div>`;
+  return `<div class="chat__opciones ${conDetalle ? "chat__opciones--lista" : ""}" role="group"
+    aria-label="${pregunta.mensaje}">${botones}</div>`;
 }
 
 function htmlMetros() {
   return `
-    <h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">¿Cuántos m² vas a pintar?</h2>
-    <p class="asistente__ayuda">Con eso calculamos cuántos litros necesitas y qué formatos te convienen.</p>
-    <form class="metros" id="formMetros" novalidate>
-      <div class="metros__campos">
-        <label class="campo">
-          <span class="campo__etiqueta">Metros cuadrados</span>
-          <input class="campo__control metros__numero" type="number" id="asistMetros" min="0.1" max="10000" step="any"
-                 inputmode="decimal" placeholder="Ej: 40" aria-describedby="metrosError" />
-        </label>
-        <label class="campo">
-          <span class="campo__etiqueta">Manos de pintura</span>
-          <select class="campo__control" id="asistManos">
-            <option value="">Las recomendadas</option>
-            <option value="1">1 mano</option><option value="2">2 manos</option><option value="3">3 manos</option>
-          </select>
-        </label>
-      </div>
-      <p class="formulario__error" id="metrosError" role="alert"></p>
-      <button type="submit" class="boton boton--principal metros__enviar">
-        Ver mi pintura <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg>
+    <form class="chat__metros" id="chatFormMetros" novalidate>
+      <label class="campo">
+        <span class="campo__etiqueta">Metros cuadrados</span>
+        <input class="campo__control" type="number" id="chatMetros" min="0.1" max="10000" step="any"
+               inputmode="decimal" placeholder="Ej: 40" aria-describedby="chatMetrosError" />
+      </label>
+      <label class="campo">
+        <span class="campo__etiqueta">Manos</span>
+        <select class="campo__control" id="chatManos">
+          <option value="">Recomendadas</option>
+          <option value="1">1 mano</option><option value="2">2 manos</option><option value="3">3 manos</option>
+        </select>
+      </label>
+      <button type="submit" class="chat__enviar" aria-label="Enviar">
+        <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg>
       </button>
     </form>
-
-    <details class="mini-calculo" id="miniCalculo">
-      <summary class="mini-calculo__abrir">
-        <svg class="icono" aria-hidden="true"><use href="#i-regla"/></svg>No sé cuántos m² son
-      </summary>
-      <div class="mini-calculo__cuerpo">
-        <p class="mini-calculo__texto">Mide un muro con una huincha. Si hay varios muros del mismo tamaño, indica cuántos.</p>
-        <div class="mini-calculo__campos">
-          <label class="campo"><span class="campo__etiqueta">Largo (m)</span>
-            <input class="campo__control" type="number" data-medida="largo" min="0" max="200" step="any" inputmode="decimal" placeholder="Ej: 4" /></label>
-          <label class="campo"><span class="campo__etiqueta">Alto (m)</span>
-            <input class="campo__control" type="number" data-medida="alto" min="0" max="50" step="any" inputmode="decimal" placeholder="Ej: 2,4" /></label>
-          <label class="campo"><span class="campo__etiqueta">Cantidad de muros</span>
-            <input class="campo__control" type="number" data-medida="muros" min="1" max="50" step="1" inputmode="numeric" value="1" /></label>
-          <label class="campo"><span class="campo__etiqueta">Puertas</span>
-            <input class="campo__control" type="number" data-medida="puertas" min="0" max="50" step="1" inputmode="numeric" value="0" /></label>
-          <label class="campo"><span class="campo__etiqueta">Ventanas</span>
-            <input class="campo__control" type="number" data-medida="ventanas" min="0" max="50" step="1" inputmode="numeric" value="0" /></label>
-        </div>
-        <p class="mini-calculo__resultado" aria-live="polite">Son unos <strong id="miniTotal">0 m²</strong></p>
-        <p class="mini-calculo__nota">Restamos ${formatearNumero(M2_PUERTA)} m² por puerta y ${formatearNumero(M2_VENTANA)} m² por ventana
-          (medidas típicas). Si las tuyas son muy distintas, corrige el total.</p>
-        <button type="button" class="boton boton--secundario" id="usarMedida" disabled>Usar esta medida</button>
-      </div>
-    </details>
-
-    <button type="button" class="asistente__omitir" data-omitir-m2>Prefiero no calcular ahora</button>`;
-}
-
-function formatearNumero(valor) {
-  return valor.toLocaleString("es-CL", { maximumFractionDigits: 1 });
+    <p class="formulario__error" id="chatMetrosError" role="alert"></p>
+    <div class="chat__opciones">
+      <button type="button" class="chat__opcion chat__opcion--suave" data-medir>
+        <svg class="icono" aria-hidden="true"><use href="#i-regla"/></svg>No sé cuántos m² son</button>
+      <button type="button" class="chat__opcion chat__opcion--suave" data-omitir-m2>Prefiero no calcular ahora</button>
+    </div>`;
 }
 
 /* Mini cálculo: largo × alto × muros − puertas − ventanas */
+function htmlMedir() {
+  const campo = function (medida, etiqueta, atributos) {
+    return `<label class="campo"><span class="campo__etiqueta">${etiqueta}</span>
+      <input class="campo__control" type="number" data-medida="${medida}" ${atributos} /></label>`;
+  };
+  return `
+    <p class="chat__nota">Mide un muro con una huincha. Si hay varios muros del mismo tamaño, indica cuántos.</p>
+    <div class="chat__medidas">
+      ${campo("largo", "Largo (m)", 'min="0" max="200" step="any" inputmode="decimal" placeholder="Ej: 4"')}
+      ${campo("alto", "Alto (m)", 'min="0" max="50" step="any" inputmode="decimal" placeholder="Ej: 2,4"')}
+      ${campo("muros", "Muros", 'min="1" max="50" step="1" inputmode="numeric" value="1"')}
+      ${campo("puertas", "Puertas", 'min="0" max="50" step="1" inputmode="numeric" value="0"')}
+      ${campo("ventanas", "Ventanas", 'min="0" max="50" step="1" inputmode="numeric" value="0"')}
+    </div>
+    <p class="chat__total" aria-live="polite">Son unos <strong id="chatMiniTotal">0 m²</strong></p>
+    <p class="chat__nota chat__nota--chica">Restamos ${formatearNumero(M2_PUERTA)} m² por puerta y ${formatearNumero(M2_VENTANA)} m²
+      por ventana (medidas típicas).</p>
+    <div class="chat__botones">
+      <button type="button" class="boton boton--principal" id="chatUsarMedida" disabled>Usar esta medida</button>
+      <button type="button" class="boton boton--secundario" data-volver-metros>Volver</button>
+    </div>`;
+}
+
 function calcularMiniMedida() {
   const medida = function (nombre) {
-    const valor = Number(pantalla.querySelector(`[data-medida="${nombre}"]`).value.replace(",", "."));
+    const valor = Number(entrada.querySelector(`[data-medida="${nombre}"]`).value.replace(",", "."));
     return Number.isFinite(valor) && valor > 0 ? valor : 0;
   };
   const bruto = medida("largo") * medida("alto") * Math.max(1, Math.round(medida("muros")) || 1);
@@ -285,76 +407,88 @@ function calcularMiniMedida() {
   return Math.min(10000, Math.round(total * 10) / 10);
 }
 
-/* Si viene con una pintura elegida (desde el visualizador), la mostramos */
-function htmlProductoElegido(r) {
-  if (r.producto === undefined) return "";
-  return `<p class="asistente__producto">Calcularemos para <strong id="productoElegido">la pintura que elegiste</strong>.
-    <button type="button" class="catalogo__quitar" data-quitar-producto>Prefiero que me recomienden</button></p>`;
+/* paso: una pregunta, "resultado" o "error" */
+function dibujarEntrada(paso, datos) {
+  let html;
+  if (paso === "m2") {
+    html = midiendo ? htmlMedir() : htmlMetros();
+  } else if (paso === "error") {
+    html = `<div class="chat__opciones"><button type="button" class="chat__opcion" data-reintentar>Reintentar</button></div>`;
+  } else if (paso === "resultado") {
+    const puedeCalcular = datos && datos.recomendado && typeof respuestas.m2 !== "number";
+    html = `<div class="chat__opciones">
+      ${puedeCalcular ? `<button type="button" class="chat__opcion" data-ir-m2>
+        <svg class="icono" aria-hidden="true"><use href="#i-regla"/></svg>Calcular litros</button>` : ""}
+      <button type="button" class="chat__opcion chat__opcion--suave" data-reiniciar>
+        <svg class="icono" aria-hidden="true"><use href="#i-reiniciar"/></svg>Empezar de nuevo</button>
+    </div>`;
+  } else {
+    html = htmlOpciones(paso);
+  }
+  if (pasosRespondidos(respuestas).length) {
+    html += `<button type="button" class="chat__atras" data-atras>
+      <svg class="icono" aria-hidden="true"><use href="#i-atras"/></svg>Cambiar mi última respuesta</button>`;
+  }
+  entrada.innerHTML = html;
+  entrada.classList.toggle("chat__entrada--medir", paso === "m2" && midiendo);
 }
 
-async function mostrarProductoElegido(r) {
-  if (r.producto === undefined) return;
-  await catalogoListo;
-  const producto = productos.find(function (p) { return p.id === r.producto; });
-  const nombre = document.getElementById("productoElegido");
-  if (producto && nombre) nombre.textContent = producto.nombre; // textContent: sin riesgo de XSS
-}
-
-/* -------- 5. EL RESULTADO -------- */
-async function dibujarResultado(r, numeroDibujo, enfocar) {
-  pantalla.innerHTML = `<h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">Buscando tu pintura…</h2>`;
-  if (enfocar) enfocarTitulo();
-
+/* -------- 7. EL RESULTADO -------- */
+async function buscarPintura() {
+  const r = respuestas;
   const params = new URLSearchParams({ superficie: r.superficie, uso: r.uso });
-  ["condicion", "acabado", "manos", "producto"].forEach(function (clave) {
+  ["condicion", "acabado", "manos"].forEach(function (clave) {
     if (r[clave] !== undefined) params.set(clave, r[clave]);
   });
   if (typeof r.m2 === "number") params.set("m2", r.m2);
-  let datos;
   try {
     await catalogoListo;
     // Lo que ya está en el carrito no se vuelve a ofrecer
     const enCarrito = carritoComoParametro();
     if (enCarrito) params.set("carrito", enCarrito);
     const respuesta = await fetch("/api/asistente?" + params);
-    datos = await respuesta.json();
+    const datos = await respuesta.json();
     if (!respuesta.ok) throw new Error(datos.error);
+    return datos;
   } catch (error) {
-    if (numeroDibujo !== dibujoActual) return;
-    pantalla.innerHTML = `
-      <h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">No pudimos buscar tu pintura</h2>
-      <p class="asistente__ayuda">Revisa tu conexión e inténtalo de nuevo.</p>
-      <p class="recomendacion__acciones"><button type="button" class="boton boton--principal" data-reintentar>Reintentar</button></p>`;
-    if (enfocar) enfocarTitulo();
+    return null;
+  }
+}
+
+function mostrarResultado(datos) {
+  if (!datos) {
+    agregarMensaje("bot", `<p class="mensaje__titulo">No pude buscar tu pintura.</p>
+      <p class="mensaje__ayuda">Revisa tu conexión e inténtalo de nuevo.</p>`);
+    dibujarEntrada("error");
     return;
   }
-  if (numeroDibujo !== dibujoActual) return; // la persona ya se fue a otra pantalla
-
   if (!datos.recomendado) {
-    pantalla.innerHTML = htmlSinResultado(datos);
-  } else {
-    resultadoActual = [datos.recomendado].concat(datos.alternativas);
-    pantalla.innerHTML = `
-      <h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">Tu <em>pintura</em></h2>
-      ${htmlResumenRespuestas(r)}
-      ${datos.aviso ? `<p class="asistente__aviso">${escaparHTML(datos.aviso)}</p>` : ""}
-      ${htmlRecomendacion(datos.recomendado, 0)}
-      ${datos.alternativas.length ? `
-        <h2 class="alternativas__titulo">Otras <em>opciones</em></h2>
-        <div class="alternativas">${datos.alternativas.map(function (p, i) { return htmlRecomendacion(p, i + 1); }).join("")}</div>` : ""}`;
+    agregarMensaje("bot", htmlSinResultado(datos));
+    dibujarEntrada("resultado", datos);
+    return;
   }
-  if (enfocar) enfocarTitulo();
+  resultadoActual = [datos.recomendado].concat(datos.alternativas);
+  // El comienzo del resultado queda arriba de la ventana (la tarjeta es larga)
+  const primero = agregarMensaje("bot", `<p class="mensaje__titulo">¡Listo! Esta es la que te recomiendo:</p>${htmlResumen(respuestas)}`);
+  if (datos.aviso) agregarMensaje("bot", `<p>${escaparHTML(datos.aviso)}</p>`, "mensaje--aviso");
+  agregarMensaje("bot", htmlSugerencia(datos.recomendado, 0), "mensaje--tarjeta");
+  if (datos.alternativas.length) {
+    agregarMensaje("bot", "<p>También te pueden servir:</p>");
+    datos.alternativas.forEach(function (p, i) {
+      agregarMensaje("bot", htmlSugerencia(p, i + 1), "mensaje--tarjeta");
+    });
+  }
+  mensajes.scrollTop = primero.offsetTop - 12;
+  dibujarEntrada("resultado", datos);
 }
 
 /* "Madera · Afuera · Sol fuerte · Mate · 40 m²" */
-function htmlResumenRespuestas(r) {
+function htmlResumen(r) {
   const partes = ["superficie", "uso", "condicion", "acabado"].map(function (clave) {
-    const opcion = r[clave] && PREGUNTAS[clave].opciones.find(function (o) { return o.valor === r[clave]; });
-    return opcion ? opcion.titulo : null;
+    return textoRespuesta(clave, r);
   }).filter(Boolean);
-  if (typeof r.m2 === "number") partes.push(formatearNumero(r.m2) + " m²");
-  if (r.manos) partes.push(r.manos + (r.manos === 1 ? " mano" : " manos"));
-  return `<ul class="asistente__resumen" aria-label="Tus respuestas">${partes.map(function (p) {
+  if (typeof r.m2 === "number") partes.push(textoRespuesta("m2", r));
+  return `<ul class="mensaje__resumen" aria-label="Tus respuestas">${partes.map(function (p) {
     return `<li>${escaparHTML(p)}</li>`;
   }).join("")}</ul>`;
 }
@@ -363,14 +497,13 @@ function htmlCalculo(p, indice) {
   const nombre = escaparHTML(p.nombre);
   if (!p.calculo) {
     if (indice !== 0) return "";
-    return `<div class="recomendacion__calculo">
-      <p>¿Cuántos litros necesitas? Dinos los m² y te decimos qué formatos comprar.</p>
-      <p><button type="button" class="boton boton--secundario" data-ir-m2>Calcular litros</button></p></div>`;
+    return `<div class="sugerencia__calculo"><p>¿Cuántos litros necesitas? Dime los m² y te digo qué formatos comprar.</p>
+      <button type="button" class="boton boton--secundario" data-ir-m2>Calcular litros</button></div>`;
   }
   const c = p.calculo;
   if (c.litros === null) {
-    return `<div class="recomendacion__calculo"><p>Todavía no tenemos el rendimiento de <strong>${nombre}</strong>,
-      así que no podemos calcular los litros. Escríbenos y te ayudamos.</p></div>`;
+    return `<div class="sugerencia__calculo"><p>Todavía no tenemos el rendimiento de <strong>${nombre}</strong>,
+      así que no puedo calcular los litros. Escríbenos y te ayudamos.</p></div>`;
   }
   let html = `<p class="calculadora__litros">Necesitas unos <strong>${formatearLitros(c.litros)}</strong>
     <span>(${explicacionLitros(c)})</span></p>`;
@@ -379,37 +512,35 @@ function htmlCalculo(p, indice) {
       Escríbenos y lo coordinamos.</p>`;
   } else {
     html += htmlCombinacion(c.combinacion, p.nombre) + `
-      <button type="button" class="boton boton--principal ${indice === 0 ? "boton--ancho" : ""}" data-agregar="${indice}">
+      <button type="button" class="boton boton--principal boton--ancho" data-agregar="${indice}">
         <svg class="icono" aria-hidden="true"><use href="#i-tarro"/></svg>${indice === 0 ? "Agregar todo al carrito" : "Agregar al carrito"}
       </button>`;
   }
-  return `<div class="recomendacion__calculo">${html}</div>`;
+  return `<div class="sugerencia__calculo">${html}</div>`;
 }
 
-function htmlRecomendacion(p, indice) {
+function htmlSugerencia(p, indice) {
   const principal = indice === 0;
-  const motivos = p.motivos.map(function (m) {
+  const motivos = `<ul class="sugerencia__motivos">${p.motivos.map(function (m) {
     return `<li><svg class="icono" aria-hidden="true"><use href="#i-check"/></svg><span>${escaparHTML(m)}</span></li>`;
-  }).join("");
+  }).join("")}</ul>`;
   return `
-    <article class="recomendacion ${principal ? "recomendacion--principal" : "recomendacion--alternativa"}">
-      <div class="recomendacion__foto">
+    <article class="sugerencia ${principal ? "sugerencia--principal" : "sugerencia--alternativa"}">
+      <div class="sugerencia__foto">
         <img src="${escaparHTML(p.imagen)}" alt="" width="800" height="600" loading="lazy" decoding="async" />
-        <span class="imagen-referencial">Imagen referencial</span>
+        ${principal ? '<span class="imagen-referencial">Imagen referencial</span>' : ""}
       </div>
-      <div class="recomendacion__cuerpo">
-        ${principal ? '<p class="recomendacion__etiqueta">Te recomendamos</p>' : ""}
-        <h3 class="recomendacion__nombre">${escaparHTML(p.nombre)}</h3>
-        <p class="recomendacion__precio-litro">Desde ${formatearPrecio(p.precio_litro)} por litro</p>
-        <p class="solo-lector">Por qué te la recomendamos:</p>
-        <ul class="recomendacion__motivos">${motivos}</ul>
+      <div class="sugerencia__cuerpo">
+        ${principal ? '<p class="sugerencia__etiqueta">Te recomendamos</p>' : ""}
+        <h3 class="sugerencia__nombre">${escaparHTML(p.nombre)}</h3>
+        <p class="sugerencia__precio">Desde ${formatearPrecio(p.precio_litro)} por litro</p>
+        ${principal ? `<p class="solo-lector">Por qué te la recomendamos:</p>${motivos}`
+          : `<details class="sugerencia__porque"><summary>Por qué esta</summary>${motivos}</details>`}
         ${htmlCalculo(p, indice)}
-        ${p.ficha_demo ? `<p class="recomendacion__demo">Ficha técnica de ejemplo: Ecocordi todavía debe confirmar
+        ${p.ficha_demo ? `<p class="sugerencia__demo">Ficha técnica de ejemplo: Ecocordi todavía debe confirmar
           el rendimiento y las resistencias de esta pintura.</p>` : ""}
-        <p class="recomendacion__acciones">
-          <a class="enlace-flecha" href="catalogo.html?${new URLSearchParams({ q: p.nombre.slice(0, 60) })}">
-            Ver en el catálogo <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg></a>
-        </p>
+        <a class="enlace-flecha sugerencia__catalogo" href="catalogo.html?${new URLSearchParams({ q: p.nombre.slice(0, 60) })}">
+          Ver en el catálogo <svg class="icono" aria-hidden="true"><use href="#i-flecha"/></svg></a>
       </div>
     </article>`;
 }
@@ -422,52 +553,95 @@ function htmlSinResultado(datos) {
     : `<a class="boton boton--principal" href="mailto:pinturas@ecocordi.cl">
         <svg class="icono" aria-hidden="true"><use href="#i-correo"/></svg>Escríbenos</a>`;
   return `
-    <h2 class="asistente__pregunta" id="asistentePregunta" tabindex="-1">Aún no tenemos <em>esa pintura</em></h2>
-    <p class="asistente__ayuda">${escaparHTML(datos.mensaje)}</p>
-    <p class="recomendacion__acciones">
+    <p class="mensaje__titulo">Aún no tenemos esa pintura.</p>
+    <p class="mensaje__ayuda">${escaparHTML(datos.mensaje)}</p>
+    <p class="mensaje__acciones">
       ${whatsapp}
       <a class="boton boton--secundario" href="index.html#sucursales">
         <svg class="icono" aria-hidden="true"><use href="#i-pin"/></svg>Ver sucursales</a>
     </p>`;
 }
 
-/* -------- 6. CLICS Y FORMULARIOS (delegación de eventos) -------- */
-pantalla.addEventListener("click", async function (evento) {
-  const eleccion = evento.target.closest("[data-clave]");
-  if (eleccion) {
-    responder(eleccion.dataset.clave, eleccion.dataset.valor);
+/* -------- 8. ABRIR Y CERRAR -------- */
+function abrirAsistente() {
+  if (!chat.classList.contains("abierto")) focoAntesDelChat = document.activeElement;
+  chat.classList.add("abierto");
+  burbuja.classList.add("oculta");
+  burbuja.setAttribute("aria-expanded", "true");
+  document.documentElement.classList.add("chat-abierto");
+  if (!iniciado) {
+    iniciado = true;
+    dibujarTodo();
+  }
+  enfocarEntrada();
+}
+
+function cerrarAsistente() {
+  if (!chat.classList.contains("abierto")) return;
+  chat.classList.remove("abierto");
+  burbuja.classList.remove("oculta");
+  burbuja.setAttribute("aria-expanded", "false");
+  document.documentElement.classList.remove("chat-abierto");
+  // El foco vuelve a donde estaba (o a la burbuja)
+  const volver = focoAntesDelChat && focoAntesDelChat.isConnected && focoAntesDelChat !== document.body
+    ? focoAntesDelChat : burbuja;
+  volver.focus();
+}
+
+burbuja.addEventListener("click", abrirAsistente);
+document.getElementById("chatCerrar").addEventListener("click", cerrarAsistente);
+document.getElementById("chatReiniciar").addEventListener("click", empezarDeNuevo);
+
+// Escape cierra el chat (solo si el foco está adentro: así no choca con el carrito)
+chat.addEventListener("keydown", function (evento) {
+  if (evento.key === "Escape") cerrarAsistente();
+});
+
+// Los accesos de la página: menú "Asistente", "¿No sabes qué pintura usar?"...
+document.addEventListener("click", function (evento) {
+  const acceso = evento.target.closest('a[href="#asistente"], [data-abrir-asistente]');
+  if (!acceso) return;
+  evento.preventDefault();
+  abrirAsistente();
+});
+
+/* -------- 9. CLICS Y FORMULARIOS DENTRO DEL CHAT (delegación de eventos) -------- */
+chat.addEventListener("click", async function (evento) {
+  const objetivo = evento.target;
+  const opcion = objetivo.closest("[data-clave]");
+  if (opcion) {
+    responder(opcion.dataset.clave, opcion.dataset.valor);
     return;
   }
-  if (evento.target.closest("[data-omitir-m2]")) {
-    responder("m2", "no");
+  if (objetivo.closest("[data-omitir-m2]")) { responder("m2", "no"); return; }
+  if (objetivo.closest("[data-atras]")) { atras(); return; }
+  if (objetivo.closest("[data-reiniciar]")) { empezarDeNuevo(); return; }
+  if (objetivo.closest("[data-reintentar]")) { dibujarTodo().then(enfocarEntrada); return; }
+  if (objetivo.closest("[data-medir]") || objetivo.closest("[data-volver-metros]")) {
+    midiendo = !!objetivo.closest("[data-medir]");
+    dibujarEntrada("m2");
+    mensajes.scrollTop = mensajes.scrollHeight;
+    enfocarEntrada();
     return;
   }
-  if (evento.target.closest("[data-reintentar]")) {
-    dibujar(true);
+  if (objetivo.closest("#chatUsarMedida")) {
+    responder("m2", calcularMiniMedida());
     return;
   }
-  if (evento.target.closest("[data-ir-m2]") || evento.target.closest("[data-quitar-producto]")) {
-    const r = leerRespuestas();
-    if (evento.target.closest("[data-quitar-producto]")) delete r.producto;
-    else delete r.m2;
-    delete r.manos;
-    history.pushState({ asistente: true }, "", urlCon(r));
-    dibujar(true);
+  if (objetivo.closest("[data-ir-m2]")) {
+    delete respuestas.m2;
+    delete respuestas.manos;
+    guardar();
+    dibujarTodo();
+    enfocarEntrada();
     return;
   }
-  if (evento.target.closest("#usarMedida")) {
-    const total = calcularMiniMedida();
-    const campo = document.getElementById("asistMetros");
-    campo.value = total;
-    campo.focus();
-    return;
-  }
-  const agregar = evento.target.closest("[data-agregar]");
+  const agregar = objetivo.closest("[data-agregar]");
   if (agregar && resultadoActual) {
-    const opcion = resultadoActual[Number(agregar.dataset.agregar)];
-    if (!opcion || !opcion.calculo || !opcion.calculo.combinacion) return;
+    const sugerida = resultadoActual[Number(agregar.dataset.agregar)];
+    if (!sugerida || !sugerida.calculo || !sugerida.calculo.combinacion) return;
     await catalogoListo;
-    opcion.calculo.combinacion.items.forEach(function (item) {
+    sugerida.calculo.combinacion.items.forEach(function (item) {
       agregarAlCarrito(item.formato_id, item.cantidad, false);
     });
     agregar.disabled = true;
@@ -477,51 +651,32 @@ pantalla.addEventListener("click", async function (evento) {
 });
 
 // El mini cálculo se actualiza mientras se escribe
-pantalla.addEventListener("input", function (evento) {
+chat.addEventListener("input", function (evento) {
   if (!evento.target.matches("[data-medida]")) return;
   const total = calcularMiniMedida();
-  document.getElementById("miniTotal").textContent = formatearNumero(total) + " m²";
-  document.getElementById("usarMedida").disabled = !(total > 0);
+  document.getElementById("chatMiniTotal").textContent = formatearNumero(total) + " m²";
+  document.getElementById("chatUsarMedida").disabled = !(total > 0);
 });
 
-pantalla.addEventListener("submit", function (evento) {
-  if (evento.target.id !== "formMetros") return;
+chat.addEventListener("submit", function (evento) {
+  if (evento.target.id !== "chatFormMetros") return;
   evento.preventDefault();
-  const campo = document.getElementById("asistMetros");
-  const error = document.getElementById("metrosError");
+  const campo = document.getElementById("chatMetros");
+  const error = document.getElementById("chatMetrosError");
   const metros = Math.round(Number(campo.value.replace(",", ".")) * 100) / 100;
   if (!(metros > 0) || metros > 10000) {
-    error.textContent = "Escribe los metros cuadrados: un número mayor que 0 y hasta 10.000. Si no lo sabes, usa «No sé cuántos m² son».";
+    error.textContent = "Escribe un número mayor que 0 y hasta 10.000. Si no lo sabes, toca «No sé cuántos m² son».";
     campo.setAttribute("aria-invalid", "true");
     campo.focus();
     return;
   }
-  const manos = document.getElementById("asistManos").value;
-  responder("m2", String(metros), manos ? { manos: Number(manos) } : null);
+  const manos = document.getElementById("chatManos").value;
+  responder("m2", metros, manos ? { manos: Number(manos) } : null);
 });
 
-/* -------- 7. ATRÁS -------- */
-botonAtras.addEventListener("click", function () {
-  // Si la pregunta anterior está en el historial, usamos el "atrás" del navegador
-  if (history.state && history.state.asistente) {
-    history.back();
-    return;
-  }
-  // Llegó con un enlace compartido: quitamos la última respuesta
-  const r = leerRespuestas();
-  const pasos = pasosDe(r);
-  const actual = pasoActual(r);
-  const respondidas = actual === "resultado" ? pasos : pasos.slice(0, pasos.indexOf(actual));
-  const ultima = respondidas[respondidas.length - 1];
-  if (!ultima) return;
-  delete r[ultima];
-  if (ultima === "m2") delete r.manos;
-  history.replaceState({ asistente: false }, "", urlCon(r));
-  dibujar(true);
-});
-
-// Botones "atrás" y "adelante" del navegador
-window.addEventListener("popstate", function () { dibujar(true); });
-
-/* -------- 8. ARRANQUE -------- */
-dibujar(false);
+/* -------- 10. ARRANQUE --------
+   Un enlace desde otra página (index.html#asistente) abre el chat directo. */
+if (location.hash === "#asistente") {
+  history.replaceState(null, "", location.pathname + location.search);
+  abrirAsistente();
+}

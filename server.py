@@ -1125,7 +1125,7 @@ def _volver_seguro(volver):
     para redirigir a otra web (open redirect). La dirección se ARMA de nuevo
     solo con lo permitido: la página y los filtros del catálogo."""
     pagina, _, consulta = (volver or "").partition("?")
-    if pagina not in ("index.html", "catalogo.html", "pedido.html", "asistente.html"):
+    if pagina not in ("index.html", "catalogo.html", "pedido.html"):
         return "/"
     params = parse_qs(consulta)
     seguros = {}
@@ -1135,15 +1135,6 @@ def _volver_seguro(volver):
     busqueda = params.get("q", [""])[0].strip()
     if busqueda and len(busqueda) <= MAX_BUSQUEDA:
         seguros["q"] = busqueda
-    if pagina == "asistente.html":
-        # Las respuestas del asistente, solo si son valores conocidos
-        for clave, validos in (("uso", ("interior", "exterior")), ("condicion", CONDICIONES),
-                               ("acabado", ACABADOS + ("no_se",))):
-            if params.get(clave, [""])[0] in validos:
-                seguros[clave] = params[clave][0]
-        for clave, patron in (("m2", r"\d{1,5}([.,]\d{1,2})?|no"), ("manos", r"[1-5]"), ("producto", r"\d{1,9}")):
-            if re.fullmatch(patron, params.get(clave, [""])[0]):
-                seguros[clave] = params[clave][0]
     return "/" + pagina + ("?" + urlencode(seguros) if seguros else "")
 
 
@@ -1209,7 +1200,7 @@ RAIZ_PUBLICA = {"favicon.ico"}  # además de las páginas .html (robots.txt y si
 
 # Páginas que aparecen en el sitemap (las que Google debería mostrar).
 # El panel de administración NO va: es privado.
-PAGINAS_SITEMAP = ["index.html", "catalogo.html", "asistente.html"] + [f"catalogo.html?superficie={s}" for s in SUPERFICIES] + [
+PAGINAS_SITEMAP = ["index.html", "catalogo.html"] + [f"catalogo.html?superficie={s}" for s in SUPERFICIES] + [
     "terminos.html", "privacidad.html", "cookies.html", "devoluciones.html", "creditos.html"]
 
 

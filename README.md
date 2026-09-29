@@ -106,6 +106,7 @@ ecocordi/
 │   ├── luz.js         → Elige la luz (mañana/tarde/noche) antes de dibujar la página
 │   ├── ui.js          → Avisos (toasts) y diálogo de confirmación, compartidos
 │   ├── app.js         → Lógica de la tienda (catálogo, carrito, login)
+│   ├── asistente.js   → Burbuja "Asistente": el chat "¿Qué pintura necesito?"
 │   ├── pedido.js      → Lógica de "Finalizar pedido"
 │   └── admin.js       → Lógica del panel de administración
 ├── fonts/             → Tipografías servidas desde el propio sitio (licencia OFL)
@@ -136,6 +137,14 @@ ecocordi/
   combinación de formatos **más barata** que alcance, según el stock. El
   rendimiento (m² por litro) lo carga el admin en cada producto; si falta, la
   calculadora lo dice en vez de inventarlo.
+- **Asistente "¿Qué pintura necesito?"** en una **burbuja de chat** que flota
+  abajo a la derecha (portada y catálogo). Al tocarla se abre un chat que pregunta
+  qué vas a pintar, dónde está, si le llega humedad o sol, qué acabado prefieres
+  y cuántos m² son; se responde tocando botones. El servidor elige la pintura
+  con reglas simples (`GET /api/asistente`) y el chat muestra la recomendada,
+  hasta 2 alternativas, los litros y el botón "Agregar todo al carrito".
+  La conversación se recuerda al cambiar de página (sessionStorage). En el
+  celular ocupa toda la pantalla. Cualquier enlace a `#asistente` abre el chat.
 - **Stock** por formato: la tienda muestra "¡Quedan N!" cuando quedan 5 o
   menos y "Agotado" (botón deshabilitado) cuando no queda nada.
 - **Cuentas de usuario** reales: registro e inicio de sesión con contraseñas

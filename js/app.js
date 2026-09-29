@@ -202,7 +202,7 @@ function mostrarProductos(lista, mensajeVacio) {
    bloquea), ponemos UN solo "escuchador" en el contenedor de productos.
    Cuando haces clic en cualquier parte de adentro, revisamos si fue en un
    botón, y leemos el formato desde su atributo data-formato-id. */
-// Las páginas del asistente y del visualizador no tienen lista de productos
+// Solo las páginas con lista de productos (portada y catálogo) la tienen
 if (contenedorProductos) {
   contenedorProductos.addEventListener("click", function (evento) {
     const boton = evento.target.closest(".producto__boton");
@@ -534,7 +534,7 @@ function sincronizarCarrito() {
    como "inert": el teclado (Tab) y los lectores de pantalla se quedan dentro
    de la ventana, como en una ventana real. */
 function bloquearFondo(bloquear) {
-  document.querySelectorAll(".saltar, .cabecera, main, .pie, .whatsapp").forEach(function (el) {
+  document.querySelectorAll(".saltar, .cabecera, main, .pie, .whatsapp, .asistente-burbuja, .chat").forEach(function (el) {
     el.inert = bloquear;
   });
 }
@@ -1086,7 +1086,7 @@ if (formCalculadora) {
    20. ARRANQUE
    ============================================================ */
 cargarCarrito();     // recupera el carrito guardado
-// trae los productos de la base de datos. Otras páginas (asistente) esperan
+// trae los productos de la base de datos. El asistente (js/asistente.js) espera
 // esta "promesa" antes de agregar cosas al carrito.
 const catalogoListo = cargarProductos();
 cargarUsuario();     // revisa si ya hay sesión iniciada
