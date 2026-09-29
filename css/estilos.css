@@ -43,20 +43,21 @@
 }
 
 /* ============ 1. VARIABLES: LUZ DE LA MAÑANA ============
-   Luz fría y clara. Todos los textos cumplen contraste AA (mínimo 5,2:1). */
+   Luz fría y clara, con un toque azul. Todos los textos cumplen contraste AA
+   (mínimo 5,2:1). */
 :root {
-  --muro:         #F4F1EC;  /* fondo general: muro recién pintado */
-  --muro-2:       #EAE5DD;  /* franjas alternas */
-  --papel:        #FBFAF7;  /* tarjetas, ventanas, carrito */
-  --texto:        #26221D;  /* grafito cálido */
-  --texto-2:      #5E574E;  /* piedra: texto secundario */
-  --linea:        #DAD3C8;
-  --acento:       #3F5A4C;  /* salvia profunda: botones y enlaces */
-  --acento-hover: #34493E;
+  --muro:         #EEF2F5;  /* fondo general: muro recién pintado, luz fría */
+  --muro-2:       #E1E8EE;  /* franjas alternas */
+  --papel:        #F8FAFC;  /* tarjetas, ventanas, carrito */
+  --texto:        #1E2630;  /* grafito azulado */
+  --texto-2:      #525E6B;  /* pizarra: texto secundario */
+  --linea:        #D0D9E1;
+  --acento:       #2E5878;  /* azul acero profundo: botones y enlaces */
+  --acento-hover: #244A67;
   --sobre-acento: #FFFFFF;  /* texto encima del acento */
   --aviso:        #8A5A00;  /* "Quedan N" */
   --error:        #A3302A;  /* "Agotado" y errores */
-  --exito:        #3F5A4C;
+  --exito:        #2E5878;
   --foco:         #2D5BA8;
 
   /* Cómo se "ilumina" la foto de la ventana y las fotos de superficies */
@@ -64,7 +65,7 @@
   --ventana-tinte: linear-gradient(180deg, rgba(214, 229, 255, 0.28), rgba(255, 255, 255, 0.05));
   --ventana-rayo: rgba(255, 252, 240, 0.55);
   /* Degradado oscuro bajo el texto blanco de las fotos (legible aunque la foto sea clara) */
-  --scrim: linear-gradient(180deg, rgba(20, 17, 13, 0) 30%, rgba(20, 17, 13, 0.55) 58%, rgba(20, 17, 13, 0.9) 100%);
+  --scrim: linear-gradient(180deg, rgba(14, 20, 28, 0) 30%, rgba(14, 20, 28, 0.55) 58%, rgba(14, 20, 28, 0.9) 100%);
 
   /* Estados de pedido (fondo suave + texto oscuro) */
   --pendiente-fondo: #F8ECD4; --pendiente-texto: #704600;
@@ -106,7 +107,7 @@
   --medio:  260ms;
   --cambio-luz: 700ms;  /* cuánto demora la página en "cambiar de luz" */
 
-  --sombra-flotante: 0 18px 48px rgba(38, 34, 29, 0.16);
+  --sombra-flotante: 0 18px 48px rgba(22, 32, 44, 0.16);
   color-scheme: light;
 }
 
@@ -119,8 +120,9 @@
   --texto:        #2A2118;
   --texto-2:      #62533F;
   --linea:        #DCCAB2;
-  --acento:       #3A5245;
-  --acento-hover: #2F4439;
+  --acento:       #2D5070;
+  --acento-hover: #23425E;
+  --exito:        #2D5070;
   --aviso:        #7E4E00;
   --error:        #9C2E28;
   --foto-filtro:  saturate(1.12) sepia(0.12) contrast(1.03);
@@ -139,12 +141,12 @@
   --texto:        #EEF1F4;
   --texto-2:      #B4BECB;
   --linea:        #384556;
-  --acento:       #A9C4B4;
-  --acento-hover: #BFD4C7;
-  --sobre-acento: #13201A;
+  --acento:       #9DC0E3;
+  --acento-hover: #B6D1EC;
+  --sobre-acento: #0F1D2B;
   --aviso:        #F2C46B;
   --error:        #F2988F;
-  --exito:        #A9C4B4;
+  --exito:        #9DC0E3;
   --foco:         #9DC0FF;
   --foto-filtro:  brightness(0.62) saturate(0.7) contrast(1.05);
   --ventana-tinte: radial-gradient(circle at 78% 88%, rgba(255, 190, 110, 0.35), transparent 55%),
@@ -585,7 +587,7 @@ p { text-wrap: pretty; }
 /* ============ 11. VENTANAS, CARRITO, AVISOS Y DIÁLOGO ============ */
 .modal-fondo, .carrito-fondo {
   position: fixed; inset: 0; z-index: 400;
-  background: rgba(20, 17, 13, 0.5); backdrop-filter: blur(3px);
+  background: rgba(14, 20, 28, 0.5); backdrop-filter: blur(3px);
   opacity: 0; visibility: hidden;
   /* visibility cambia al FINAL al cerrar y al INSTANTE al abrir */
   transition: opacity var(--medio) var(--curva-salida), visibility 0s linear var(--medio);
@@ -702,7 +704,7 @@ p { text-wrap: pretty; }
   background: var(--papel); color: var(--texto); box-shadow: var(--sombra-flotante);
 }
 .dialogo[open] { animation: entrar-dialogo var(--medio) var(--curva-salida); }
-.dialogo::backdrop { background: rgba(20, 17, 13, 0.5); }
+.dialogo::backdrop { background: rgba(14, 20, 28, 0.5); }
 .dialogo__titulo { font-size: var(--txt-xl); }
 .dialogo__mensaje { margin-top: var(--esp-2); color: var(--texto-2); }
 .dialogo__acciones { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--esp-2); margin-top: var(--esp-6); }
@@ -1154,7 +1156,7 @@ p { text-wrap: pretty; }
 .imagen-referencial {
   position: absolute; left: var(--esp-2); bottom: var(--esp-2);
   padding: 2px 8px; border-radius: 999px;
-  background: rgba(20, 17, 13, 0.72); color: #FFFFFF; font-size: 0.6875rem; font-weight: 600;
+  background: rgba(14, 20, 28, 0.72); color: #FFFFFF; font-size: 0.6875rem; font-weight: 600;
 }
 .nosotros__foto { position: relative; }
 .datos-empresa { display: grid; gap: var(--esp-2); font-size: var(--txt-sm); }
