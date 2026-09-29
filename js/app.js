@@ -99,9 +99,8 @@ function buscarFormato(formatoId) {
   return null;
 }
 
-/* Lo que guardamos en el carrito por cada formato (y color, si se eligió uno
-   en el visualizador: { id, nombre, codigo, hex }) */
-function itemDeCarrito(producto, formato, cantidad, color) {
+/* Lo que guardamos en el carrito por cada formato */
+function itemDeCarrito(producto, formato, cantidad) {
   return {
     formato_id: formato.id,
     producto_id: producto.id,
@@ -112,24 +111,7 @@ function itemDeCarrito(producto, formato, cantidad, color) {
     imagen: producto.imagen,
     superficies: producto.superficies,
     cantidad: cantidad,
-    color_id: color ? color.id : null,
-    color_nombre: color ? color.nombre : null,
-    color_codigo: color ? color.codigo : null,
-    color_hex: color ? color.hex : null,
   };
-}
-
-/* Cada línea del carrito es un formato EN un color: el mismo galón en blanco
-   y en azul son dos líneas ("12-3" y "12-7"). Sin color: "12-0". */
-function claveItem(item) {
-  return item.formato_id + "-" + (item.color_id || 0);
-}
-
-/* El stock es del formato: sumamos las unidades de todas sus líneas (todos los colores) */
-function unidadesDelFormato(formatoId, lista) {
-  return (lista || carrito).reduce(function (suma, item) {
-    return suma + (item.formato_id === formatoId ? Number(item.cantidad) || 0 : 0);
-  }, 0);
 }
 
 /* Litros con coma decimal chilena: 3,785 L */
@@ -207,8 +189,6 @@ function mostrarProductos(lista, mensajeVacio) {
           <h3 class="producto__nombre">${escaparHTML(p.nombre)}</h3>
           <p class="producto__desc">${escaparHTML(p.descripcion)}</p>
           <ul class="producto__superficies" aria-label="Superficies">${superficies}</ul>
-          ${p.colores && p.colores.length ? `<a class="producto__colores" href="visualizador.html?producto=${p.id}">
-            <span class="producto__paleta" aria-hidden="true"></span>Ver colores (${p.colores.length})</a>` : ""}
           ${formato ? htmlFormatos(p, formato) : ""}
           <div class="producto__pie">${htmlCompra(formato)}</div>
         </div>
@@ -405,51 +385,45 @@ function mostrarCatalogo() {
 }
 
 /* -------- 7. CARRITO: agregar, cambiar cantidad, eliminar -------- */
-/* abrir = false: agrega sin abrir el panel (la calculadora agrega varios y lo abre al final).
-   color (opcional): { id, nombre, codigo, hex }, ya revisado por el servidor. */
-function agregarAlCarrito(formatoId, cantidad, abrir, color) {
+/* abrir = false: agrega sin abrir el panel (la calculadora agrega varios y lo abre al final) */
+function agregarAlCarrito(formatoId, cantidad, abrir) {
   const encontrado = buscarFormato(formatoId);
-  if (!encontrado) return false;
+  if (!encontrado) return;
   const producto = encontrado.producto;
   const formato = encontrado.formato;
   const sumar = cantidad || 1;
-  const colorId = color ? color.id : null;
-  const enCarrito = carrito.find(function (item) {
-    return item.formato_id === formatoId && (item.color_id || null) === colorId;
-  });
-  const yaTengo = unidadesDelFormato(formatoId); // de este formato, en todos los colores
+  const enCarrito = carrito.find(function (item) { return item.formato_id === formatoId; });
+  const yaTengo = enCarrito ? enCarrito.cantidad : 0;
 
   // No dejamos pedir más de lo que hay en bodega
   if (yaTengo + sumar > formato.stock) {
     avisar("Ya tienes en tu carrito todas las unidades disponibles de " +
            producto.nombre + " (" + formato.nombre + "): " + formato.stock + ".", "info");
-    if (yaTengo >= formato.stock) return false;
+    if (yaTengo >= formato.stock) return;
   }
-  const agregar = Math.min(sumar, formato.stock - yaTengo);
+  const nuevaCantidad = Math.min(yaTengo + sumar, formato.stock);
   if (enCarrito) {
-    enCarrito.cantidad += agregar;
+    enCarrito.cantidad = nuevaCantidad;
   } else {
-    carrito.push(itemDeCarrito(producto, formato, agregar, color));
+    carrito.push(itemDeCarrito(producto, formato, nuevaCantidad));
   }
   actualizarCarrito();
   if (abrir !== false) abrirCarrito();
-  return true;
 }
 
-function cambiarCantidad(clave, cambio) {
-  const item = carrito.find(function (i) { return claveItem(i) === clave; });
-  if (!item) return;
-  if (cambio > 0 && unidadesDelFormato(item.formato_id) >= item.stock) return; // sin más stock
+function cambiarCantidad(id, cambio) {
+  const item = carrito.find(function (i) { return i.formato_id === id; });
+  if (cambio > 0 && item.cantidad >= item.stock) return; // sin más stock
   item.cantidad += cambio;
   if (item.cantidad <= 0) {
-    eliminarDelCarrito(clave);
+    eliminarDelCarrito(id);
   } else {
     actualizarCarrito();
   }
 }
 
-function eliminarDelCarrito(clave) {
-  carrito = carrito.filter(function (item) { return claveItem(item) !== clave; });
+function eliminarDelCarrito(id) {
+  carrito = carrito.filter(function (item) { return item.formato_id !== id; });
   actualizarCarrito();
 }
 
@@ -470,14 +444,13 @@ function actualizarCarrito() {
       total += (Number(item.precio) || 0) * (Number(item.cantidad) || 0);
       cantidadTotal += Number(item.cantidad) || 0;
       const nombre = escaparHTML(item.nombre);
-      const alMaximo = unidadesDelFormato(item.formato_id) >= item.stock;
+      const alMaximo = item.cantidad >= item.stock;
       return `
-        <div class="item ${claseSuperficie((item.superficies || [])[0])}" data-clave="${escaparHTML(claveItem(item))}">
+        <div class="item ${claseSuperficie((item.superficies || [])[0])}" data-id="${item.formato_id}">
           <img class="item__imagen" src="${escaparHTML(item.imagen)}" alt="" width="64" height="64" loading="lazy" />
           <div class="item__info">
             <p class="item__nombre">${nombre}</p>
             <p class="item__precio">${item.formato ? escaparHTML(item.formato) + " · " : ""}${formatearPrecio(item.precio)} c/u</p>
-            ${item.color_id ? `<p class="item__color">${htmlColorElegido(item.color_nombre, item.color_codigo, item.color_hex)}</p>` : ""}
             <div class="item__controles">
               <button type="button" class="item__btn" data-accion="restar" aria-label="Quitar una unidad de ${nombre}">−</button>
               <span class="item__cantidad" aria-label="Cantidad">${item.cantidad}</span>
@@ -494,7 +467,6 @@ function actualizarCarrito() {
     }).join("");
   }
 
-  pintarMuestras(carritoItems);
   carritoTotal.textContent = formatearPrecio(total);
   contadorCarrito.textContent = cantidadTotal;
   guardarCarrito(); // guardamos en el navegador para que no se pierda
@@ -502,11 +474,11 @@ function actualizarCarrito() {
 
 /* -------- 8b. CLICS DENTRO DEL CARRITO (delegación de eventos) --------
    Cada botón dice qué hace con data-accion ("restar", "sumar", "eliminar")
-   y la fila del carrito guarda su clave (formato y color) en data-clave. */
+   y la fila del carrito guarda el id del FORMATO en data-id. */
 carritoItems.addEventListener("click", function (evento) {
   const boton = evento.target.closest("[data-accion]");
   if (!boton) return;
-  const id = boton.closest(".item").dataset.clave;
+  const id = Number(boton.closest(".item").dataset.id);
   const accion = boton.dataset.accion;
   if (accion === "restar")   cambiarCantidad(id, -1);
   if (accion === "sumar")    cambiarCantidad(id, 1);
@@ -545,21 +517,12 @@ function sincronizarCarrito() {
       if (formato) encontrado = { producto: producto, formato: formato };
     }
     if (!encontrado || encontrado.formato.stock <= 0) return;
-    // Un color que ya no está disponible para ese producto: se quita la línea
-    const colorId = Number.isInteger(item.color_id) ? item.color_id : null;
-    if (colorId !== null && !(encontrado.producto.colores || []).includes(colorId)) return;
-    const color = colorId === null ? null
-      : { id: colorId, nombre: item.color_nombre, codigo: item.color_codigo, hex: item.color_hex };
-    // Lo que queda del formato después de las líneas ya revisadas (otros colores)
-    const quedan = encontrado.formato.stock - unidadesDelFormato(encontrado.formato.id, nuevo);
-    const cantidad = Math.min(Number(item.cantidad) || 1, quedan);
-    if (cantidad <= 0) return;
-    const clave = encontrado.formato.id + "-" + (colorId || 0);
-    const repetido = nuevo.find(function (i) { return claveItem(i) === clave; });
+    const cantidad = Math.min(Number(item.cantidad) || 1, encontrado.formato.stock);
+    const repetido = nuevo.find(function (i) { return i.formato_id === encontrado.formato.id; });
     if (repetido) {
-      repetido.cantidad += cantidad;
+      repetido.cantidad = Math.min(repetido.cantidad + cantidad, encontrado.formato.stock);
     } else {
-      nuevo.push(itemDeCarrito(encontrado.producto, encontrado.formato, cantidad, color));
+      nuevo.push(itemDeCarrito(encontrado.producto, encontrado.formato, cantidad));
     }
   });
   carrito = nuevo;
@@ -857,8 +820,7 @@ async function abrirMisPedidos() {
   listaMisPedidos.innerHTML = pedidos.map(function (p) {
     const items = p.items.map(function (it) {
       const formato = it.formato ? ` <span class="mi-pedido__formato">(${escaparHTML(it.formato)})</span>` : "";
-      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}${formato}
-        ${htmlColorElegido(it.color_nombre, it.color_codigo, it.color_hex)}</li>`;
+      return `<li>${it.cantidad} × ${escaparHTML(it.nombre)}${formato}</li>`;
     }).join("");
     // La clase de color solo se arma con estados conocidos
     const estado = NOMBRES_ESTADO[p.estado] ? p.estado : "pendiente";
@@ -874,7 +836,6 @@ async function abrirMisPedidos() {
       </div>
     `;
   }).join("");
-  pintarMuestras(listaMisPedidos);
 }
 
 /* "Retiro en sucursal Talca" o "Despacho a Comuna, Región (costo)". Ya escapado. */
